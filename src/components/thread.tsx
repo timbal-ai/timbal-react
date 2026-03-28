@@ -14,8 +14,8 @@ import {
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
-  SuggestionPrimitive,
   ThreadPrimitive,
+  useThreadRuntime,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -28,22 +28,60 @@ import {
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
-import type { FC } from "react";
+import { type FC } from "react";
+import { cn } from "../utils";
 
-export const Thread: FC = () => {
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface ThreadSuggestion {
+  title: string;
+  description?: string;
+}
+
+export interface ThreadWelcomeConfig {
+  heading?: string;
+  subheading?: string;
+}
+
+export interface ThreadProps {
+  className?: string;
+  /** Max width of the message column. Default: "44rem" */
+  maxWidth?: string;
+  /** Welcome screen text */
+  welcome?: ThreadWelcomeConfig;
+  /** Suggestion chips shown on the welcome screen */
+  suggestions?: ThreadSuggestion[];
+  /** Composer input placeholder. Default: "Send a message..." */
+  composerPlaceholder?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Thread
+// ---------------------------------------------------------------------------
+
+export const Thread: FC<ThreadProps> = ({
+  className,
+  maxWidth = "44rem",
+  welcome,
+  suggestions,
+  composerPlaceholder = "Send a message...",
+}) => {
   return (
     <ThreadPrimitive.Root
-      className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
-      style={{
-        ["--thread-max-width" as string]: "44rem",
-      }}
+      className={cn(
+        "aui-root aui-thread-root @container flex h-full flex-col bg-background",
+        className,
+      )}
+      style={{ ["--thread-max-width" as string]: maxWidth }}
     >
       <ThreadPrimitive.Viewport
         turnAnchor="bottom"
         className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4 pt-4"
       >
         <AuiIf condition={(s) => s.thread.isEmpty}>
-          <ThreadWelcome />
+          <ThreadWelcome config={welcome} suggestions={suggestions} />
         </AuiIf>
 
         <ThreadPrimitive.Messages
@@ -56,12 +94,16 @@ export const Thread: FC = () => {
 
         <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
           <ThreadScrollToBottom />
-          <Composer />
+          <Composer placeholder={composerPlaceholder} />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
 };
+
+// ---------------------------------------------------------------------------
+// Welcome
+// ---------------------------------------------------------------------------
 
 const ThreadScrollToBottom: FC = () => {
   return (
@@ -77,7 +119,12 @@ const ThreadScrollToBottom: FC = () => {
   );
 };
 
-const ThreadWelcome: FC = () => {
+interface ThreadWelcomeProps {
+  config?: ThreadWelcomeConfig;
+  suggestions?: ThreadSuggestion[];
+}
+
+const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config, suggestions }) => {
   return (
     <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
       <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
@@ -99,57 +146,70 @@ const ThreadWelcome: FC = () => {
             </svg>
           </div>
           <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-semibold text-2xl duration-200">
-            How can I help you today?
+            {config?.heading ?? "How can I help you today?"}
           </h1>
           <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground mt-2 delay-75 duration-200">
-            Send a message to start a conversation.
+            {config?.subheading ?? "Send a message to start a conversation."}
           </p>
         </div>
       </div>
-      <ThreadSuggestions />
+      {suggestions && suggestions.length > 0 && (
+        <ThreadSuggestions suggestions={suggestions} />
+      )}
     </div>
   );
 };
 
-const ThreadSuggestions: FC = () => {
+interface ThreadSuggestionsProps {
+  suggestions: ThreadSuggestion[];
+}
+
+const ThreadSuggestions: FC<ThreadSuggestionsProps> = ({ suggestions }) => {
   return (
     <div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
-      <ThreadPrimitive.Suggestions
-        components={{
-          Suggestion: ThreadSuggestionItem,
-        }}
-      />
+      {suggestions.map((s, i) => (
+        <ThreadSuggestionItem key={i} title={s.title} description={s.description} />
+      ))}
     </div>
   );
 };
 
-const ThreadSuggestionItem: FC = () => {
+const ThreadSuggestionItem: FC<ThreadSuggestion> = ({ title, description }) => {
+  const runtime = useThreadRuntime();
   return (
-    <div className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 @md:nth-[n+3]:block nth-[n+3]:hidden animate-in fill-mode-both duration-200">
-      <SuggestionPrimitive.Trigger send asChild>
-        <Button
-          variant="ghost"
-          className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
-        >
-          <span className="aui-thread-welcome-suggestion-text-1 font-medium">
-            <SuggestionPrimitive.Title />
-          </span>
+    <div className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200">
+      <Button
+        variant="ghost"
+        className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
+        onClick={() =>
+          runtime.append({
+            role: "user",
+            content: [{ type: "text", text: title }],
+          })
+        }
+      >
+        <span className="aui-thread-welcome-suggestion-text-1 font-medium">{title}</span>
+        {description && (
           <span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
-            <SuggestionPrimitive.Description />
+            {description}
           </span>
-        </Button>
-      </SuggestionPrimitive.Trigger>
+        )}
+      </Button>
     </div>
   );
 };
 
-const Composer: FC = () => {
+// ---------------------------------------------------------------------------
+// Composer
+// ---------------------------------------------------------------------------
+
+const Composer: FC<{ placeholder?: string }> = ({ placeholder }) => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative mt-3 flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
         <ComposerAttachments />
         <ComposerPrimitive.Input
-          placeholder="Send a message..."
+          placeholder={placeholder ?? "Send a message..."}
           className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
           rows={1}
           autoFocus
@@ -195,6 +255,10 @@ const ComposerAction: FC = () => {
     </div>
   );
 };
+
+// ---------------------------------------------------------------------------
+// Messages
+// ---------------------------------------------------------------------------
 
 const MessageError: FC = () => {
   return (

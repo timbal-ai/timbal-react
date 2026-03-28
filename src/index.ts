@@ -3,7 +3,10 @@ export { TimbalRuntimeProvider } from "./runtime/provider";
 export type { TimbalRuntimeProviderProps } from "./runtime/provider";
 
 // Chat components
+export { TimbalChat } from "./components/chat";
+export type { TimbalChatProps } from "./components/chat";
 export { Thread } from "./components/thread";
+export type { ThreadProps, ThreadSuggestion, ThreadWelcomeConfig } from "./components/thread";
 export { MarkdownText } from "./components/markdown-text";
 export { ToolFallback } from "./components/tool-fallback";
 export {
