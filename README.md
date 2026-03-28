@@ -16,9 +16,9 @@ bun add @timbal-ai/timbal-react
 npm install react react-dom @assistant-ui/react @timbal-ai/timbal-sdk
 ```
 
-## Tailwind setup
+### Required: Tailwind setup
 
-The package ships pre-built class names that Tailwind must scan. Add this line to your CSS entry file:
+The package ships pre-built class names that Tailwind must scan. Add this `@source` line to your CSS entry file — **without it the components will be unstyled**:
 
 ```css
 /* src/index.css */
@@ -29,9 +29,9 @@ The package ships pre-built class names that Tailwind must scan. Add this line t
 
 > Adjust the path if your CSS file lives at a different depth relative to `node_modules`.
 
-## CSS imports
+### Required: CSS imports
 
-Some components require stylesheets from their dependencies. Import these once in your app entry:
+Import these stylesheets once in your app entry:
 
 ```ts
 // src/main.tsx
@@ -68,8 +68,6 @@ export default function App() {
 | `workforceId` | `string` | — | ID of the workforce to stream from |
 | `baseUrl` | `string` | `"/api"` | Base URL for API calls. Posts to `{baseUrl}/workforce/{workforceId}/stream` |
 | `fetch` | `(url, options?) => Promise<Response>` | `authFetch` | Custom fetch function. Defaults to the built-in auth-aware fetch (Bearer token + auto-refresh) |
-| `devFakeStream` | `boolean` | `false` | Enable fake streaming for local dev/testing without a backend |
-| `devFakeStreamDelayMs` | `number` | `75` | Token delay in ms for fake streaming |
 
 ---
 
@@ -160,7 +158,7 @@ Re-exported Radix UI wrappers pre-styled to match the Timbal design system:
 
 ## Local development
 
-The package isn't published yet. Install it via a local path reference:
+Install via a local path reference:
 
 ```json
 // package.json

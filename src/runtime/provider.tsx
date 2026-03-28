@@ -35,8 +35,6 @@ interface ChatMessage {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const parseLine = parseSSELine;
-
 const convertMessage = (message: ChatMessage): ThreadMessageLike => ({
   role: message.role,
   content: message.content,
@@ -66,67 +64,6 @@ function getTextFromMessage(message: ChatMessage): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// Fake stream (dev/testing only)
-// ---------------------------------------------------------------------------
-
-function waitWithAbort(ms: number, signal: AbortSignal): Promise<void> {
-  if (signal.aborted) throw new DOMException("The operation was aborted.", "AbortError");
-
-  return new Promise((resolve, reject) => {
-    const timeoutId = setTimeout(() => {
-      signal.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
-    const onAbort = () => {
-      clearTimeout(timeoutId);
-      reject(new DOMException("The operation was aborted.", "AbortError"));
-    };
-    signal.addEventListener("abort", onAbort, { once: true });
-  });
-}
-
-function buildFakeLongResponse(input: string): string {
-  const safeInput = input.trim() || "your request";
-  const base = [
-    `Fake streaming fallback enabled. You asked: "${safeInput}".`,
-    "",
-    "This is a deliberately long response used to test rendering, scrolling, cancellation, and streaming UX behavior.",
-    "",
-    "What this stream is exercising:",
-    "- Frequent tiny token updates",
-    "- Long markdown paragraphs",
-    "- Bullet list rendering",
-    "- UI action bar behavior while running",
-    "- Stop button and abort flow",
-    "",
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse vitae mi at augue pulvinar porta. Praesent ullamcorper felis at nibh tincidunt, id sagittis mauris interdum. Integer nec semper dui. Curabitur sed fermentum libero. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas.",
-    "",
-    "Aliquam luctus purus non bibendum faucibus. Donec at elit eget massa feugiat ultricies. Quisque condimentum, libero in egestas varius, purus justo aliquam sem, vitae feugiat nunc lorem a justo. Sed non tempor est. In hac habitasse platea dictumst.",
-    "",
-    "If you can read this arriving progressively, the fallback is working as intended.",
-  ].join("\n");
-  return `${base}\n\n---\n\n${base}`;
-}
-
-async function streamFakeLongResponse(
-  input: string,
-  delayMs: number,
-  signal: AbortSignal,
-  onDelta: (delta: string) => void,
-): Promise<void> {
-  const fullResponse = buildFakeLongResponse(input);
-  let cursor = 0;
-  while (cursor < fullResponse.length) {
-    if (signal.aborted) throw new DOMException("The operation was aborted.", "AbortError");
-    const chunkSize = Math.min(fullResponse.length - cursor, Math.floor(Math.random() * 12) + 2);
-    const delta = fullResponse.slice(cursor, cursor + chunkSize);
-    cursor += chunkSize;
-    onDelta(delta);
-    await waitWithAbort(delayMs, signal);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
@@ -145,10 +82,6 @@ export interface TimbalRuntimeProviderProps {
    * attaches Bearer tokens from localStorage and auto-refreshes on 401.
    */
   fetch?: FetchFn;
-  /** Enable fake streaming for development/testing. Default: false */
-  devFakeStream?: boolean;
-  /** Token delay in ms for fake streaming. Default: 75 */
-  devFakeStreamDelayMs?: number;
 }
 
 export function TimbalRuntimeProvider({
@@ -156,15 +89,12 @@ export function TimbalRuntimeProvider({
   children,
   baseUrl = "/api",
   fetch: fetchFn,
-  devFakeStream = false,
-  devFakeStreamDelayMs = 75,
 }: TimbalRuntimeProviderProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
 
-  // Allow the fetch function to change without triggering re-renders of the streaming core
   const fetchFnRef = useRef<FetchFn>(fetchFn ?? authFetch);
   useEffect(() => {
     fetchFnRef.current = fetchFn ?? authFetch;
@@ -208,25 +138,6 @@ export function TimbalRuntimeProvider({
       };
 
       try {
-        // ---- fake stream (dev) -------------------------------------------
-        if (devFakeStream) {
-          const fakeId = `call_${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`;
-          parts.push({ type: "tool-call", toolCallId: fakeId, toolName: "get_datetime", argsText: "{}" });
-          flush();
-          await waitWithAbort(2000, signal);
-
-          (parts[0] as ToolCallContentPart).result = `Current datetime (from tool): ${new Date().toISOString()}`;
-          flush();
-          await waitWithAbort(300, signal);
-
-          await streamFakeLongResponse(input, devFakeStreamDelayMs, signal, (delta) => {
-            lastTextPart().text += delta;
-            flush();
-          });
-          return;
-        }
-
-        // ---- real stream -------------------------------------------------
         const res = await fetchFnRef.current(`${baseUrl}/workforce/${workforceId}/stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -253,7 +164,7 @@ export function TimbalRuntimeProvider({
           buffer = lines.pop() ?? "";
 
           for (const line of lines) {
-            const event = parseLine(line);
+            const event = parseSSELine(line);
             if (!event) continue;
 
             if (!capturedRunId && isTopLevelStart(event)) {
@@ -329,7 +240,7 @@ export function TimbalRuntimeProvider({
         }
 
         if (buffer.trim()) {
-          const event = parseLine(buffer);
+          const event = parseSSELine(buffer);
           if (event?.type === "OUTPUT" && parts.length === 0 && event.output) {
             const text = typeof event.output === "string" ? event.output : JSON.stringify(event.output);
             parts.push({ type: "text", text });
@@ -346,7 +257,7 @@ export function TimbalRuntimeProvider({
         abortRef.current = null;
       }
     },
-    [workforceId, baseUrl, devFakeStream, devFakeStreamDelayMs],
+    [workforceId, baseUrl],
   );
 
   // ---- runtime callbacks -------------------------------------------------
