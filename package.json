@@ -1,6 +1,6 @@
 {
   "name": "@timbal-ai/timbal-react",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "React components and runtime for building Timbal chat UIs",
   "type": "module",
   "main": "dist/index.cjs",
