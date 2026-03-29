@@ -28,7 +28,7 @@ import {
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
-import { type FC } from "react";
+import { type ComponentType, type FC } from "react";
 import { cn } from "../utils";
 
 // ---------------------------------------------------------------------------
@@ -45,6 +45,26 @@ export interface ThreadWelcomeConfig {
   subheading?: string;
 }
 
+export interface ThreadWelcomeProps {
+  config?: ThreadWelcomeConfig;
+  suggestions?: ThreadSuggestion[];
+}
+
+export interface ThreadComponents {
+  /** Replace the user message bubble. Access message content via `MessagePrimitive.Parts`. */
+  UserMessage?: ComponentType;
+  /** Replace the assistant message bubble. Access message content via `MessagePrimitive.Parts`. */
+  AssistantMessage?: ComponentType;
+  /** Replace the inline edit composer. */
+  EditComposer?: ComponentType;
+  /** Replace the composer (input bar). Receives `placeholder` from `composerPlaceholder`. */
+  Composer?: ComponentType<{ placeholder?: string }>;
+  /** Replace the welcome / empty state. Receives `config` and `suggestions` props. Controls its own visibility — use `useThread(s => s.isEmpty)` to replicate the default behaviour. */
+  Welcome?: ComponentType<ThreadWelcomeProps>;
+  /** Replace the scroll-to-bottom button. */
+  ScrollToBottom?: ComponentType;
+}
+
 export interface ThreadProps {
   className?: string;
   /** Max width of the message column. Default: "44rem" */
@@ -55,6 +75,8 @@ export interface ThreadProps {
   suggestions?: ThreadSuggestion[];
   /** Composer input placeholder. Default: "Send a message..." */
   composerPlaceholder?: string;
+  /** Override individual UI slots while keeping the rest as defaults. */
+  components?: ThreadComponents;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +89,15 @@ export const Thread: FC<ThreadProps> = ({
   welcome,
   suggestions,
   composerPlaceholder = "Send a message...",
+  components,
 }) => {
+  const WelcomeSlot = components?.Welcome ?? ThreadWelcome;
+  const ComposerSlot = components?.Composer ?? Composer;
+  const UserMessageSlot = components?.UserMessage ?? UserMessage;
+  const AssistantMessageSlot = components?.AssistantMessage ?? AssistantMessage;
+  const EditComposerSlot = components?.EditComposer ?? EditComposer;
+  const ScrollToBottomSlot = components?.ScrollToBottom ?? ThreadScrollToBottom;
+
   return (
     <ThreadPrimitive.Root
       className={cn(
@@ -80,21 +110,19 @@ export const Thread: FC<ThreadProps> = ({
         turnAnchor="bottom"
         className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4 pt-4"
       >
-        <AuiIf condition={(s) => s.thread.isEmpty}>
-          <ThreadWelcome config={welcome} suggestions={suggestions} />
-        </AuiIf>
+        <WelcomeSlot config={welcome} suggestions={suggestions} />
 
         <ThreadPrimitive.Messages
           components={{
-            UserMessage,
-            EditComposer,
-            AssistantMessage,
+            UserMessage: UserMessageSlot,
+            EditComposer: EditComposerSlot,
+            AssistantMessage: AssistantMessageSlot,
           }}
         />
 
         <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
-          <ThreadScrollToBottom />
-          <Composer placeholder={composerPlaceholder} />
+          <ScrollToBottomSlot />
+          <ComposerSlot placeholder={composerPlaceholder} />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
@@ -119,13 +147,9 @@ const ThreadScrollToBottom: FC = () => {
   );
 };
 
-interface ThreadWelcomeProps {
-  config?: ThreadWelcomeConfig;
-  suggestions?: ThreadSuggestion[];
-}
-
 const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config, suggestions }) => {
   return (
+    <AuiIf condition={(s) => s.thread.isEmpty}>
     <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
       <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
         <div className="aui-thread-welcome-message flex size-full flex-col items-center justify-center px-4 text-center">
@@ -157,6 +181,7 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config, suggestions }) => {
         <ThreadSuggestions suggestions={suggestions} />
       )}
     </div>
+    </AuiIf>
   );
 };
 

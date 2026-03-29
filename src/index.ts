@@ -6,7 +6,13 @@ export type { TimbalRuntimeProviderProps } from "./runtime/provider";
 export { TimbalChat } from "./components/chat";
 export type { TimbalChatProps } from "./components/chat";
 export { Thread } from "./components/thread";
-export type { ThreadProps, ThreadSuggestion, ThreadWelcomeConfig } from "./components/thread";
+export type {
+  ThreadProps,
+  ThreadComponents,
+  ThreadSuggestion,
+  ThreadWelcomeConfig,
+  ThreadWelcomeProps,
+} from "./components/thread";
 export { MarkdownText } from "./components/markdown-text";
 export { ToolFallback } from "./components/tool-fallback";
 export {
@@ -17,6 +23,18 @@ export {
 export { TooltipIconButton } from "./components/tooltip-icon-button";
 export type { TooltipIconButtonProps } from "./components/tooltip-icon-button";
 export { default as SyntaxHighlighter } from "./components/syntax-highlighter";
+
+// Primitives — for building custom component slots
+export {
+  ThreadPrimitive,
+  MessagePrimitive,
+  ComposerPrimitive,
+  ActionBarPrimitive,
+  useThread,
+  useThreadRuntime,
+  useMessageRuntime,
+  useComposerRuntime,
+} from "@assistant-ui/react";
 
 // Auth
 export { SessionProvider, useSession } from "./auth/provider";

@@ -1,6 +1,6 @@
 # @timbal-ai/timbal-react
 
-React components and runtime for building Timbal chat UIs. Provides a streaming chat interface that connects to Timbal workforce agents out of the box.
+React components and runtime for building Timbal chat UIs. Drop in a single component to get a fully-featured streaming chat interface connected to a Timbal workforce agent.
 
 ## Installation
 
@@ -10,15 +10,15 @@ npm install @timbal-ai/timbal-react
 bun add @timbal-ai/timbal-react
 ```
 
-### Peer dependencies
+**Peer dependencies:**
 
 ```bash
 npm install react react-dom @assistant-ui/react @timbal-ai/timbal-sdk
 ```
 
-### Required: Tailwind setup
+### Tailwind setup
 
-The package ships pre-built class names that Tailwind must scan. Add this `@source` line to your CSS entry file — **without it the components will be unstyled**:
+The package ships pre-built Tailwind class names. Add this `@source` line to your CSS entry file — **without it the components will be unstyled**:
 
 ```css
 /* src/index.css */
@@ -29,7 +29,7 @@ The package ships pre-built class names that Tailwind must scan. Add this `@sour
 
 > Adjust the path if your CSS file lives at a different depth relative to `node_modules`.
 
-### Required: CSS imports
+### CSS imports
 
 Import these stylesheets once in your app entry:
 
@@ -41,11 +41,11 @@ import "katex/dist/katex.min.css";
 
 ---
 
-## Usage
+## Quick start
 
-### One-liner
+### Basic usage
 
-The simplest way to embed a chat UI. `TimbalChat` handles the runtime and the thread in one component:
+`TimbalChat` is a single component that handles everything — runtime, streaming, messages, and the composer:
 
 ```tsx
 import { TimbalChat } from "@timbal-ai/timbal-react";
@@ -59,7 +59,9 @@ export default function App() {
 }
 ```
 
-#### With welcome screen and suggestions
+> `TimbalChat` requires a fixed height parent. Use `height: "100vh"` or `flex-1 min-h-0` depending on your layout.
+
+### Welcome screen and suggestions
 
 ```tsx
 <TimbalChat
@@ -76,7 +78,7 @@ export default function App() {
 />
 ```
 
-#### With a custom placeholder and width
+### Placeholder and width
 
 ```tsx
 <TimbalChat
@@ -87,9 +89,9 @@ export default function App() {
 />
 ```
 
-#### Switching agents dynamically
+### Switching agents dynamically
 
-Use `key` to reset the chat when the workforce changes:
+Pass `key` to fully reset the chat when the workforce changes:
 
 ```tsx
 const [workforceId, setWorkforceId] = useState("agent-a");
@@ -104,9 +106,9 @@ const [workforceId, setWorkforceId] = useState("agent-a");
 
 ---
 
-### Compose manually
+## Splitting the runtime and UI
 
-Use `TimbalRuntimeProvider` + `Thread` separately when you need to place the runtime above the chat UI — for example, to build a custom header that reads or controls chat state:
+`TimbalChat` is a convenience wrapper around `TimbalRuntimeProvider` + `Thread`. Use them separately when you need to place the runtime above the chat — for example, to build a custom header that reads or controls chat state:
 
 ```tsx
 import { TimbalRuntimeProvider, Thread } from "@timbal-ai/timbal-react";
@@ -126,7 +128,7 @@ export default function App() {
 }
 ```
 
-#### With a custom API base URL
+### Custom API base URL
 
 Useful when your API is mounted at a subpath (e.g. behind a reverse proxy):
 
@@ -136,20 +138,15 @@ Useful when your API is mounted at a subpath (e.g. behind a reverse proxy):
 </TimbalRuntimeProvider>
 ```
 
-#### With a custom fetch function
+### Custom fetch function
 
 Pass your own `fetch` to add headers, inject tokens, or proxy requests:
 
 ```tsx
-import { TimbalRuntimeProvider, Thread } from "@timbal-ai/timbal-react";
-
 const myFetch: typeof fetch = (url, options) => {
   return fetch(url, {
     ...options,
-    headers: {
-      ...options?.headers,
-      "X-My-Header": "value",
-    },
+    headers: { ...options?.headers, "X-My-Header": "value" },
   });
 };
 
@@ -160,30 +157,168 @@ const myFetch: typeof fetch = (url, options) => {
 
 ---
 
-### `TimbalChat` / `Thread` props
+## Customizing the UI
+
+Use the `components` prop on `TimbalChat` or `Thread` to replace any part of the interface while keeping everything else as the default.
+
+### Available slots
+
+| Slot | Props forwarded | Default |
+|---|---|---|
+| `UserMessage` | none | built-in user bubble |
+| `AssistantMessage` | none | built-in assistant bubble |
+| `EditComposer` | none | built-in inline edit composer |
+| `Composer` | `placeholder` | built-in composer bar |
+| `Welcome` | `config`, `suggestions` | built-in welcome screen |
+| `ScrollToBottom` | none | built-in scroll button |
+
+Custom slot components read their data via hooks — no props are passed automatically except where noted above.
+
+### Custom user message
+
+```tsx
+import { TimbalChat, MessagePrimitive } from "@timbal-ai/timbal-react";
+
+const CompactUserMessage = () => (
+  <MessagePrimitive.Root className="flex justify-end px-4 py-2">
+    <div className="bg-primary text-primary-foreground rounded-2xl px-4 py-2 text-sm max-w-[75%]">
+      <MessagePrimitive.Parts />
+    </div>
+  </MessagePrimitive.Root>
+);
+
+<TimbalChat workforceId="..." components={{ UserMessage: CompactUserMessage }} />
+```
+
+### Custom composer
+
+The `Composer` slot receives `placeholder` from the `composerPlaceholder` prop:
+
+```tsx
+import { TimbalChat, ComposerPrimitive } from "@timbal-ai/timbal-react";
+
+const MinimalComposer = ({ placeholder }: { placeholder?: string }) => (
+  <ComposerPrimitive.Root className="flex items-center gap-2 border rounded-full px-4 py-2">
+    <ComposerPrimitive.Input
+      placeholder={placeholder ?? "Type here..."}
+      className="flex-1 bg-transparent text-sm outline-none"
+      rows={1}
+    />
+    <ComposerPrimitive.Send className="text-primary font-medium text-sm">
+      Send
+    </ComposerPrimitive.Send>
+  </ComposerPrimitive.Root>
+);
+
+<TimbalChat workforceId="..." components={{ Composer: MinimalComposer }} />
+```
+
+### Custom welcome screen
+
+The `Welcome` slot is always mounted and controls its own visibility. Use `useThread` to replicate the default "show only when the thread is empty" behaviour:
+
+```tsx
+import { TimbalChat, useThread, useThreadRuntime, type ThreadWelcomeProps } from "@timbal-ai/timbal-react";
+
+const BrandedWelcome = ({ suggestions }: ThreadWelcomeProps) => {
+  const isEmpty = useThread((s) => s.isEmpty);
+  const runtime = useThreadRuntime();
+  if (!isEmpty) return null;
+  return (
+    <div className="flex flex-col items-center justify-center h-full gap-4">
+      <img src="/logo.svg" className="h-12" />
+      <h2 className="text-xl font-semibold">Welcome to Acme AI</h2>
+      <div className="flex gap-2 flex-wrap justify-center">
+        {suggestions?.map((s) => (
+          <button
+            key={s.title}
+            onClick={() => runtime.append({ role: "user", content: [{ type: "text", text: s.title }] })}
+            className="border rounded-full px-4 py-1.5 text-sm hover:bg-muted"
+          >
+            {s.title}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+<TimbalChat
+  workforceId="..."
+  suggestions={[{ title: "Get started" }, { title: "Show me an example" }]}
+  components={{ Welcome: BrandedWelcome }}
+/>
+```
+
+### Mixing slots
+
+Override any combination — slots are independent of each other:
+
+```tsx
+<TimbalChat
+  workforceId="..."
+  components={{
+    UserMessage: CompactUserMessage,
+    Composer: MinimalComposer,
+  }}
+/>
+```
+
+### Hooks and primitives
+
+These are re-exported from `@assistant-ui/react` for use inside custom slot components:
+
+| Export | Use inside |
+|---|---|
+| `ThreadPrimitive` | Any slot |
+| `MessagePrimitive` | `UserMessage`, `AssistantMessage`, `EditComposer` |
+| `ComposerPrimitive` | `Composer`, `EditComposer` |
+| `ActionBarPrimitive` | `UserMessage`, `AssistantMessage` |
+| `useThread` | Any slot — subscribe to thread state (e.g. `isRunning`, `isEmpty`) |
+| `useThreadRuntime` | Any slot — call actions (e.g. `runtime.append(...)`) |
+| `useMessageRuntime` | `UserMessage`, `AssistantMessage` — edit, reload, branch |
+| `useComposerRuntime` | `Composer`, `EditComposer` — access composer state |
+
+---
+
+## API reference
+
+### `TimbalChat` props
+
+`TimbalChat` accepts all `TimbalRuntimeProvider` props plus all `Thread` props.
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
+| `workforceId` | `string` | **required** | ID of the workforce to stream from |
+| `baseUrl` | `string` | `"/api"` | Base URL for API calls. Posts to `{baseUrl}/workforce/{workforceId}/stream` |
+| `fetch` | `(url, options?) => Promise<Response>` | `authFetch` | Custom fetch. Defaults to the built-in auth-aware fetch (Bearer token + auto-refresh) |
 | `welcome.heading` | `string` | `"How can I help you today?"` | Welcome screen heading |
 | `welcome.subheading` | `string` | `"Send a message to start a conversation."` | Welcome screen subheading |
 | `suggestions` | `{ title: string; description?: string }[]` | — | Suggestion chips on the welcome screen |
 | `composerPlaceholder` | `string` | `"Send a message..."` | Composer input placeholder |
+| `components` | `ThreadComponents` | — | Override individual UI slots |
 | `maxWidth` | `string` | `"44rem"` | Max width of the message column |
 | `className` | `string` | — | Extra classes on the root element |
+
+### `Thread` props
+
+Same as `TimbalChat` minus `workforceId`, `baseUrl`, and `fetch` (those live on `TimbalRuntimeProvider`).
 
 ### `TimbalRuntimeProvider` props
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `workforceId` | `string` | — | ID of the workforce to stream from |
-| `baseUrl` | `string` | `"/api"` | Base URL for API calls. Posts to `{baseUrl}/workforce/{workforceId}/stream` |
-| `fetch` | `(url, options?) => Promise<Response>` | `authFetch` | Custom fetch function. Defaults to the built-in auth-aware fetch (Bearer token + auto-refresh) |
+| `workforceId` | `string` | **required** | ID of the workforce to stream from |
+| `baseUrl` | `string` | `"/api"` | Base URL for API calls |
+| `fetch` | `(url, options?) => Promise<Response>` | `authFetch` | Custom fetch function |
 
 ---
 
 ## Auth
 
-The package includes a session/auth system backed by localStorage tokens. The API is expected to expose `/api/auth/login`, `/api/auth/logout`, and `/api/auth/refresh`.
+The package includes an optional session/auth system backed by localStorage tokens. The API is expected to expose `/api/auth/login`, `/api/auth/logout`, and `/api/auth/refresh`.
+
+Auth is **opt-in** — it only activates when `VITE_TIMBAL_PROJECT_ID` is set in your environment.
 
 ### Setup
 
@@ -195,7 +330,6 @@ import { SessionProvider, AuthGuard, TooltipProvider } from "@timbal-ai/timbal-r
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 
-// Auth is opt-in — only active when VITE_TIMBAL_PROJECT_ID is set
 const isAuthEnabled = !!import.meta.env.VITE_TIMBAL_PROJECT_ID;
 
 export default function App() {
@@ -215,20 +349,7 @@ export default function App() {
 }
 ```
 
-When `enabled` is `false` (no project ID configured), both `SessionProvider` and `AuthGuard` are transparent — no redirects, no API calls.
-
-### `SessionProvider` props
-
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `enabled` | `boolean` | `true` | When `false`, session is always `null` and no API calls are made |
-
-### `AuthGuard` props
-
-| Prop | Type | Default | Description |
-|---|---|---|---|
-| `requireAuth` | `boolean` | `false` | Redirect to login if not authenticated |
-| `enabled` | `boolean` | `true` | When `false`, renders children unconditionally |
+When `enabled` is `false`, both `SessionProvider` and `AuthGuard` are transparent — no redirects, no API calls.
 
 ### `useSession` hook
 
@@ -239,9 +360,7 @@ import { useSession } from "@timbal-ai/timbal-react";
 
 function Header() {
   const { user, isAuthenticated, loading, logout } = useSession();
-
   if (loading) return null;
-
   return (
     <header>
       {isAuthenticated ? (
@@ -259,25 +378,30 @@ function Header() {
 
 ### `authFetch`
 
-A drop-in replacement for `fetch` that attaches the Bearer token from localStorage and auto-refreshes on 401:
+A drop-in replacement for `fetch` that attaches the Bearer token from localStorage and auto-refreshes on 401. It's also the default `fetch` used by `TimbalRuntimeProvider`, so you only need to import it directly for your own API calls (e.g. loading workforce lists):
 
 ```tsx
 import { authFetch } from "@timbal-ai/timbal-react";
 
-// Fetch a list of workforce agents
 const res = await authFetch("/api/workforce");
 if (res.ok) {
   const agents = await res.json();
 }
 ```
 
-It's also the default `fetch` used by `TimbalRuntimeProvider` — you only need to import it directly for your own API calls (e.g. loading workforce lists, metadata, etc.).
+### Auth prop reference
+
+| Component | Prop | Type | Default | Description |
+|---|---|---|---|---|
+| `SessionProvider` | `enabled` | `boolean` | `true` | When `false`, session is always `null` and no API calls are made |
+| `AuthGuard` | `requireAuth` | `boolean` | `false` | Redirect to login if not authenticated |
+| `AuthGuard` | `enabled` | `boolean` | `true` | When `false`, renders children unconditionally |
 
 ---
 
-## Components
+## Other exports
 
-All components accept `className` for Tailwind overrides.
+### Components
 
 | Export | Description |
 |---|---|
@@ -306,12 +430,7 @@ A complete page with agent switching, auth, and a custom header:
 // src/pages/Home.tsx
 import { useEffect, useState } from "react";
 import type { WorkforceItem } from "@timbal-ai/timbal-sdk";
-import {
-  TimbalChat,
-  Button,
-  authFetch,
-  useSession,
-} from "@timbal-ai/timbal-react";
+import { TimbalChat, Button, authFetch, useSession } from "@timbal-ai/timbal-react";
 import { LogOut } from "lucide-react";
 
 const isAuthEnabled = !!import.meta.env.VITE_TIMBAL_PROJECT_ID;
@@ -368,7 +487,6 @@ export default function Home() {
 Install via a local path reference:
 
 ```json
-// package.json
 {
   "dependencies": {
     "@timbal-ai/timbal-react": "file:../../timbal-react"
@@ -378,7 +496,7 @@ Install via a local path reference:
 
 Adjust the relative path to where `timbal-react` lives on your machine.
 
-After editing source files, rebuild the package:
+After editing source files, rebuild:
 
 ```bash
 cd timbal-react
