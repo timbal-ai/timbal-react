@@ -14,7 +14,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   requireAuth = false,
   enabled = true,
 }) => {
-  const { isAuthenticated, loading } = useSession();
+  const { isAuthenticated, loading, isEmbedded } = useSession();
 
   if (!enabled) {
     return children;
@@ -28,7 +28,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     );
   }
 
-  if (requireAuth && !isAuthenticated) {
+  if (requireAuth && !isAuthenticated && !isEmbedded) {
     const returnTo = encodeURIComponent(
       window.location.pathname + window.location.search,
     );

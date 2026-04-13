@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, mock } from "bun:test";
 import {
   getAccessToken,
+  setAccessToken,
   getRefreshToken,
+  setRefreshToken,
   clearTokens,
   authFetch,
   refreshAccessToken,
@@ -27,6 +29,13 @@ describe("getAccessToken", () => {
   });
 });
 
+describe("setAccessToken", () => {
+  it("stores the access token in localStorage", () => {
+    setAccessToken("new-token");
+    expect(getAccessToken()).toBe("new-token");
+  });
+});
+
 describe("getRefreshToken", () => {
   it("returns null when nothing is stored", () => {
     expect(getRefreshToken()).toBeNull();
@@ -35,6 +44,13 @@ describe("getRefreshToken", () => {
   it("returns the stored refresh token", () => {
     localStorage.setItem("timbal_project_refresh_token", "refresh123");
     expect(getRefreshToken()).toBe("refresh123");
+  });
+});
+
+describe("setRefreshToken", () => {
+  it("stores the refresh token in localStorage", () => {
+    setRefreshToken("new-refresh");
+    expect(getRefreshToken()).toBe("new-refresh");
   });
 });
 

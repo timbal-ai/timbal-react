@@ -42,7 +42,9 @@ export { AuthGuard } from "./auth/guard";
 export {
   authFetch,
   getAccessToken,
+  setAccessToken,
   getRefreshToken,
+  setRefreshToken,
   clearTokens,
   refreshAccessToken,
   fetchCurrentUser,

@@ -10,9 +10,23 @@ import type { Session } from "@timbal-ai/timbal-sdk";
 import {
   getRefreshToken,
   clearTokens,
+  setAccessToken,
+  setRefreshToken,
   fetchCurrentUser,
   refreshAccessToken,
 } from "./tokens";
+
+// ============================================
+// Iframe detection
+// ============================================
+
+function isInsideIframe(): boolean {
+  try {
+    return typeof window !== "undefined" && window.self !== window.top;
+  } catch {
+    return true;
+  }
+}
 
 // ============================================
 // Session Context
@@ -22,6 +36,7 @@ interface SessionContextType {
   user: Session | null;
   loading: boolean;
   isAuthenticated: boolean;
+  isEmbedded: boolean;
   logout: () => void;
 }
 
@@ -51,6 +66,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({
 }) => {
   const [user, setUser] = useState<Session | null>(null);
   const [loading, setLoading] = useState(enabled);
+  const [embedded] = useState(isInsideIframe);
 
   useEffect(() => {
     if (!enabled) {
@@ -88,15 +104,43 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({
         clearTokens();
       }
 
-      setLoading(false);
+      if (!ignore && !embedded) {
+        setLoading(false);
+      }
     };
 
     restoreSession();
 
+    // When embedded in an iframe, listen for parent-injected credentials.
+    // The parent sends { type: "timbal:auth", token, refreshToken? }.
+    let messageCleanup: (() => void) | undefined;
+    if (embedded) {
+      const handleMessage = async (event: MessageEvent) => {
+        if (ignore) return;
+        if (event.data?.type !== "timbal:auth" || !event.data.token) return;
+
+        setAccessToken(event.data.token);
+        if (event.data.refreshToken) {
+          setRefreshToken(event.data.refreshToken);
+        }
+
+        const u = await fetchCurrentUser();
+        if (!ignore) {
+          setUser(u);
+          setLoading(false);
+        }
+      };
+      window.addEventListener("message", handleMessage);
+      window.parent.postMessage({ type: "timbal:request-session" }, "*");
+
+      messageCleanup = () => window.removeEventListener("message", handleMessage);
+    }
+
     return () => {
       ignore = true;
+      messageCleanup?.();
     };
-  }, [enabled]);
+  }, [enabled, embedded]);
 
   const logout = useCallback(() => {
     clearTokens();
@@ -115,6 +159,7 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({
         user,
         loading,
         isAuthenticated: !!user,
+        isEmbedded: embedded,
         logout,
       }}
     >
