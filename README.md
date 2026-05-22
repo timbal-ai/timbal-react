@@ -138,6 +138,50 @@ Useful when your API is mounted at a subpath (e.g. behind a reverse proxy):
 </TimbalRuntimeProvider>
 ```
 
+### Attachments
+
+Attachments are **opt-in**. Pass `attachments` to enable the composer `+` button, drag-and-drop, and multimodal prompts:
+
+```tsx
+<TimbalChat workforceId="your-workforce-id" attachments />
+```
+
+When enabled, each file is uploaded via `POST` to `${baseUrl}/files/upload` (multipart `file` field). The response must include `{ url }` (or `{ signed_url }` / `{ id }`). That URL is sent to the workforce as `{ type: "file", file: "<url>" }` alongside `{ type: "text", text: "..." }` when the user typed a message.
+
+Your API must expose that upload route (the Timbal blueprint API includes it). `authFetch` is used by default and must **not** force a `Content-Type` header on `FormData` uploads.
+
+#### Variants
+
+```tsx
+// Default upload adapter
+<TimbalChat workforceId="..." attachments />
+
+// Custom endpoint or MIME whitelist
+<TimbalChat
+  workforceId="..."
+  attachments={{ uploadUrl: "/api/uploads", accept: "image/*,application/pdf" }}
+/>
+
+// Fully custom adapter (e.g. presigned S3)
+<TimbalChat workforceId="..." attachments={myAdapter} />
+
+// Explicitly off (default when prop is omitted)
+<TimbalChat workforceId="..." attachments={null} />
+```
+
+#### Power-user exports
+
+```tsx
+import {
+  createDefaultAttachmentAdapter,
+  resolveAttachmentAdapter,
+  parseSSELine,
+  AssistantRuntimeProvider,
+} from "@timbal-ai/timbal-react";
+```
+
+`parseSSELine` and `AssistantRuntimeProvider` are re-exported so custom runtimes do not need a second `@assistant-ui/react` import for those symbols.
+
 ### Custom fetch function
 
 Pass your own `fetch` to add headers, inject tokens, or proxy requests:
@@ -281,6 +325,81 @@ These are re-exported from `@assistant-ui/react` for use inside custom slot comp
 
 ---
 
+## Artifacts
+
+Agents can return structured JSON **artifacts** — charts, tables, choice widgets, and interactive UI — instead of plain text. The chat UI renders them automatically from tool results or inline ` ```timbal-artifact ` fences.
+
+### Tell the agent about the schema
+
+Import the ready-made instruction block and append it to your workforce system prompt (or blueprint tool-result docs):
+
+```ts
+import { ARTIFACT_AGENT_INSTRUCTIONS } from "@timbal-ai/timbal-react";
+
+const systemPrompt = `${basePrompt}\n\n${ARTIFACT_AGENT_INSTRUCTIONS}`;
+```
+
+`ARTIFACT_AGENT_INSTRUCTIONS` documents every built-in `type` (`chart`, `table`, `question`, `html`, `json`, `ui`) and the full interactive **`ui` node palette** (hover tooltips, buttons, toggles, sliders, drag).
+
+### Subscribe to interactive events
+
+`ui` artifacts can fire `{ kind: "emit" }` actions (e.g. after a slider commit or drag). Handle them with `onArtifactEvent` on `Thread` or `TimbalChat`:
+
+```tsx
+<TimbalChat
+  workforceId="your-workforce-id"
+  onArtifactEvent={(event) => {
+    console.log(event.name, event.payload);
+    // e.g. refetch data, update local UI, call your API
+  }}
+/>
+```
+
+When using `Thread` directly:
+
+```tsx
+<TimbalRuntimeProvider workforceId="your-workforce-id">
+  <Thread
+    onArtifactEvent={(event) => console.log(event.name, event.payload)}
+  />
+</TimbalRuntimeProvider>
+```
+
+Built-in `{ kind: "message" }` actions already append a user message — you only need `onArtifactEvent` for host-side logic beyond that.
+
+### Custom artifact renderers
+
+Register extra `type` values or override defaults:
+
+```tsx
+<TimbalChat
+  workforceId="..."
+  artifacts={{
+    renderers: {
+      "my:widget": MyWidgetRenderer,
+    },
+  }}
+/>
+```
+
+Extend the interactive palette with host-registered `custom` nodes:
+
+```tsx
+import {
+  UiCustomNodeRegistryProvider,
+  TimbalRuntimeProvider,
+  Thread,
+} from "@timbal-ai/timbal-react";
+
+<UiCustomNodeRegistryProvider renderers={{ "price-card": PriceCard }}>
+  <TimbalRuntimeProvider workforceId="...">
+    <Thread />
+  </TimbalRuntimeProvider>
+</UiCustomNodeRegistryProvider>
+```
+
+---
+
 ## API reference
 
 ### `TimbalChat` props
@@ -292,11 +411,15 @@ These are re-exported from `@assistant-ui/react` for use inside custom slot comp
 | `workforceId` | `string` | **required** | ID of the workforce to stream from |
 | `baseUrl` | `string` | `"/api"` | Base URL for API calls. Posts to `{baseUrl}/workforce/{workforceId}/stream` |
 | `fetch` | `(url, options?) => Promise<Response>` | `authFetch` | Custom fetch. Defaults to the built-in auth-aware fetch (Bearer token + auto-refresh) |
+| `attachments` | `boolean \| { uploadUrl?, accept? } \| AttachmentAdapter \| null` | off | `true` or a config object enables the built-in upload adapter; `null` disables; omitted = off |
+| `attachmentsUploadUrl` | `string` | — | Shorthand: enables the default adapter with a custom upload URL |
+| `attachmentsAccept` | `string` | — | Shorthand: MIME `accept` for the default adapter |
 | `welcome.heading` | `string` | `"How can I help you today?"` | Welcome screen heading |
 | `welcome.subheading` | `string` | `"Send a message to start a conversation."` | Welcome screen subheading |
 | `suggestions` | `{ title: string; description?: string }[]` | — | Suggestion chips on the welcome screen |
 | `composerPlaceholder` | `string` | `"Send a message..."` | Composer input placeholder |
 | `components` | `ThreadComponents` | — | Override individual UI slots |
+| `onArtifactEvent` | `(event: UiEventEnvelope) => void` | — | Called when a `ui` artifact fires an `emit` action |
 | `maxWidth` | `string` | `"44rem"` | Max width of the message column |
 | `className` | `string` | — | Extra classes on the root element |
 
@@ -408,6 +531,11 @@ if (res.ok) {
 | `Thread` | Full chat UI — messages, composer, attachments, action bar |
 | `MarkdownText` | Markdown renderer with GFM, math (KaTeX), and syntax highlighting |
 | `ToolFallback` | Animated "Using tool: …" indicator shown while a tool runs |
+| `ARTIFACT_AGENT_INSTRUCTIONS` | Markdown block to paste into agent system prompts |
+| `UiEventProvider` | Low-level provider for `ui` artifact `emit` actions |
+| `UiCustomNodeRegistryProvider` | Register `{ kind: "custom" }` node renderers |
+| `ArtifactView` | Render a single artifact object |
+| `parseArtifactFromToolResult` | Parse tool output into an artifact |
 | `SyntaxHighlighter` | Shiki-based code highlighter (vitesse-dark / vitesse-light themes) |
 | `UserMessageAttachments` | Attachment thumbnails in user messages |
 | `ComposerAttachments` | Attachment previews inside the composer |

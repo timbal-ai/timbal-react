@@ -1,5 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, afterEach } from "bun:test";
+import { render, screen, cleanup } from "@testing-library/react";
 import { TimbalChat } from "./chat";
 import { TooltipProvider } from "../ui/tooltip";
 
@@ -10,6 +10,10 @@ import { TooltipProvider } from "../ui/tooltip";
 // TimbalChat wraps TimbalRuntimeProvider which calls fetch for streaming.
 // We point it at a no-op fetch so the runtime initialises without errors.
 const noop = () => new Promise<Response>(() => {});
+
+afterEach(() => {
+  cleanup();
+});
 
 function renderChat(props: Partial<Parameters<typeof TimbalChat>[0]> = {}) {
   return render(
@@ -76,6 +80,11 @@ describe("composer", () => {
     renderChat({ composerPlaceholder: "Ask me anything..." });
     expect(screen.getByPlaceholderText("Ask me anything...")).toBeInTheDocument();
   });
+
+  it("renders the add-attachment button when attachments are enabled", () => {
+    renderChat({ attachments: true });
+    expect(screen.getByLabelText("Add Attachment")).toBeInTheDocument();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -109,6 +118,13 @@ describe("components prop", () => {
       },
     });
     expect(screen.getByPlaceholderText("Custom placeholder")).toBeInTheDocument();
+  });
+
+  it("accepts onArtifactEvent without error", () => {
+    renderChat({
+      onArtifactEvent: () => {},
+    });
+    expect(screen.getByText("How can I help you today?")).toBeInTheDocument();
   });
 
   it("passes welcome config and suggestions to a custom Welcome component", () => {

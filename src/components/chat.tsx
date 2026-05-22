@@ -9,10 +9,22 @@ export function TimbalChat({
   workforceId,
   baseUrl,
   fetch,
+  attachments,
+  attachmentsUploadUrl,
+  attachmentsAccept,
+  debug,
   ...threadProps
 }: TimbalChatProps) {
   return (
-    <TimbalRuntimeProvider workforceId={workforceId} baseUrl={baseUrl} fetch={fetch}>
+    <TimbalRuntimeProvider
+      workforceId={workforceId}
+      baseUrl={baseUrl}
+      fetch={fetch}
+      attachments={attachments}
+      attachmentsUploadUrl={attachmentsUploadUrl}
+      attachmentsAccept={attachmentsAccept}
+      debug={debug}
+    >
       <Thread {...threadProps} />
     </TimbalRuntimeProvider>
   );
