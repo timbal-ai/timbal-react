@@ -18,6 +18,7 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import { cn } from "../utils";
 import ShikiSyntaxHighlighter from "./syntax-highlighter";
+import { isArtifactFenceLanguage } from "../artifacts/parse";
 
 const MarkdownTextImpl = () => {
   return (
@@ -37,6 +38,10 @@ export const MarkdownText = memo(MarkdownTextImpl);
 
 const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   const { isCopied, copyToClipboard } = useCopyToClipboard();
+
+  // Artifact fenced blocks render their own chrome — skip the code header.
+  if (isArtifactFenceLanguage(language)) return null;
+
   const onCopy = () => {
     if (!code || isCopied) return;
     copyToClipboard(code);
@@ -59,6 +64,7 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
     </div>
   );
 };
+
 
 const useCopyToClipboard = ({
   copiedDuration = 3000,

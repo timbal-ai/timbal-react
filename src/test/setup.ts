@@ -25,4 +25,7 @@ Object.defineProperties(globalThis, {
   getComputedStyle: { value: window.getComputedStyle.bind(window), writable: true, configurable: true },
   requestAnimationFrame: { value: (cb: FrameRequestCallback) => setTimeout(cb, 0), writable: true, configurable: true },
   cancelAnimationFrame: { value: clearTimeout, writable: true, configurable: true },
+  FileReader: { value: window.FileReader, writable: true, configurable: true },
+  File: { value: window.File, writable: true, configurable: true },
+  Blob: { value: window.Blob, writable: true, configurable: true },
 });

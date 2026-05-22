@@ -1,11 +1,13 @@
-import {
-  ComposerAddAttachment,
-  ComposerAttachments,
-  UserMessageAttachments,
-} from "./attachment";
+import { UserMessageAttachments } from "./attachment";
 import { MarkdownText } from "./markdown-text";
-import { ToolFallback } from "./tool-fallback";
+import { ToolArtifactFallback } from "../artifacts/tool-artifact";
 import { TooltipIconButton } from "./tooltip-icon-button";
+import { Composer, type ComposerProps } from "./composer";
+import {
+  Suggestions,
+  type SuggestionsComponent,
+  type SuggestionsSource,
+} from "./suggestions";
 import { Button } from "../ui/button";
 import {
   ActionBarMorePrimitive,
@@ -15,30 +17,32 @@ import {
   ErrorPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
-  useThreadRuntime,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
-  ArrowUpIcon,
   CheckIcon,
   CopyIcon,
   DownloadIcon,
   MoreHorizontalIcon,
   PencilIcon,
   RefreshCwIcon,
-  SquareIcon,
 } from "lucide-react";
 import { type ComponentType, type FC } from "react";
 import { cn } from "../utils";
+import {
+  ArtifactRegistryProvider,
+  type ArtifactRegistry,
+} from "../artifacts/registry";
+import {
+  UiEventProvider,
+  type UiEventEnvelope,
+} from "../artifacts/ui/registry";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface ThreadSuggestion {
-  title: string;
-  description?: string;
-}
+export type { ThreadSuggestion, SuggestionsSource } from "./suggestions";
 
 export interface ThreadWelcomeConfig {
   heading?: string;
@@ -47,7 +51,13 @@ export interface ThreadWelcomeConfig {
 
 export interface ThreadWelcomeProps {
   config?: ThreadWelcomeConfig;
-  suggestions?: ThreadSuggestion[];
+  suggestions?: SuggestionsSource;
+  /**
+   * The resolved `Suggestions` component (default or user-overridden via
+   * `components.Suggestions`). Custom Welcome implementations should render
+   * this and pass their `suggestions` source through.
+   */
+  Suggestions?: SuggestionsComponent;
 }
 
 export interface ThreadComponents {
@@ -57,13 +67,24 @@ export interface ThreadComponents {
   AssistantMessage?: ComponentType;
   /** Replace the inline edit composer. */
   EditComposer?: ComponentType;
-  /** Replace the composer (input bar). Receives `placeholder` from `composerPlaceholder`. */
-  Composer?: ComponentType<{ placeholder?: string }>;
+  /** Replace the composer (input bar). Receives all `ComposerProps` from the parent. */
+  Composer?: ComponentType<ComposerProps>;
   /** Replace the welcome / empty state. Receives `config` and `suggestions` props. Controls its own visibility — use `useThread(s => s.isEmpty)` to replicate the default behaviour. */
   Welcome?: ComponentType<ThreadWelcomeProps>;
+  /** Replace the suggestion chip block (rendered inside Welcome and inline). */
+  Suggestions?: SuggestionsComponent;
   /** Replace the scroll-to-bottom button. */
   ScrollToBottom?: ComponentType;
 }
+
+export interface ThreadArtifactsConfig {
+  /** Custom artifact renderers, merged on top of the built-in defaults. */
+  renderers?: ArtifactRegistry;
+  /** Replace the built-in renderers entirely instead of merging. */
+  override?: boolean;
+}
+
+export type { UiEventEnvelope };
 
 export interface ThreadProps {
   className?: string;
@@ -71,12 +92,28 @@ export interface ThreadProps {
   maxWidth?: string;
   /** Welcome screen text */
   welcome?: ThreadWelcomeConfig;
-  /** Suggestion chips shown on the welcome screen */
-  suggestions?: ThreadSuggestion[];
+  /**
+   * Welcome-screen suggestion chips. Accepts a static array, a thunk, or an
+   * async function for per-user suggestions.
+   */
+  suggestions?: SuggestionsSource;
   /** Composer input placeholder. Default: "Send a message..." */
   composerPlaceholder?: string;
   /** Override individual UI slots while keeping the rest as defaults. */
   components?: ThreadComponents;
+  /**
+   * Configure how rich tool/artifact results render. Pass `renderers` to add
+   * support for custom artifact `type` values. Built-in types (`chart`,
+   * `question`, `html`, `json`, `table`, `ui`) are always available unless
+   * `override: true` is set.
+   */
+  artifacts?: ThreadArtifactsConfig;
+  /**
+   * Called when a `ui` artifact fires an `{ kind: "emit" }` action. Use this
+   * to react to slider commits, drag gestures, or other host-side logic beyond
+   * the built-in `message` action (which already appends a user message).
+   */
+  onArtifactEvent?: (event: UiEventEnvelope) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,6 +127,8 @@ export const Thread: FC<ThreadProps> = ({
   suggestions,
   composerPlaceholder = "Send a message...",
   components,
+  artifacts,
+  onArtifactEvent,
 }) => {
   const WelcomeSlot = components?.Welcome ?? ThreadWelcome;
   const ComposerSlot = components?.Composer ?? Composer;
@@ -97,8 +136,15 @@ export const Thread: FC<ThreadProps> = ({
   const AssistantMessageSlot = components?.AssistantMessage ?? AssistantMessage;
   const EditComposerSlot = components?.EditComposer ?? EditComposer;
   const ScrollToBottomSlot = components?.ScrollToBottom ?? ThreadScrollToBottom;
+  const SuggestionsSlot: SuggestionsComponent =
+    components?.Suggestions ?? Suggestions;
 
   return (
+    <ArtifactRegistryProvider
+      renderers={artifacts?.renderers}
+      override={artifacts?.override}
+    >
+    <UiEventProvider onEvent={onArtifactEvent ?? (() => {})}>
     <ThreadPrimitive.Root
       className={cn(
         "aui-root aui-thread-root @container flex h-full flex-col bg-background",
@@ -110,7 +156,11 @@ export const Thread: FC<ThreadProps> = ({
         turnAnchor="bottom"
         className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4 pt-4"
       >
-        <WelcomeSlot config={welcome} suggestions={suggestions} />
+        <WelcomeSlot
+          config={welcome}
+          suggestions={suggestions}
+          Suggestions={SuggestionsSlot}
+        />
 
         <ThreadPrimitive.Messages
           components={{
@@ -126,6 +176,8 @@ export const Thread: FC<ThreadProps> = ({
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
+    </UiEventProvider>
+    </ArtifactRegistryProvider>
   );
 };
 
@@ -147,7 +199,11 @@ const ThreadScrollToBottom: FC = () => {
   );
 };
 
-const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config, suggestions }) => {
+const ThreadWelcome: FC<ThreadWelcomeProps> = ({
+  config,
+  suggestions,
+  Suggestions: SuggestionsSlot = Suggestions,
+}) => {
   return (
     <AuiIf condition={(s) => s.thread.isEmpty}>
     <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
@@ -177,107 +233,9 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({ config, suggestions }) => {
           </p>
         </div>
       </div>
-      {suggestions && suggestions.length > 0 && (
-        <ThreadSuggestions suggestions={suggestions} />
-      )}
+      {suggestions && <SuggestionsSlot suggestions={suggestions} />}
     </div>
     </AuiIf>
-  );
-};
-
-interface ThreadSuggestionsProps {
-  suggestions: ThreadSuggestion[];
-}
-
-const ThreadSuggestions: FC<ThreadSuggestionsProps> = ({ suggestions }) => {
-  return (
-    <div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
-      {suggestions.map((s, i) => (
-        <ThreadSuggestionItem key={i} title={s.title} description={s.description} />
-      ))}
-    </div>
-  );
-};
-
-const ThreadSuggestionItem: FC<ThreadSuggestion> = ({ title, description }) => {
-  const runtime = useThreadRuntime();
-  return (
-    <div className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200">
-      <Button
-        variant="ghost"
-        className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-2xl border px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
-        onClick={() =>
-          runtime.append({
-            role: "user",
-            content: [{ type: "text", text: title }],
-          })
-        }
-      >
-        <span className="aui-thread-welcome-suggestion-text-1 font-medium">{title}</span>
-        {description && (
-          <span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
-            {description}
-          </span>
-        )}
-      </Button>
-    </div>
-  );
-};
-
-// ---------------------------------------------------------------------------
-// Composer
-// ---------------------------------------------------------------------------
-
-const Composer: FC<{ placeholder?: string }> = ({ placeholder }) => {
-  return (
-    <ComposerPrimitive.Root className="aui-composer-root relative mt-3 flex w-full flex-col">
-      <ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
-        <ComposerAttachments />
-        <ComposerPrimitive.Input
-          placeholder={placeholder ?? "Send a message..."}
-          className="aui-composer-input mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
-          rows={1}
-          autoFocus
-          aria-label="Message input"
-        />
-        <ComposerAction />
-      </ComposerPrimitive.AttachmentDropzone>
-    </ComposerPrimitive.Root>
-  );
-};
-
-const ComposerAction: FC = () => {
-  return (
-    <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-end">
-      <AuiIf condition={(s) => !s.thread.isRunning}>
-        <ComposerPrimitive.Send asChild>
-          <TooltipIconButton
-            tooltip="Send message"
-            side="bottom"
-            type="submit"
-            variant="default"
-            size="icon"
-            className="aui-composer-send size-8 rounded-full"
-            aria-label="Send message"
-          >
-            <ArrowUpIcon className="aui-composer-send-icon size-4" />
-          </TooltipIconButton>
-        </ComposerPrimitive.Send>
-      </AuiIf>
-      <AuiIf condition={(s) => s.thread.isRunning}>
-        <ComposerPrimitive.Cancel asChild>
-          <Button
-            type="button"
-            variant="default"
-            size="icon"
-            className="aui-composer-cancel size-8 rounded-full"
-            aria-label="Stop generating"
-          >
-            <SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
-          </Button>
-        </ComposerPrimitive.Cancel>
-      </AuiIf>
-    </div>
   );
 };
 
@@ -305,7 +263,7 @@ const AssistantMessage: FC = () => {
         <MessagePrimitive.Parts
           components={{
             Text: MarkdownText,
-            tools: { Fallback: ToolFallback },
+            tools: { Fallback: ToolArtifactFallback },
           }}
         />
         <MessageError />

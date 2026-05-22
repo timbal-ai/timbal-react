@@ -5,6 +5,10 @@ import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 import { createHighlighterCore } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 
+import { ArtifactView } from "../artifacts/registry";
+import { isArtifact } from "../artifacts/types";
+import { isArtifactFenceLanguage } from "../artifacts/parse";
+
 import langJavascript from "shiki/langs/javascript.mjs";
 import langTypescript from "shiki/langs/typescript.mjs";
 import langPython from "shiki/langs/python.mjs";
@@ -100,6 +104,20 @@ const ShikiSyntaxHighlighter: FC<SyntaxHighlighterProps> = ({
       cancelled = true;
     };
   }, [code, language]);
+
+  // Inline artifact-language fenced blocks render as actual artifacts. Done
+  // AFTER the highlighter effect so hook order stays stable when the
+  // language switches mid-stream.
+  if (isArtifactFenceLanguage(language)) {
+    try {
+      const parsed = JSON.parse(code);
+      if (isArtifact(parsed)) {
+        return <ArtifactView artifact={parsed} />;
+      }
+    } catch {
+      // fall through to plain code rendering
+    }
+  }
 
   if (html) {
     return (

@@ -1,4 +1,6 @@
 import { defineConfig } from "tsup";
+import { copyFile, mkdir } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
 export default defineConfig({
   entry: ["src/index.ts"],
@@ -18,5 +20,12 @@ export default defineConfig({
     return {
       js: format === "esm" ? ".esm.js" : ".cjs",
     };
+  },
+  async onSuccess() {
+    // Ship the optional companion stylesheet alongside the JS bundle.
+    const src = resolve("src/styles.css");
+    const dest = resolve("dist/styles.css");
+    await mkdir(dirname(dest), { recursive: true });
+    await copyFile(src, dest);
   },
 });

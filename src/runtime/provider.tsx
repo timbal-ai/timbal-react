@@ -1,45 +1,111 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   useExternalStoreRuntime,
   type ThreadMessageLike,
   type AppendMessage,
+  type AttachmentAdapter,
   AssistantRuntimeProvider,
 } from "@assistant-ui/react";
 import { parseSSELine } from "@timbal-ai/timbal-sdk";
 import { authFetch } from "../auth/tokens";
+import {
+  reduceSseEvent,
+  type ReducerState,
+  createReducerState,
+} from "./reducer";
+import {
+  buildPromptBody,
+  extractAttachment,
+  type AuiAttachment,
+} from "./attachments";
+import {
+  resolveAttachmentAdapter,
+  type TimbalAttachmentsProp,
+} from "./resolve-attachments";
+import type {
+  ChatAttachment,
+  ChatMessage,
+  ContentPart,
+  TextContentPart,
+  ToolCallContentPart,
+} from "./types";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-type TextContentPart = { type: "text"; text: string };
-
-type ToolCallContentPart = {
-  type: "tool-call";
-  toolCallId: string;
-  toolName: string;
-  argsText: string;
-  result?: unknown;
-};
-
-type ContentPart = TextContentPart | ToolCallContentPart;
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: ContentPart[];
-  runId?: string;
-}
+export type {
+  ChatAttachment,
+  ChatMessage,
+  ContentPart,
+  TextContentPart,
+  ToolCallContentPart,
+} from "./types";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const convertMessage = (message: ChatMessage): ThreadMessageLike => ({
-  role: message.role,
-  content: message.content,
-  id: message.id,
-});
+type ThreadAttachment = NonNullable<ThreadMessageLike["attachments"]>[number];
+
+function projectAttachment(attachment: ChatAttachment): ThreadAttachment {
+  const filename = attachment.name ?? "attachment";
+  const mimeType = attachment.contentType ?? "application/octet-stream";
+
+  if (attachment.type === "image") {
+    return {
+      id: attachment.id,
+      type: "image",
+      name: filename,
+      contentType: mimeType,
+      status: { type: "complete" },
+      content: [{ type: "image", image: attachment.dataUrl, filename }],
+    };
+  }
+
+  return {
+    id: attachment.id,
+    type: attachment.type,
+    name: filename,
+    contentType: mimeType,
+    status: { type: "complete" },
+    content: [
+      { type: "file", data: attachment.dataUrl, mimeType, filename },
+    ],
+  };
+}
+
+const convertMessage = (message: ChatMessage): ThreadMessageLike => {
+  type AuiPart = Exclude<ThreadMessageLike["content"], string>[number];
+  const content: AuiPart[] = message.content.map((part): AuiPart => {
+    if (part.type === "text") return { type: "text", text: part.text };
+    if (part.type === "thinking") return { type: "reasoning", text: part.text };
+    return {
+      type: "tool-call",
+      toolCallId: part.toolCallId,
+      toolName: part.toolName,
+      argsText: part.argsText,
+      ...(part.result !== undefined ? { result: part.result } : {}),
+    };
+  });
+
+  const attachments =
+    message.attachments && message.attachments.length > 0
+      ? message.attachments.map(projectAttachment)
+      : undefined;
+
+  return {
+    role: message.role,
+    content,
+    id: message.id,
+    ...(attachments ? { attachments } : {}),
+  };
+};
 
 function findParentId(messages: ChatMessage[], beforeIndex?: number): string | null {
   const slice = beforeIndex !== undefined ? messages.slice(0, beforeIndex) : messages;
@@ -49,47 +115,62 @@ function findParentId(messages: ChatMessage[], beforeIndex?: number): string | n
   return null;
 }
 
-function isTopLevelStart(event: Record<string, unknown>): boolean {
-  return (
-    event.type === "START" &&
-    typeof event.run_id === "string" &&
-    typeof event.path === "string" &&
-    !(event.path as string).includes(".")
-  );
+function getTextFromMessage(message: ChatMessage): string {
+  const part = message.content.find((c) => c.type === "text");
+  return part?.type === "text" ? part.text : "";
 }
 
-function getTextFromMessage(message: ChatMessage): string | null {
-  const part = message.content.find((c) => c.type === "text");
-  return part?.type === "text" ? part.text : null;
+function getAttachmentsFromMessage(
+  message: ChatMessage,
+): ChatAttachment[] | undefined {
+  return message.attachments?.length ? message.attachments : undefined;
 }
 
 // ---------------------------------------------------------------------------
-// Provider
+// useTimbalStream — low-level streaming hook (no UI)
 // ---------------------------------------------------------------------------
 
 type FetchFn = (url: string, options?: RequestInit) => Promise<Response>;
 
-export interface TimbalRuntimeProviderProps {
+export interface UseTimbalStreamOptions {
   workforceId: string;
-  children: ReactNode;
-  /**
-   * Base URL for API calls. Defaults to `/api`.
-   * The provider will POST to `{baseUrl}/workforce/{workforceId}/stream`.
-   */
   baseUrl?: string;
-  /**
-   * Custom fetch function for API calls. Defaults to `authFetch` which
-   * attaches Bearer tokens from localStorage and auto-refreshes on 401.
-   */
   fetch?: FetchFn;
+  /**
+   * When true, every parsed SSE event is `console.debug`-ed with a
+   * `[timbal]` prefix. Useful for diagnosing tool/artifact rendering issues
+   * without screen-sharing. Default: `false`.
+   */
+  debug?: boolean;
 }
 
-export function TimbalRuntimeProvider({
+export interface SendOptions {
+  attachments?: ChatAttachment[];
+  /** Override the parent run id resolution. Pass `null` to start a new thread. */
+  parentId?: string | null;
+}
+
+export interface TimbalStreamApi {
+  messages: ChatMessage[];
+  isRunning: boolean;
+  send: (input: string, options?: SendOptions) => Promise<void>;
+  reload: (messageId?: string | null) => Promise<void>;
+  cancel: () => void;
+  clear: () => void;
+}
+
+/**
+ * Lower-level streaming hook for callers that don't want the full `<Thread>`
+ * UI. Exposes the internal message state plus `send`, `reload`, `cancel`, and
+ * `clear` actions. Use this to build custom chat surfaces while reusing the
+ * Timbal SSE wire format and auth-aware fetching.
+ */
+export function useTimbalStream({
   workforceId,
-  children,
   baseUrl = "/api",
   fetch: fetchFn,
-}: TimbalRuntimeProviderProps) {
+  debug = false,
+}: UseTimbalStreamOptions): TimbalStreamApi {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -100,53 +181,54 @@ export function TimbalRuntimeProvider({
     fetchFnRef.current = fetchFn ?? authFetch;
   }, [fetchFn]);
 
+  const debugRef = useRef(debug);
+  useEffect(() => {
+    debugRef.current = debug;
+  }, [debug]);
+
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
-  // ---- streaming core ----------------------------------------------------
-
   const streamAssistantResponse = useCallback(
     async (
       input: string,
+      attachments: ChatAttachment[] | undefined,
       userId: string,
       assistantId: string,
       parentId: string | null,
       signal: AbortSignal,
     ) => {
-      const parts: ContentPart[] = [];
-      const toolIndexById = new Map<string, number>();
-
-      const lastTextPart = (): TextContentPart => {
-        const last = parts[parts.length - 1];
-        if (last?.type === "text") return last;
-        const next: TextContentPart = { type: "text", text: "" };
-        parts.push(next);
-        return next;
-      };
+      const state: ReducerState = createReducerState();
 
       const flush = () => {
         setMessages((prev) =>
-          prev.map((m) => (m.id === assistantId ? { ...m, content: [...parts] } : m)),
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: [...state.parts] } : m,
+          ),
         );
       };
 
       const stampRunId = (runId: string) => {
         setMessages((prev) =>
-          prev.map((m) => (m.id === userId || m.id === assistantId ? { ...m, runId } : m)),
+          prev.map((m) =>
+            m.id === userId || m.id === assistantId ? { ...m, runId } : m,
+          ),
         );
       };
 
       try {
-        const res = await fetchFnRef.current(`${baseUrl}/workforce/${workforceId}/stream`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            prompt: input,
-            context: { parent_id: parentId },
-          }),
-          signal,
-        });
+        const body = buildPromptBody({ input, attachments, parentId });
+
+        const res = await fetchFnRef.current(
+          `${baseUrl}/workforce/${workforceId}/stream`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+            signal,
+          },
+        );
 
         if (!res.ok || !res.body) throw new Error(`Request failed: ${res.status}`);
 
@@ -167,89 +249,37 @@ export function TimbalRuntimeProvider({
             const event = parseSSELine(line);
             if (!event) continue;
 
-            if (!capturedRunId && isTopLevelStart(event)) {
-              capturedRunId = event.run_id as string;
-              stampRunId(capturedRunId);
+            if (debugRef.current) {
+              console.debug("[timbal]", event.type, event);
             }
 
-            switch (event.type) {
-              case "DELTA": {
-                const item = event.item as Record<string, unknown> | undefined;
-                if (!item) break;
-
-                if (item.type === "text_delta" && typeof item.text_delta === "string") {
-                  lastTextPart().text += item.text_delta;
-                  flush();
-                } else if (item.type === "tool_use") {
-                  const toolCallId = (item.id as string) || `tool-${crypto.randomUUID()}`;
-                  const inputStr = typeof item.input === "string" ? item.input : JSON.stringify(item.input ?? {});
-                  parts.push({
-                    type: "tool-call",
-                    toolCallId,
-                    toolName: (item.name as string) || "unknown",
-                    argsText: inputStr,
-                  });
-                  toolIndexById.set(toolCallId, parts.length - 1);
-                  flush();
-                } else if (item.type === "tool_use_delta") {
-                  const idx = toolIndexById.get(item.id as string);
-                  if (idx !== undefined && typeof item.input_delta === "string") {
-                    (parts[idx] as ToolCallContentPart).argsText += item.input_delta;
-                    flush();
-                  }
-                }
-                break;
-              }
-
-              case "OUTPUT": {
-                const output = event.output as Record<string, unknown> | string | undefined;
-                if (!output) break;
-
-                if (typeof output === "object" && Array.isArray(output.content)) {
-                  for (const block of output.content as Record<string, unknown>[]) {
-                    if (block.type === "tool_use") {
-                      const id = (block.id as string) || `tool-${crypto.randomUUID()}`;
-                      const idx = toolIndexById.get(id);
-                      if (idx !== undefined) {
-                        (parts[idx] as ToolCallContentPart).result = "Tool executed";
-                      } else {
-                        const inputStr = typeof block.input === "string" ? block.input : JSON.stringify(block.input ?? {});
-                        parts.push({
-                          type: "tool-call",
-                          toolCallId: id,
-                          toolName: (block.name as string) || "unknown",
-                          argsText: inputStr,
-                          result: "Tool executed",
-                        });
-                        toolIndexById.set(id, parts.length - 1);
-                      }
-                    } else if (block.type === "text" && typeof block.text === "string" && !lastTextPart().text) {
-                      lastTextPart().text = block.text;
-                    }
-                  }
-                  flush();
-                } else if (parts.length === 0) {
-                  const text = typeof output === "string" ? output : JSON.stringify(output);
-                  parts.push({ type: "text", text });
-                  flush();
-                }
-                break;
+            if (!capturedRunId) {
+              const runId = readTopLevelStartRunId(event);
+              if (runId) {
+                capturedRunId = runId;
+                stampRunId(runId);
               }
             }
+
+            const changed = reduceSseEvent(state, event);
+            if (changed) flush();
           }
         }
 
         if (buffer.trim()) {
           const event = parseSSELine(buffer);
-          if (event?.type === "OUTPUT" && parts.length === 0 && event.output) {
-            const text = typeof event.output === "string" ? event.output : JSON.stringify(event.output);
-            parts.push({ type: "text", text });
-            flush();
+          if (event) {
+            if (debugRef.current) {
+              console.debug("[timbal]", event.type, event);
+            }
+            if (reduceSseEvent(state, event)) flush();
           }
         }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
-          if (parts.length === 0) parts.push({ type: "text", text: "Something went wrong." });
+          if (state.parts.length === 0) {
+            state.parts.push({ type: "text", text: "Something went wrong." });
+          }
           flush();
         }
       } finally {
@@ -260,46 +290,47 @@ export function TimbalRuntimeProvider({
     [workforceId, baseUrl],
   );
 
-  // ---- runtime callbacks -------------------------------------------------
-
-  const onNew = useCallback(
-    async (message: AppendMessage) => {
-      const textPart = message.content.find((c) => c.type === "text");
-      if (!textPart || textPart.type !== "text") return;
-
-      const input = textPart.text;
+  const send = useCallback<TimbalStreamApi["send"]>(
+    async (input, options) => {
       const userId = crypto.randomUUID();
       const assistantId = crypto.randomUUID();
 
-      let base = messagesRef.current;
-      if (message.parentId !== null) {
-        const parentIdx = base.findIndex((m) => m.id === message.parentId);
-        if (parentIdx >= 0) {
-          base = base.slice(0, parentIdx + 1);
-        }
-      }
+      const base = messagesRef.current;
+      const parentId =
+        options?.parentId !== undefined ? options.parentId : findParentId(base);
 
-      const parentId = findParentId(base);
+      const userMessage: ChatMessage = {
+        id: userId,
+        role: "user",
+        content: input ? [{ type: "text", text: input }] : [],
+        ...(options?.attachments && options.attachments.length > 0
+          ? { attachments: options.attachments }
+          : {}),
+      };
 
       setMessages([
         ...base,
-        { id: userId, role: "user", content: [{ type: "text", text: input }] },
+        userMessage,
+        { id: assistantId, role: "assistant", content: [] },
       ]);
       setIsRunning(true);
-      setMessages((prev) => [
-        ...prev,
-        { id: assistantId, role: "assistant" as const, content: [] },
-      ]);
 
       const controller = new AbortController();
       abortRef.current = controller;
-      await streamAssistantResponse(input, userId, assistantId, parentId, controller.signal);
+      await streamAssistantResponse(
+        input,
+        options?.attachments,
+        userId,
+        assistantId,
+        parentId,
+        controller.signal,
+      );
     },
     [streamAssistantResponse],
   );
 
-  const onReload = useCallback(
-    async (messageId: string | null) => {
+  const reload = useCallback<TimbalStreamApi["reload"]>(
+    async (messageId) => {
       const current = messagesRef.current;
       const idx = messageId
         ? current.findIndex((m) => m.id === messageId)
@@ -309,7 +340,8 @@ export function TimbalRuntimeProvider({
       if (!userMessage || userMessage.role !== "user") return;
 
       const input = getTextFromMessage(userMessage);
-      if (!input) return;
+      const messageAttachments = getAttachmentsFromMessage(userMessage);
+      if (!input && !messageAttachments?.length) return;
 
       const assistantId = crypto.randomUUID();
       const parentId = findParentId(current, idx);
@@ -322,30 +354,208 @@ export function TimbalRuntimeProvider({
 
       const controller = new AbortController();
       abortRef.current = controller;
-      await streamAssistantResponse(input, userMessage.id, assistantId, parentId, controller.signal);
+      await streamAssistantResponse(
+        input,
+        messageAttachments,
+        userMessage.id,
+        assistantId,
+        parentId,
+        controller.signal,
+      );
     },
     [streamAssistantResponse],
   );
 
-  const onCancel = useCallback(async () => {
+  const cancel = useCallback(() => {
     abortRef.current?.abort();
   }, []);
 
-  // ---- render ------------------------------------------------------------
+  const clear = useCallback(() => {
+    abortRef.current?.abort();
+    setMessages([]);
+  }, []);
+
+  return useMemo(
+    () => ({ messages, isRunning, send, reload, cancel, clear }),
+    [messages, isRunning, send, reload, cancel, clear],
+  );
+}
+
+function readTopLevelStartRunId(event: Record<string, unknown>): string | null {
+  if (
+    event.type === "START" &&
+    typeof event.run_id === "string" &&
+    typeof event.path === "string" &&
+    !(event.path as string).includes(".")
+  ) {
+    return event.run_id as string;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// TimbalRuntimeProvider — wires useTimbalStream into @assistant-ui/react
+// ---------------------------------------------------------------------------
+
+const TimbalStreamContext = createContext<TimbalStreamApi | null>(null);
+
+/**
+ * Access the underlying `useTimbalStream` API from inside a component tree
+ * wrapped by `<TimbalRuntimeProvider>` (or `<TimbalChat>`). Useful for custom
+ * UIs that need direct access to messages, send, or cancel without going
+ * through the assistant-ui runtime.
+ */
+export function useTimbalRuntime(): TimbalStreamApi {
+  const ctx = useContext(TimbalStreamContext);
+  if (!ctx) {
+    throw new Error(
+      "useTimbalRuntime must be used inside a <TimbalRuntimeProvider>.",
+    );
+  }
+  return ctx;
+}
+
+export interface TimbalRuntimeProviderProps {
+  workforceId: string;
+  children: ReactNode;
+  /**
+   * Base URL for API calls. Defaults to `/api`.
+   * The provider will POST to `{baseUrl}/workforce/{workforceId}/stream`.
+   */
+  baseUrl?: string;
+  /**
+   * Custom fetch function for API calls. Defaults to `authFetch` which
+   * attaches Bearer tokens from localStorage and auto-refreshes on 401.
+   */
+  fetch?: FetchFn;
+  /**
+   * Enable composer attachments. `true` or `{ uploadUrl?, accept? }` uses
+   * the built-in upload adapter (`POST` to `${baseUrl}/files/upload` by
+   * default). Pass a custom {@link AttachmentAdapter} for full control, or
+   * `null` to disable. Omitted = off (back-compat with pre-attachment chats).
+   */
+  attachments?: TimbalAttachmentsProp;
+  /**
+   * Shorthand to enable the default upload adapter with a custom endpoint.
+   * Equivalent to `attachments={{ uploadUrl }}` when `attachments` is omitted.
+   */
+  attachmentsUploadUrl?: string;
+  /**
+   * Shorthand MIME `accept` for the default upload adapter when `attachments`
+   * is omitted or `true`.
+   */
+  attachmentsAccept?: string;
+  /**
+   * Forwarded to {@link useTimbalStream}. When `true`, every parsed SSE
+   * event is logged via `console.debug` with a `[timbal]` prefix.
+   */
+  debug?: boolean;
+}
+
+export function TimbalRuntimeProvider({
+  workforceId,
+  children,
+  baseUrl = "/api",
+  fetch: fetchFn,
+  attachments,
+  attachmentsUploadUrl,
+  attachmentsAccept,
+  debug,
+}: TimbalRuntimeProviderProps) {
+  const stream = useTimbalStream({
+    workforceId,
+    baseUrl,
+    fetch: fetchFn,
+    debug,
+  });
+
+  const attachmentAdapter = useMemo(
+    () =>
+      resolveAttachmentAdapter(attachments, {
+        baseUrl,
+        fetch: fetchFn,
+        uploadUrl: attachmentsUploadUrl,
+        accept: attachmentsAccept,
+      }),
+    [attachments, attachmentsUploadUrl, attachmentsAccept, baseUrl, fetchFn],
+  );
+
+  // ---- assistant-ui adapter ---------------------------------------------
+
+  const onNew = useCallback(
+    async (message: AppendMessage) => {
+      const textPart = message.content.find((c) => c.type === "text");
+      const input =
+        textPart && textPart.type === "text" ? textPart.text : "";
+
+      const auiAttachments = message.attachments as
+        | readonly AuiAttachment[]
+        | undefined;
+      const attachments = auiAttachments
+        ? (
+            await Promise.all(auiAttachments.map(extractAttachment))
+          ).filter((a): a is ChatAttachment => a !== null)
+        : [];
+
+      if (!input && attachments.length === 0) return;
+
+      const parentId =
+        message.parentId !== null && message.parentId !== undefined
+          ? findParentIdFromAuiParent(stream.messages, message.parentId)
+          : undefined;
+
+      await stream.send(input, {
+        attachments: attachments.length > 0 ? attachments : undefined,
+        ...(parentId !== undefined ? { parentId } : {}),
+      });
+    },
+    [stream],
+  );
+
+  const onReload = useCallback(
+    async (messageId: string | null) => {
+      await stream.reload(messageId);
+    },
+    [stream],
+  );
+
+  const onCancel = useCallback(async () => {
+    stream.cancel();
+  }, [stream]);
 
   const runtime = useExternalStoreRuntime({
-    isRunning,
-    messages,
+    isRunning: stream.isRunning,
+    messages: stream.messages,
     convertMessage,
     onNew,
     onEdit: onNew,
     onReload,
     onCancel,
+    ...(attachmentAdapter
+      ? { adapters: { attachments: attachmentAdapter } }
+      : {}),
   });
 
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      {children}
-    </AssistantRuntimeProvider>
+    <TimbalStreamContext.Provider value={stream}>
+      <AssistantRuntimeProvider runtime={runtime}>
+        {children}
+      </AssistantRuntimeProvider>
+    </TimbalStreamContext.Provider>
   );
+}
+
+/**
+ * Resolve the `parentId` to pass to the agent based on the assistant-ui
+ * `message.parentId` (which references a UI message id). We look up the
+ * referenced message and walk back to find the most recent assistant `runId`,
+ * which is what the Timbal API expects.
+ */
+function findParentIdFromAuiParent(
+  messages: ChatMessage[],
+  auiParentId: string,
+): string | null {
+  const idx = messages.findIndex((m) => m.id === auiParentId);
+  if (idx < 0) return null;
+  return findParentId(messages.slice(0, idx + 1));
 }
