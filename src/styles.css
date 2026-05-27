@@ -1,45 +1,312 @@
 /*
- * Optional companion styles for `@timbal-ai/timbal-react`.
+ * Complete companion stylesheet for `@timbal-ai/timbal-react`.
  *
- * Import this once from your app entry to get the polished defaults that
- * the blueprint used inline:
+ * Import this once from your app entry to get a fully working theme:
  *
  *   import "@timbal-ai/timbal-react/styles.css";
  *
- * Tailwind v4 is required for the design tokens (`var(--primary)`, etc.).
- * The package itself ships no bundled CSS — you can drop this file entirely
- * and ship your own.
+ * The package's components are written exclusively against semantic Tailwind
+ * tokens (bg-card, text-foreground, border-border, bg-elevated-from/to,
+ * shadow-card, …). Every token has a complete light + dark definition here
+ * so a consumer's host CSS only needs:
+ *
+ *   @import "tailwindcss";
+ *   @source "../node_modules/@timbal-ai/timbal-react/dist";
+ *
+ * Apps that want their own palette can override any --foo / --color-foo
+ * variable from their own :root / .dark rules — these rules cascade
+ * normally over the ones declared here.
  */
 
-/* ── AI breathing icon (welcome screen) ── */
-@keyframes timbal-ai-breathe {
-  0%, 100% { transform: scale(1); opacity: 0.72; }
-  50% { transform: scale(1.1); opacity: 1; }
+/* =============================================================== *
+ * Base tokens — shadcn-style :root / .dark pairs                  *
+ * =============================================================== */
+
+:root {
+  --radius: 0.75rem;
+
+  /* Studio light — matches the Timbal Platform HeroUI light theme */
+  --background: oklch(0.995 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(0.995 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(0.995 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.975 0.002 260);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.975 0.002 260);
+  --muted-foreground: oklch(0.52 0.014 260);
+  --accent: oklch(0.965 0.002 260);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(0.91 0.004 260);
+  --input: oklch(0.91 0.004 260);
+  --ring: oklch(0.55 0.014 260);
+
+  /* Sidebar scope — used by StudioSidebar */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.975 0.002 260);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.91 0.004 260);
+  --sidebar-ring: oklch(0.55 0.014 260);
+
+  /* Timbal extension tokens — keep light + dark in sync below */
+
+  /* Elevated surface gradient (cards, sidebar panel, secondary chrome). */
+  --elevated-from: oklch(1 0 0);
+  --elevated-to: oklch(0.985 0.002 260 / 0.7);
+
+  /* Soft playground gradient behind the message column. */
+  --playground-from: oklch(0.91 0.004 260 / 0.6);
+  --playground-via: oklch(0.965 0.002 260 / 0.3);
+  --playground-to: var(--background);
+
+  /* Composer shell — opaque card with stronger focus border. */
+  --composer-bg: oklch(1 0 0);
+  --composer-border: oklch(0.91 0.004 260 / 0.6);
+  --composer-border-focus: oklch(0.62 0.005 260 / 0.8);
+
+  /* User message bubble — neutral-200 on light, neutral-700 on dark. */
+  --bubble-user: oklch(0.922 0 0);
+  --bubble-user-foreground: oklch(0.145 0 0);
+
+  /* Primary button gradient endpoints — inverts in dark mode. */
+  --primary-fill-from: oklch(0.27 0 0);
+  --primary-fill-to: oklch(0 0 0);
+  --primary-fill-hover-from: oklch(0.32 0 0);
+  --primary-fill-hover-to: oklch(0.17 0 0);
+  --primary-fill-active-from: oklch(0 0 0);
+  --primary-fill-active-to: oklch(0 0 0);
+
+  /* Secondary button gradient endpoints. */
+  --secondary-fill-hover-from: oklch(0.985 0.002 260 / 0.5);
+  --secondary-fill-hover-to: oklch(0.965 0.002 260 / 0.65);
+  --secondary-fill-active-from: oklch(0.965 0.002 260 / 0.7);
+  --secondary-fill-active-to: oklch(0.91 0.004 260 / 0.65);
+
+  /* Destructive button gradient endpoints. */
+  --destructive-fill-hover-from: oklch(0.97 0.06 27 / 0.9);
+  --destructive-fill-hover-to: oklch(0.93 0.09 27 / 0.7);
+  --destructive-fill-active-from: oklch(0.93 0.09 27 / 0.9);
+  --destructive-fill-active-to: oklch(0.86 0.13 27 / 0.65);
+
+  /* Ghost button hover/active fills. */
+  --ghost-fill-hover: oklch(0.965 0.002 260 / 0.7);
+  --ghost-fill-active: oklch(0.91 0.004 260 / 0.7);
+
+  /* Code block surface (markdown). */
+  --code-block-bg: oklch(0.98 0 0);
+  --code-header-bg: oklch(0.965 0 0);
+
+  /* Math (KaTeX) display surface. */
+  --katex-bg: oklch(0.97 0 0 / 0.6);
+  --katex-border: oklch(0.922 0 0);
+
+  /* Markdown table zebra. */
+  --md-table-zebra: oklch(0.97 0 0 / 0.4);
+
+  /* Scrollbar thumb (light & dark share oklch base, only alpha changes). */
+  --scrollbar-thumb: oklch(0.708 0 0 / 0.3);
+  --scrollbar-thumb-hover: oklch(0.708 0 0 / 0.5);
+
+  /* Card shadows. */
+  --shadow-card-value: 0 1px 2px -0.5px rgba(0, 0, 0, 0.05);
+  --shadow-card-elevated-value: 0 4px 24px rgba(0, 0, 0, 0.06);
+
+  /* Studio layout (used by StudioSidebar / TimbalStudioShell). */
+  --studio-topbar-gap: 0.5rem;
+  --studio-topbar-height: 3rem;
+  --studio-chrome-pill-height: 2.5rem;
+  --studio-inset-top: calc(var(--studio-topbar-gap) + var(--studio-topbar-height));
+  --studio-sidebar-gap: 0.75rem;
+  --studio-sidebar-width: 14rem;
+  --studio-sidebar-width-collapsed: 3.25rem;
+  --studio-sidebar-content-gap: 0.5rem;
+  --studio-inset-left: calc(
+    var(--studio-sidebar-gap) + var(--studio-sidebar-width) +
+      var(--studio-sidebar-content-gap)
+  );
+  --studio-inset-left-collapsed: calc(
+    var(--studio-sidebar-gap) + var(--studio-sidebar-width-collapsed) +
+      var(--studio-sidebar-content-gap)
+  );
 }
 
-@keyframes timbal-ai-ring-glow {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.55; }
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.19 0.005 260);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.19 0.005 260);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.22 0.005 260);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.22 0.005 260);
+  --muted-foreground: oklch(0.72 0.01 260);
+  --accent: oklch(0.25 0.008 260);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+  --border: oklch(1 0 0 / 0.10);
+  --input: oklch(1 0 0 / 0.12);
+  --ring: oklch(0.55 0.01 260);
+
+  --sidebar: oklch(0.19 0.005 260);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.985 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.25 0.008 260);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 0.10);
+  --sidebar-ring: oklch(0.55 0.01 260);
+
+  --elevated-from: oklch(1 0 0 / 0.05);
+  --elevated-to: oklch(1 0 0 / 0.025);
+
+  --playground-from: oklch(0.27 0.005 285);
+  --playground-via: oklch(0.19 0.005 260);
+  --playground-to: oklch(0.13 0.005 285);
+
+  --composer-bg: oklch(0.19 0.005 260);
+  --composer-border: oklch(1 0 0 / 0.12);
+  --composer-border-focus: oklch(1 0 0 / 0.22);
+
+  --bubble-user: oklch(0.371 0 0);
+  --bubble-user-foreground: oklch(0.985 0 0);
+
+  /* Primary inverts on dark — light gradient on a dark background. */
+  --primary-fill-from: oklch(1 0 0);
+  --primary-fill-to: oklch(0.92 0 0);
+  --primary-fill-hover-from: oklch(1 0 0);
+  --primary-fill-hover-to: oklch(0.97 0 0);
+  --primary-fill-active-from: oklch(0.92 0 0);
+  --primary-fill-active-to: oklch(0.78 0 0);
+
+  --secondary-fill-hover-from: oklch(1 0 0 / 0.07);
+  --secondary-fill-hover-to: oklch(1 0 0 / 0.045);
+  --secondary-fill-active-from: oklch(1 0 0 / 0.10);
+  --secondary-fill-active-to: oklch(1 0 0 / 0.07);
+
+  --destructive-fill-hover-from: oklch(0.6 0.2 27 / 0.12);
+  --destructive-fill-hover-to: oklch(0.6 0.2 27 / 0.08);
+  --destructive-fill-active-from: oklch(0.6 0.2 27 / 0.20);
+  --destructive-fill-active-to: oklch(0.6 0.2 27 / 0.12);
+
+  --ghost-fill-hover: oklch(1 0 0 / 0.10);
+  --ghost-fill-active: oklch(1 0 0 / 0.15);
+
+  --code-block-bg: oklch(0.19 0 0);
+  --code-header-bg: oklch(0.22 0 0 / 0.8);
+
+  --katex-bg: oklch(0.2 0 0 / 0.5);
+  --katex-border: oklch(1 0 0 / 0.08);
+
+  --md-table-zebra: oklch(0.2 0 0 / 0.3);
+
+  --scrollbar-thumb: oklch(0.708 0 0 / 0.4);
+  --scrollbar-thumb-hover: oklch(0.708 0 0 / 0.6);
+
+  --shadow-card-value: 0 1px 3px rgba(0, 0, 0, 0.22);
+  --shadow-card-elevated-value: 0 4px 24px rgba(0, 0, 0, 0.35);
 }
 
-@keyframes timbal-ai-pulse-ring {
-  0%   { box-shadow: 0 0 0 0 oklch(from var(--primary, #6366f1) l c h / 0.18); }
-  65%  { box-shadow: 0 0 0 8px oklch(from var(--primary, #6366f1) l c h / 0); }
-  100% { box-shadow: 0 0 0 0 oklch(from var(--primary, #6366f1) l c h / 0); }
+/* =============================================================== *
+ * Tailwind v4 @theme inline — re-aliases the base tokens above so *
+ * `bg-background`, `text-foreground`, `border-border`, etc. all   *
+ * resolve via var() and flip with .dark.                          *
+ * =============================================================== */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Timbal extensions — exposed as colour tokens so they work with
+     bg-*, border-*, text-*, from-*, via-*, to-* utilities alike. */
+  --color-elevated-from: var(--elevated-from);
+  --color-elevated-to: var(--elevated-to);
+  --color-playground-from: var(--playground-from);
+  --color-playground-via: var(--playground-via);
+  --color-playground-to: var(--playground-to);
+  --color-composer-bg: var(--composer-bg);
+  --color-composer-border: var(--composer-border);
+  --color-composer-border-focus: var(--composer-border-focus);
+  --color-bubble-user: var(--bubble-user);
+  --color-bubble-user-foreground: var(--bubble-user-foreground);
+
+  --color-primary-fill-from: var(--primary-fill-from);
+  --color-primary-fill-to: var(--primary-fill-to);
+  --color-primary-fill-hover-from: var(--primary-fill-hover-from);
+  --color-primary-fill-hover-to: var(--primary-fill-hover-to);
+  --color-primary-fill-active-from: var(--primary-fill-active-from);
+  --color-primary-fill-active-to: var(--primary-fill-active-to);
+
+  --color-secondary-fill-hover-from: var(--secondary-fill-hover-from);
+  --color-secondary-fill-hover-to: var(--secondary-fill-hover-to);
+  --color-secondary-fill-active-from: var(--secondary-fill-active-from);
+  --color-secondary-fill-active-to: var(--secondary-fill-active-to);
+
+  --color-destructive-fill-hover-from: var(--destructive-fill-hover-from);
+  --color-destructive-fill-hover-to: var(--destructive-fill-hover-to);
+  --color-destructive-fill-active-from: var(--destructive-fill-active-from);
+  --color-destructive-fill-active-to: var(--destructive-fill-active-to);
+
+  --color-ghost-fill-hover: var(--ghost-fill-hover);
+  --color-ghost-fill-active: var(--ghost-fill-active);
+
+  --color-code-block-bg: var(--code-block-bg);
+  --color-code-header-bg: var(--code-header-bg);
+
+  --shadow-card: var(--shadow-card-value);
+  --shadow-card-elevated: var(--shadow-card-elevated-value);
 }
 
-.animate-ai-breathe {
-  animation: timbal-ai-breathe 3.2s ease-in-out infinite;
-}
+/* Allow the `dark` Tailwind variant to be triggered by an ancestor `.dark`
+   class. Apps using next-themes / a manual toggle just add/remove `.dark`
+   from `<html>` and every utility flips together with the base tokens. */
+@custom-variant dark (&:is(.dark *));
 
-.animate-ai-ring-glow {
-  animation: timbal-ai-ring-glow 3.2s ease-in-out infinite;
-}
-
-.animate-ai-pulse-ring {
-  animation: timbal-ai-pulse-ring 3.2s ease-in-out infinite;
-  border-radius: var(--radius-xl, 12px);
-}
+/* =============================================================== *
+ * Polish — markdown, shiki, katex, scrollbars                     *
+ * =============================================================== */
 
 /* ── Markdown inline code ── */
 .dark code:not(pre code) {
@@ -48,14 +315,14 @@
 
 /* ── Shiki dual-theme support ── */
 .shiki-wrapper pre {
-  background: var(--shiki-light-bg, oklch(0.98 0 0)) !important;
+  background: var(--shiki-light-bg, var(--code-block-bg)) !important;
 }
 .shiki-wrapper code,
 .shiki-wrapper code span {
   color: var(--shiki-light, inherit);
 }
 .dark .shiki-wrapper pre {
-  background: var(--shiki-dark-bg, oklch(0.13 0 0)) !important;
+  background: var(--shiki-dark-bg, var(--code-block-bg)) !important;
 }
 .dark .shiki-wrapper code,
 .dark .shiki-wrapper code span {
@@ -85,15 +352,11 @@
 .katex-display {
   margin: 1.25rem 0 !important;
   padding: 1rem 1.25rem;
-  background: oklch(0.97 0 0 / 0.6);
-  border: 1px solid oklch(0.922 0 0);
+  background: var(--katex-bg);
+  border: 1px solid var(--katex-border);
   border-radius: 0.5rem;
   overflow-x: auto;
   overflow-y: hidden;
-}
-.dark .katex-display {
-  background: oklch(0.2 0 0 / 0.5);
-  border-color: oklch(1 0 0 / 0.08);
 }
 .katex-display > .katex {
   text-align: center;
@@ -110,10 +373,7 @@
 
 /* ── Markdown table zebra striping ── */
 .aui-md-table tbody tr:nth-child(even) {
-  background: oklch(0.97 0 0 / 0.4);
-}
-.dark .aui-md-table tbody tr:nth-child(even) {
-  background: oklch(0.2 0 0 / 0.3);
+  background: var(--md-table-zebra);
 }
 
 /* ── Code header polish ── */
@@ -170,7 +430,7 @@
 .aui-thread-root,
 .aui-thread-root * {
   scrollbar-width: thin;
-  scrollbar-color: oklch(0.708 0 0 / 0.3) transparent;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 .aui-thread-root *::-webkit-scrollbar {
@@ -184,7 +444,7 @@
 }
 
 .aui-thread-root *::-webkit-scrollbar-thumb {
-  background: oklch(0.708 0 0 / 0.3);
+  background: var(--scrollbar-thumb);
   border-radius: 4px;
   border: 2px solid transparent;
   background-clip: content-box;
@@ -192,19 +452,27 @@
 }
 
 .aui-thread-root *::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.708 0 0 / 0.5);
+  background: var(--scrollbar-thumb-hover);
   background-clip: content-box;
 }
 
-.dark .aui-thread-root,
-.dark .aui-thread-root * {
-  scrollbar-color: oklch(0.708 0 0 / 0.4) transparent;
+/* =============================================================== *
+ * Component fixes — baked in so consumers don't need overrides    *
+ * =============================================================== */
+
+/* The thread viewport footer no longer paints its own background. The
+   thread root already paints bg-background, so the sticky footer must
+   stay transparent — otherwise a token mismatch surfaces as a coloured
+   strip behind the composer. */
+.aui-thread-viewport-footer {
+  background: transparent !important;
+  border-radius: 0 !important;
+  isolation: isolate;
+  z-index: 10;
 }
 
-.dark .aui-thread-root *::-webkit-scrollbar-thumb {
-  background: oklch(0.708 0 0 / 0.4);
-}
-
-.dark .aui-thread-root *::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.708 0 0 / 0.6);
+/* Scrolled assistant action bars must not show through the composer shell. */
+.aui-composer-input,
+.aui-composer-action-wrapper {
+  background-color: var(--composer-bg);
 }

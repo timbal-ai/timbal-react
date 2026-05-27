@@ -18,16 +18,36 @@ npm install react react-dom @assistant-ui/react @timbal-ai/timbal-sdk
 
 ### Tailwind setup
 
-The package ships pre-built Tailwind class names. Add this `@source` line to your CSS entry file — **without it the components will be unstyled**:
+The package ships pre-built Tailwind class names **plus a complete light + dark token set** (`bg-background`, `text-foreground`, `bg-card`, `bg-bubble-user`, `from-elevated-from`, `bg-playground-from/via/to`, etc.). Your app CSS only needs three lines:
 
 ```css
 /* src/index.css */
 @import "tailwindcss";
-
+@import "@timbal-ai/timbal-react/styles.css";
 @source "../node_modules/@timbal-ai/timbal-react/dist";
 ```
 
-> Adjust the path if your CSS file lives at a different depth relative to `node_modules`.
+That's it — no `@theme`, `:root`, or `.dark` blocks of your own. Toggling dark mode is a single `document.documentElement.classList.toggle("dark")` (or `next-themes` `attribute="class"`).
+
+> Adjust the `@source` path if your CSS file lives at a different depth relative to `node_modules`.
+
+### Overriding the palette
+
+Every token has a CSS-variable indirection in `styles.css`. Override individual variables to rebrand without forking:
+
+```css
+:root {
+  --primary: oklch(0.5 0.12 265);
+  --playground-from: oklch(0.95 0.04 265 / 0.6);
+}
+
+.dark {
+  --primary: oklch(0.72 0.14 265);
+  --playground-from: oklch(0.27 0.04 265);
+}
+```
+
+Both light AND dark blocks must be defined for every overridden token — otherwise toggling dark mode produces an inconsistent UI. The library prints a one-time dev-only console warning when it detects a mismatch.
 
 ### CSS imports
 
@@ -78,6 +98,20 @@ export default function App() {
 />
 ```
 
+Suggestions also accept a function (sync or async) for per-user or server-driven chips:
+
+```tsx
+<TimbalChat
+  workforceId="your-workforce-id"
+  suggestions={async () => {
+    const res = await authFetch("/api/suggestions");
+    return res.json(); // ThreadSuggestion[]
+  }}
+/>
+```
+
+Each chip supports `icon`, `description`, and `prompt` (sent instead of `title` when clicked).
+
 ### Placeholder and width
 
 ```tsx
@@ -103,6 +137,117 @@ const [workforceId, setWorkforceId] = useState("agent-a");
 
 <TimbalChat workforceId={workforceId} key={workforceId} />
 ```
+
+### Studio shell (sidebar + header + chat)
+
+`TimbalStudioShell` is the most opinionated layout — a floating workforce sidebar, a top bar for actions (mode toggle, account), and a full-height `TimbalChat`. Works as a one-line app:
+
+```tsx
+import {
+  TimbalStudioShell,
+  ModeToggle,
+  TimbalMark,
+} from "@timbal-ai/timbal-react";
+import { useTheme } from "next-themes";
+
+export default function App() {
+  const { resolvedTheme, setTheme } = useTheme();
+
+  return (
+    <TimbalStudioShell
+      brand={<TimbalMark size={32} />}
+      welcome={{ heading: "How can I help you today?" }}
+      headerActions={
+        <ModeToggle theme={resolvedTheme} setTheme={setTheme} />
+      }
+      suggestions={[{ title: "Get started" }]}
+      attachments
+    />
+  );
+}
+```
+
+When `workforceId` is omitted, the shell fetches the workforce list and lets the sidebar drive selection. Pass `workforceId` to pin a single agent and hide the picker UI.
+
+Apps that need finer control can compose the public building blocks (`StudioSidebar` + `TimbalChat`) directly:
+
+```tsx
+import { StudioSidebar, TimbalChat } from "@timbal-ai/timbal-react";
+
+function MyShell() {
+  const [agent, setAgent] = useState("agent-a");
+  return (
+    <div className="relative h-dvh bg-background">
+      <StudioSidebar selectedId={agent} onSelect={setAgent} />
+      <main className="h-full pl-[var(--studio-inset-left)]">
+        <TimbalChat workforceId={agent} key={agent} />
+      </main>
+    </div>
+  );
+}
+```
+
+The `--studio-inset-left` CSS variable is automatically set on the document by `StudioSidebar`, so a normal Tailwind `pl-[var(--studio-inset-left)]` call resolves to the correct offset.
+
+### Drop-in shell (header + agent picker)
+
+`TimbalChatShell` wraps the common blueprint layout: brand area, workforce selector, optional header actions, and a full-height chat. When `workforceId` is omitted, it fetches `{baseUrl}/workforce` and selects the first agent automatically:
+
+```tsx
+import { TimbalChatShell, Button, useSession } from "@timbal-ai/timbal-react";
+
+export default function App() {
+  const { logout, isAuthenticated } = useSession();
+
+  return (
+    <TimbalChatShell
+      brand={<span className="font-semibold">Acme AI</span>}
+      headerActions={
+        isAuthenticated ? (
+          <Button variant="ghost" size="sm" onClick={logout}>
+            Log out
+          </Button>
+        ) : null
+      }
+      welcome={{ heading: "How can I help you today?" }}
+      suggestions={[{ title: "Get started" }]}
+    />
+  );
+}
+```
+
+Pass `workforceId` to lock the agent and hide the built-in selector. Use `hideWorkforceSelector` when you render your own picker.
+
+### Workforce list hook
+
+For custom layouts (sidebar tree, command palette), use `useWorkforces` with the optional `WorkforceSelector`:
+
+```tsx
+import {
+  TimbalChat,
+  useWorkforces,
+  WorkforceSelector,
+} from "@timbal-ai/timbal-react";
+
+function ChatWithPicker() {
+  const { workforces, selectedId, setSelectedId, isLoading } = useWorkforces();
+
+  if (isLoading) return <div>Loading agents…</div>;
+
+  return (
+    <div className="flex h-screen flex-col">
+      <WorkforceSelector
+        workforces={workforces}
+        value={selectedId}
+        onChange={setSelectedId}
+      />
+      <TimbalChat workforceId={selectedId} key={selectedId} className="min-h-0 flex-1" />
+    </div>
+  );
+}
+```
+
+`useWorkforces` accepts `baseUrl`, `fetch`, and `pickInitial` (custom resolver for the default selection). It returns `selected`, `error`, and `refresh()` as well.
 
 ---
 
@@ -174,13 +319,15 @@ Your API must expose that upload route (the Timbal blueprint API includes it). `
 ```tsx
 import {
   createDefaultAttachmentAdapter,
+  createUploadAttachmentAdapter,
   resolveAttachmentAdapter,
   parseSSELine,
   AssistantRuntimeProvider,
+  useTimbalStream,
 } from "@timbal-ai/timbal-react";
 ```
 
-`parseSSELine` and `AssistantRuntimeProvider` are re-exported so custom runtimes do not need a second `@assistant-ui/react` import for those symbols.
+`parseSSELine` and `AssistantRuntimeProvider` are re-exported so custom runtimes do not need a second `@assistant-ui/react` import for those symbols. `useTimbalStream` exposes the same SSE reducer and `send` / `reload` / `cancel` API without mounting `<Thread>`.
 
 ### Custom fetch function
 
@@ -212,8 +359,9 @@ Use the `components` prop on `TimbalChat` or `Thread` to replace any part of the
 | `UserMessage` | none | built-in user bubble |
 | `AssistantMessage` | none | built-in assistant bubble |
 | `EditComposer` | none | built-in inline edit composer |
-| `Composer` | `placeholder` | built-in composer bar |
-| `Welcome` | `config`, `suggestions` | built-in welcome screen |
+| `Composer` | `placeholder` (+ full `ComposerProps`) | built-in composer bar |
+| `Welcome` | `config`, `suggestions`, `Suggestions` | built-in welcome screen |
+| `Suggestions` | `suggestions` | built-in suggestion chips |
 | `ScrollToBottom` | none | built-in scroll button |
 
 Custom slot components read their data via hooks — no props are passed automatically except where noted above.
@@ -414,6 +562,7 @@ import {
 | `attachments` | `boolean \| { uploadUrl?, accept? } \| AttachmentAdapter \| null` | off | `true` or a config object enables the built-in upload adapter; `null` disables; omitted = off |
 | `attachmentsUploadUrl` | `string` | — | Shorthand: enables the default adapter with a custom upload URL |
 | `attachmentsAccept` | `string` | — | Shorthand: MIME `accept` for the default adapter |
+| `debug` | `boolean` | `false` | Log every parsed SSE event to the console with a `[timbal]` prefix |
 | `welcome.heading` | `string` | `"How can I help you today?"` | Welcome screen heading |
 | `welcome.subheading` | `string` | `"Send a message to start a conversation."` | Welcome screen subheading |
 | `suggestions` | `{ title: string; description?: string }[]` | — | Suggestion chips on the welcome screen |
@@ -434,6 +583,23 @@ Same as `TimbalChat` minus `workforceId`, `baseUrl`, and `fetch` (those live on 
 | `workforceId` | `string` | **required** | ID of the workforce to stream from |
 | `baseUrl` | `string` | `"/api"` | Base URL for API calls |
 | `fetch` | `(url, options?) => Promise<Response>` | `authFetch` | Custom fetch function |
+| `attachments` | same as `TimbalChat` | off | Enable uploads on the runtime (usually set on `TimbalChat` instead) |
+| `attachmentsUploadUrl` | `string` | — | Shorthand upload URL for the default adapter |
+| `attachmentsAccept` | `string` | — | Shorthand MIME accept for the default adapter |
+| `debug` | `boolean` | `false` | SSE debug logging (see above) |
+
+### `TimbalChatShell` props
+
+Extends all `TimbalChat` props except `workforceId` is optional.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `workforceId` | `string` | auto from API | When set, skips fetching and hides the built-in selector |
+| `brand` | `ReactNode` | — | Logo or title at the start of the header |
+| `headerActions` | `ReactNode` | — | Trailing header content (logout, theme toggle, etc.) |
+| `hideWorkforceSelector` | `boolean` | `false` | Hide the built-in `<select>` even when multiple agents exist |
+| `className` | `string` | — | Classes on the outer `h-screen` flex container |
+| `headerClassName` | `string` | — | Classes on the header bar |
 
 ---
 
@@ -474,6 +640,30 @@ export default function App() {
 
 When `enabled` is `false`, both `SessionProvider` and `AuthGuard` are transparent — no redirects, no API calls.
 
+### Embedding in an iframe
+
+When the app runs inside an iframe, `SessionProvider` detects embedding and skips the normal cookie refresh flow. Instead:
+
+1. The child posts `{ type: "timbal:request-session" }` to `window.parent`.
+2. The parent responds with `{ type: "timbal:auth", token: "<access>", refreshToken?: "<refresh>" }`.
+3. Tokens are stored in localStorage and `fetchCurrentUser()` runs as usual.
+
+`useSession()` exposes `isEmbedded: boolean` so you can adjust UI (e.g. hide logout redirects that assume a top-level window).
+
+```tsx
+// Parent page
+iframe.contentWindow?.postMessage(
+  { type: "timbal:auth", token: accessToken, refreshToken },
+  "*",
+);
+
+window.addEventListener("message", (e) => {
+  if (e.data?.type === "timbal:request-session") {
+    // inject tokens as above
+  }
+});
+```
+
 ### `useSession` hook
 
 Access the current session anywhere inside `SessionProvider`:
@@ -482,7 +672,7 @@ Access the current session anywhere inside `SessionProvider`:
 import { useSession } from "@timbal-ai/timbal-react";
 
 function Header() {
-  const { user, isAuthenticated, loading, logout } = useSession();
+  const { user, isAuthenticated, isEmbedded, loading, logout } = useSession();
   if (loading) return null;
   return (
     <header>
@@ -528,19 +718,35 @@ if (res.ok) {
 
 | Export | Description |
 |---|---|
+| `TimbalStudioShell` | Floating sidebar + top bar + full-height `TimbalChat`. Most opinionated layout |
+| `StudioSidebar` | Floating workforce sidebar — collapses, mobile drawer, runtime portal anchor |
+| `ModeToggle` | Sun/moon theme toggle styled for the studio top bar |
+| `TimbalMark` | Liquid-metal brand mark — drop-in welcome icon |
+| `StudioWelcome` | Welcome screen with `TimbalMark` + staggered intro animation |
+| `TimbalChatShell` | Header + workforce picker + full-height `TimbalChat` |
 | `Thread` | Full chat UI — messages, composer, attachments, action bar |
+| `Composer` | Standalone composer bar (for custom thread layouts) |
+| `Suggestions` | Suggestion chip grid/row; use with `useResolvedSuggestions` |
+| `WorkforceSelector` | Styled native `<select>` for agent switching |
 | `MarkdownText` | Markdown renderer with GFM, math (KaTeX), and syntax highlighting |
 | `ToolFallback` | Animated "Using tool: …" indicator shown while a tool runs |
 | `ARTIFACT_AGENT_INSTRUCTIONS` | Markdown block to paste into agent system prompts |
+| `ArtifactRegistryProvider` | Scope custom artifact renderers |
 | `UiEventProvider` | Low-level provider for `ui` artifact `emit` actions |
 | `UiCustomNodeRegistryProvider` | Register `{ kind: "custom" }` node renderers |
 | `ArtifactView` | Render a single artifact object |
 | `parseArtifactFromToolResult` | Parse tool output into an artifact |
-| `SyntaxHighlighter` | Shiki-based code highlighter (vitesse-dark / vitesse-light themes) |
-| `UserMessageAttachments` | Attachment thumbnails in user messages |
-| `ComposerAttachments` | Attachment previews inside the composer |
-| `ComposerAddAttachment` | "+" button to add attachments |
 | `TooltipIconButton` | Icon button with a tooltip |
+
+### Hooks
+
+| Export | Description |
+|---|---|
+| `useWorkforces` | Fetch `{baseUrl}/workforce` and track selection |
+| `useTimbalStream` | Low-level SSE chat state without `<Thread>` |
+| `useTimbalRuntime` | Access runtime context inside custom providers |
+| `useResolvedSuggestions` | Resolve static/async `SuggestionsSource` to an array |
+| `useOptionalSession` | Same as `useSession` but returns `null` when no `SessionProvider` is mounted |
 
 ### UI primitives
 
@@ -552,63 +758,109 @@ Re-exported Radix UI wrappers pre-styled to match the Timbal design system:
 
 ## Full example
 
-A complete page with agent switching, auth, and a custom header:
+App shell with optional auth, using `TimbalChatShell` (agent list + chat in one component):
+
+```tsx
+// src/App.tsx
+import {
+  SessionProvider,
+  AuthGuard,
+  TooltipProvider,
+  TimbalChatShell,
+} from "@timbal-ai/timbal-react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+
+const isAuthEnabled = !!import.meta.env.VITE_TIMBAL_PROJECT_ID;
+
+export default function App() {
+  return (
+    <SessionProvider enabled={isAuthEnabled}>
+      <TooltipProvider>
+        <BrowserRouter>
+          <AuthGuard requireAuth enabled={isAuthEnabled}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+            </Routes>
+          </AuthGuard>
+        </BrowserRouter>
+      </TooltipProvider>
+    </SessionProvider>
+  );
+}
+```
 
 ```tsx
 // src/pages/Home.tsx
-import { useEffect, useState } from "react";
-import type { WorkforceItem } from "@timbal-ai/timbal-sdk";
-import { TimbalChat, Button, authFetch, useSession } from "@timbal-ai/timbal-react";
+import { TimbalChatShell, Button, useSession } from "@timbal-ai/timbal-react";
 import { LogOut } from "lucide-react";
 
 const isAuthEnabled = !!import.meta.env.VITE_TIMBAL_PROJECT_ID;
 
 export default function Home() {
-  const { logout } = useSession();
-  const [workforces, setWorkforces] = useState<WorkforceItem[]>([]);
-  const [selectedId, setSelectedId] = useState("");
-
-  useEffect(() => {
-    authFetch("/api/workforce")
-      .then((r) => r.json())
-      .then((data: WorkforceItem[]) => {
-        setWorkforces(data);
-        const agent = data.find((w) => w.type === "agent") ?? data[0];
-        if (agent) setSelectedId(agent.id ?? agent.name ?? "");
-      })
-      .catch(() => {});
-  }, []);
+  const { logout, isAuthenticated } = useSession();
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", padding: "0.5rem 1.25rem" }}>
-        <select value={selectedId} onChange={(e) => setSelectedId(e.target.value)}>
-          {workforces.map((w) => (
-            <option key={w.id ?? w.name} value={w.id ?? w.name ?? ""}>
-              {w.name}
-            </option>
-          ))}
-        </select>
-
-        {isAuthEnabled && (
-          <Button variant="ghost" size="icon" onClick={logout}>
-            <LogOut />
+    <TimbalChatShell
+      brand={<span className="text-sm font-semibold">My App</span>}
+      headerActions={
+        isAuthEnabled && isAuthenticated ? (
+          <Button variant="ghost" size="icon" onClick={logout} aria-label="Log out">
+            <LogOut className="size-4" />
           </Button>
-        )}
-      </header>
-
-      <TimbalChat
-        workforceId={selectedId}
-        key={selectedId}
-        className="flex-1 min-h-0"
-        welcome={{ heading: "How can I help you today?" }}
-      />
-    </div>
+        ) : null
+      }
+      welcome={{ heading: "How can I help you today?" }}
+      suggestions={[
+        { title: "Summarize this week", description: "Recent activity at a glance" },
+        { title: "What can you help with?" },
+      ]}
+      attachments
+      debug={import.meta.env.DEV}
+    />
   );
 }
 ```
 
+For a fully custom header, combine `useWorkforces` with `TimbalChat` instead of `TimbalChatShell` (see [Workforce list hook](#workforce-list-hook)).
+
 ---
+
+## Migrating from 0.4 to 0.5
+
+`0.5.0` slims the public API to the surface that blueprint apps actually use. Every feature still works — only the export list changed.
+
+### Re-brand via CSS variables, not internals
+
+All sizing and class composites moved to internal modules. Override the CSS variables in your own `:root` / `.dark` blocks instead of importing helper strings:
+
+```css
+:root {
+  --studio-sidebar-width: 15rem;
+  --studio-topbar-height: 3.25rem;
+}
+```
+
+For colours, override the existing semantic tokens (`--background`, `--foreground`, `--composer-bg`, `--bubble-user`, `--playground-from/via/to`, …). See [`src/styles.css`](src/styles.css) for the full list.
+
+### Removed from the public API
+
+The following symbols are no longer exported. Most have no replacement because they were never meant to be public; for the rest, prefer the high-level shells or CSS-variable overrides:
+
+- All `STUDIO_*` layout constants (`STUDIO_SIDEBAR_WIDTH`, `STUDIO_INSET_LEFT`, `STUDIO_SIDEBAR_COLLAPSED_STORAGE_KEY`, `STUDIO_SIDEBAR_PX_*`, …) — override the matching `--studio-*` CSS variables instead.
+- All `studio*Class` / `studioChromeShellStyle` helpers — re-create the look with normal Tailwind classes against semantic tokens (`bg-elevated-from`, `border-border`, `shadow-card`, …).
+- All `TIMBAL_V2_*` button token records and `TimbalV2Button` — use the standard `Button` export from this package; it covers the same variants.
+- `StudioSidebarPanel`, `StudioSidebarHeader/Nav/Footer/Entries/Backdrop/Tooltip/RuntimePortal/EntryMotion`, `StudioSidebarContext`, `useStudioSidebarLayout`, `useStudioSidebarCollapsed`, `useSidebarCollapsePhase`, `workforceItemId/Label/Initial` — use `StudioSidebar` or `TimbalStudioShell` directly.
+- `runThemeSanityCheck` — `<Thread>` already schedules the dev-only check.
+- `SyntaxHighlighter`, `UserMessageAttachments`, `ComposerAttachments`, `ComposerAddAttachment`, `MessagePartPrimitive`, `ActionBarMorePrimitive`, `ErrorPrimitive`, `useAuiState`, `buttonVariants` — internal composer/markdown details. Override the `Composer` / `AssistantMessage` slot via the `components` prop if you need a custom layout.
+
+Everything else (the three shells, primitives, hooks, auth, artifact API, design-token CSS variables) is unchanged.
+
+---
+
+## Mock UI demo
+
+An offline Vite app lives in [`examples/mock-ui`](examples/mock-ui). It uses a scripted mock `fetch` (no API keys) and includes a component gallery for artifacts. See that folder’s README for run instructions.
 
 ## Local development
 

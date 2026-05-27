@@ -9,18 +9,20 @@ import {
   useState,
 } from "react";
 import { useThreadRuntime } from "@assistant-ui/react";
-import { Button } from "../ui/button";
+import { ArrowUpIcon } from "lucide-react";
+
+import { studioListRowButtonClass } from "../design/classes";
 import { cn } from "../utils";
 
 export interface ThreadSuggestion {
-  /** Title shown on the chip. Also sent verbatim as the user message. */
+  /** Title shown on the row. Also sent verbatim as the user message. */
   title: string;
   /** Optional secondary line. */
   description?: string;
   /** Optional leading icon. */
   icon?: ReactNode;
   /**
-   * Override the prompt sent when the chip is clicked. Useful when the chip
+   * Override the prompt sent when the row is clicked. Useful when the row
    * label is short ("Weekly recap") but the prompt should be longer.
    */
   prompt?: string;
@@ -36,23 +38,18 @@ export type SuggestionsSource =
 
 export interface ThreadSuggestionsProps {
   suggestions?: SuggestionsSource;
-  /**
-   * Compact layout: single row, horizontally scrollable, smaller chips. Use
-   * inline (e.g. above the composer or after a message) where vertical
-   * space is tight.
-   */
-  layout?: "grid" | "row";
   className?: string;
 }
 
 /**
- * Render suggestion chips. Resolves both static arrays and async sources.
- * On click, appends the suggestion's `prompt` (or `title` if no prompt) as
- * a user message via the thread runtime.
+ * Render suggestions as a stacked column of full-width rows. Each row reads
+ * like a list item rather than a chip, matching the Studio playground.
+ *
+ * On click the row's `prompt` (or `title` if no prompt) is appended as a
+ * user message via the thread runtime.
  */
 export const Suggestions: FC<ThreadSuggestionsProps> = ({
   suggestions,
-  layout = "grid",
   className,
 }) => {
   const items = useResolvedSuggestions(suggestions);
@@ -62,24 +59,20 @@ export const Suggestions: FC<ThreadSuggestionsProps> = ({
   return (
     <div
       className={cn(
-        "aui-thread-suggestions w-full pb-4",
-        layout === "grid"
-          ? "grid gap-2 @md:grid-cols-2"
-          : "flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden",
+        "aui-thread-suggestions flex w-full flex-col gap-2 pb-2.5",
         className,
       )}
+      role="list"
+      aria-label="Suggested prompts"
     >
-      {items.map((s, i) => (
-        <SuggestionChip key={s.title + i} suggestion={s} compact={layout === "row"} />
+      {items.map((suggestion, i) => (
+        <SuggestionRow key={(suggestion.prompt ?? suggestion.title) + i} suggestion={suggestion} />
       ))}
     </div>
   );
 };
 
-const SuggestionChip: FC<{ suggestion: ThreadSuggestion; compact?: boolean }> = ({
-  suggestion,
-  compact,
-}) => {
+const SuggestionRow: FC<{ suggestion: ThreadSuggestion }> = ({ suggestion }) => {
   const runtime = useThreadRuntime();
   const onClick = () => {
     const text = suggestion.prompt ?? suggestion.title;
@@ -87,32 +80,28 @@ const SuggestionChip: FC<{ suggestion: ThreadSuggestion; compact?: boolean }> = 
   };
 
   return (
-    <div className="aui-thread-suggestion-display fade-in slide-in-from-bottom-2 animate-in fill-mode-both duration-200">
-      <Button
-        variant="ghost"
-        onClick={onClick}
-        className={cn(
-          "aui-thread-suggestion h-auto rounded-2xl border text-left text-sm transition-colors hover:bg-muted",
-          compact
-            ? "shrink-0 flex-row items-center gap-2 whitespace-nowrap px-3 py-2"
-            : "w-full flex-wrap items-start justify-start gap-1 px-4 py-3 @md:flex-col",
+    <button
+      type="button"
+      role="listitem"
+      onClick={onClick}
+      className={cn("aui-thread-suggestion", studioListRowButtonClass)}
+    >
+      <span className="aui-thread-suggestion-icon shrink-0 text-muted-foreground">
+        {suggestion.icon ?? (
+          <ArrowUpIcon className="size-4" strokeWidth={1.75} aria-hidden />
         )}
-      >
-        {suggestion.icon && (
-          <span className="aui-thread-suggestion-icon shrink-0 text-muted-foreground">
-            {suggestion.icon}
-          </span>
-        )}
-        <span className="aui-thread-suggestion-text-1 font-medium">
+      </span>
+      <span className="aui-thread-suggestion-text min-w-0 flex-1 text-left">
+        <span className="aui-thread-suggestion-text-1 block truncate text-sm font-normal text-foreground">
           {suggestion.title}
         </span>
-        {suggestion.description && !compact && (
-          <span className="aui-thread-suggestion-text-2 text-muted-foreground">
+        {suggestion.description && (
+          <span className="aui-thread-suggestion-text-2 mt-0.5 block truncate text-xs text-muted-foreground">
             {suggestion.description}
           </span>
         )}
-      </Button>
-    </div>
+      </span>
+    </button>
   );
 };
 
@@ -156,15 +145,12 @@ export function useResolvedSuggestions(
 }
 
 // ---------------------------------------------------------------------------
-// Slot prop type
+// Slot prop type — used by `<Thread components={{ Suggestions }} />`
 // ---------------------------------------------------------------------------
 
-/**
- * Props passed to a custom `Suggestions` slot component. Replace the default
- * via `<Thread components={{ Suggestions: MySuggestions }}>`.
- */
 export interface SuggestionsSlotProps {
   suggestions?: SuggestionsSource;
+  className?: string;
 }
 
 export type SuggestionsComponent = ComponentType<SuggestionsSlotProps>;

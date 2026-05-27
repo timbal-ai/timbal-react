@@ -38,3 +38,6 @@ CLAUDE.md
 
 # playground
 playground.*
+
+# local demo apps (not shipped on npm or pushed to git)
+examples/

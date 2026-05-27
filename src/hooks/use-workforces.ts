@@ -17,6 +17,8 @@ export interface UseWorkforcesOptions {
    * resolver to override (e.g. remember the user's last choice).
    */
   pickInitial?: (items: WorkforceItem[]) => WorkforceItem | undefined;
+  /** When false, the hook returns an empty list and skips the network fetch. */
+  enabled?: boolean;
 }
 
 export interface UseWorkforcesResult {
@@ -40,11 +42,11 @@ export interface UseWorkforcesResult {
 export function useWorkforces(
   options: UseWorkforcesOptions = {},
 ): UseWorkforcesResult {
-  const { baseUrl = "/api", fetch: fetchFn, pickInitial } = options;
+  const { baseUrl = "/api", fetch: fetchFn, pickInitial, enabled = true } = options;
 
   const [workforces, setWorkforces] = useState<WorkforceItem[]>([]);
   const [selectedId, setSelectedId] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchFnRef = useRef<FetchFn>(fetchFn ?? authFetch);
@@ -59,6 +61,10 @@ export function useWorkforces(
 
   const load = useMemo(() => {
     return async () => {
+      if (!enabled) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
       setError(null);
       try {
@@ -80,7 +86,7 @@ export function useWorkforces(
         setIsLoading(false);
       }
     };
-  }, [baseUrl]);
+  }, [baseUrl, enabled]);
 
   useEffect(() => {
     load();

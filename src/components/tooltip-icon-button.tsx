@@ -1,38 +1,44 @@
 "use client";
 
-import { ComponentPropsWithRef, forwardRef } from "react";
-import { Slottable } from "@radix-ui/react-slot";
+import { forwardRef } from "react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { Button } from "../ui/button";
-import { cn } from "../utils";
+import {
+  TimbalV2Button,
+  type TimbalV2ButtonProps,
+} from "../ui/timbal-v2-button";
 
-export type TooltipIconButtonProps = ComponentPropsWithRef<typeof Button> & {
+export interface TooltipIconButtonProps
+  extends Omit<TimbalV2ButtonProps, "isIconOnly"> {
+  /** Visible tooltip + accessible label. Always required. */
   tooltip: string;
+  /** Tooltip placement. Default: "bottom". */
   side?: "top" | "bottom" | "left" | "right";
-};
+}
 
+/**
+ * Icon-only Timbal pill button with a tooltip. Used by every chat-surface
+ * toolbar (composer send/cancel, message action bar, scroll-to-bottom).
+ *
+ * Defaults to a soft `secondary` variant so it sits cleanly inside composers,
+ * message bubbles, and the action bar. Override via `variant`.
+ */
 export const TooltipIconButton = forwardRef<
   HTMLButtonElement,
   TooltipIconButtonProps
->(({ children, tooltip, side = "bottom", className, ...rest }, ref) => {
+>(function TooltipIconButton(
+  { tooltip, side = "bottom", variant = "secondary", children, ...props },
+  ref,
+) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          {...rest}
-          className={cn("aui-button-icon size-6 p-1", className)}
-          ref={ref}
-        >
-          <Slottable>{children}</Slottable>
-          <span className="aui-sr-only sr-only">{tooltip}</span>
-        </Button>
+        <TimbalV2Button ref={ref} variant={variant} size="sm" isIconOnly {...props}>
+          {children}
+          <span className="sr-only">{tooltip}</span>
+        </TimbalV2Button>
       </TooltipTrigger>
       <TooltipContent side={side}>{tooltip}</TooltipContent>
     </Tooltip>
   );
 });
-
-TooltipIconButton.displayName = "TooltipIconButton";
