@@ -50,6 +50,16 @@ export const useSession = () => {
   return context;
 };
 
+/**
+ * Read the session without throwing when no `SessionProvider` is present.
+ * Returns `null` when auth is not wired into the tree — useful for surfaces
+ * (e.g. sidebar footers) that should gracefully render without auth.
+ */
+export const useOptionalSession = (): SessionContextType | null => {
+  const context = useContext(SessionContext);
+  return context ?? null;
+};
+
 // ============================================
 // Session Provider
 // ============================================

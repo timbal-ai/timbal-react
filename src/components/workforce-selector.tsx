@@ -3,6 +3,11 @@
 import { type FC } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import type { WorkforceItem } from "@timbal-ai/timbal-sdk";
+
+import {
+  studioSecondaryChromeClass,
+  studioTopbarPillHeightClass,
+} from "../design/classes";
 import { cn } from "../utils";
 
 export interface WorkforceSelectorProps {
@@ -19,10 +24,12 @@ export interface WorkforceSelectorProps {
 }
 
 /**
- * Minimal headless workforce picker — wraps a styled native `<select>` so
- * `timbal-react` doesn't need a Radix dropdown dependency. Apps that want a
- * richer UI (search, descriptions) can build their own using
- * `useWorkforces()`.
+ * Minimal headless workforce picker. Wraps a styled native `<select>` so
+ * the SDK doesn't need to depend on `@radix-ui/react-select`, while still
+ * matching the Studio chrome (gradient pill, soft border, chevron).
+ *
+ * Apps that want a richer UI (search, descriptions, agent icons) can build
+ * their own using `useWorkforces()`.
  */
 export const WorkforceSelector: FC<WorkforceSelectorProps> = ({
   workforces,
@@ -36,9 +43,17 @@ export const WorkforceSelector: FC<WorkforceSelectorProps> = ({
   if (hideWhenSingle && workforces.length === 1) return null;
 
   return (
-    <div className={cn("aui-workforce-selector relative inline-flex items-center", className)}>
+    <div
+      className={cn(
+        "aui-workforce-selector relative inline-flex items-center",
+        studioTopbarPillHeightClass,
+        studioSecondaryChromeClass,
+        "rounded-full",
+        className,
+      )}
+    >
       <select
-        className="aui-workforce-selector-input h-7 cursor-pointer appearance-none rounded-md border-none bg-transparent pr-5 pl-1.5 text-xs font-medium text-muted-foreground shadow-none outline-none ring-0 transition-colors hover:text-foreground focus:ring-0"
+        className="aui-workforce-selector-input h-full cursor-pointer appearance-none rounded-full border-none bg-transparent pr-8 pl-3.5 text-sm font-medium text-foreground outline-none focus:outline-none"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={placeholder}
@@ -53,7 +68,10 @@ export const WorkforceSelector: FC<WorkforceSelectorProps> = ({
           );
         })}
       </select>
-      <ChevronDownIcon className="aui-workforce-selector-icon pointer-events-none absolute right-1 size-3 text-muted-foreground" />
+      <ChevronDownIcon
+        className="aui-workforce-selector-icon pointer-events-none absolute right-3 size-3.5 text-muted-foreground/70"
+        aria-hidden
+      />
     </div>
   );
 };

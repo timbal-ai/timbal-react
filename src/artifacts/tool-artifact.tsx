@@ -2,23 +2,27 @@
 
 import { type ComponentType } from "react";
 import { type ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { ToolFallback } from "../components/tool-fallback";
+
+import { ToolFallback, useToolRunning } from "../components/tool-fallback";
+import { ToolMotion } from "../components/motion";
 import { parseArtifactFromToolResult } from "./parse";
 import { useArtifactRegistry } from "./registry";
 import type { AnyArtifact } from "./types";
 
 /**
- * Drop-in replacement for `ToolFallback` that first tries to render the tool
- * result as an artifact via the registry. Falls back to the standard tool
- * panel when the result isn't artifact-shaped (or while the tool is still
- * running).
+ * Default `tools.Override` for assistant messages.
  *
- * Use this as the `tools.Fallback` in `MessagePrimitive.Parts` to enable
- * artifact rendering for any tool the agent calls.
+ * Renders the tool result as a registered artifact when possible; otherwise
+ * falls back to the timeline `ToolFallback`. Wraps the artifact in
+ * `ToolMotion` so it shares the same rise-from-below polish as the rest of
+ * the chat surface.
  */
 export const ToolArtifactFallback: ToolCallMessagePartComponent = (props) => {
   const registry = useArtifactRegistry();
-  const isRunning = props.status?.type === "running";
+  const isRunning = useToolRunning({
+    status: props.status,
+    result: props.result,
+  });
 
   if (!isRunning) {
     const artifact = parseArtifactFromToolResult(props.result);
@@ -27,7 +31,14 @@ export const ToolArtifactFallback: ToolCallMessagePartComponent = (props) => {
         | ComponentType<{ artifact: AnyArtifact }>
         | undefined;
       if (Renderer) {
-        return <Renderer artifact={artifact} />;
+        return (
+          <ToolMotion
+            motionKey={`artifact-${artifact.type}`}
+            className="aui-tool-artifact"
+          >
+            <Renderer artifact={artifact} />
+          </ToolMotion>
+        );
       }
     }
   }

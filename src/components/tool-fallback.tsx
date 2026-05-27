@@ -1,40 +1,122 @@
 "use client";
 
-import { memo, useState, type FC } from "react";
-import { ChevronDownIcon, WrenchIcon } from "lucide-react";
-import { type ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { memo, useMemo, useState, type FC } from "react";
+import { ChevronRightIcon } from "lucide-react";
+import {
+  useAuiState,
+  type ToolCallMessagePartComponent,
+} from "@assistant-ui/react";
+
 import { Shimmer } from "../ui/shimmer";
+import { ToolPresence } from "./motion";
+import {
+  studioComposerIoWellClass,
+  studioTimelineActionClass,
+  studioTimelineBodyPadClass,
+  studioTimelineChevronClass,
+  studioTimelineDetailClass,
+  studioTimelineRowButtonClass,
+  studioTimelineShimmerActionClass,
+  studioTimelineTextClass,
+} from "../design/classes";
+import { ToolBodyPresence } from "./motion";
+import { useTimbalRuntime } from "../runtime/provider";
 import { cn } from "../utils";
 
-const ToolFallbackImpl: ToolCallMessagePartComponent = ({
-  toolName,
-  argsText,
-  result,
+// ---------------------------------------------------------------------------
+// Running detection — assistant-ui doesn't always set `status` for streaming
+// tool calls, so we fall back to runtime state + result presence.
+// ---------------------------------------------------------------------------
+
+interface ToolStatus {
+  type: string;
+  reason?: string;
+}
+
+function detectRunning({
   status,
-}) => {
-  const isRunning = status?.type === "running";
-  const isError = status?.type === "incomplete" && status.reason !== "cancelled";
+  result,
+  streamRunning,
+}: {
+  status?: ToolStatus;
+  result?: unknown;
+  streamRunning: boolean;
+}): boolean {
+  const isError =
+    status?.type === "incomplete" && status.reason !== "cancelled";
+  if (isError) return false;
+  if (status?.type === "running") return true;
+  if (status?.type === "complete") return false;
+  return streamRunning && result === undefined;
+}
 
-  if (isRunning) {
-    return (
-      <div className="aui-tool-fallback-running flex items-center gap-2 py-1 text-sm text-muted-foreground">
-        <WrenchIcon className="size-4" />
-        <Shimmer as="span" duration={1.8} spread={2.5}>
-          {`Using tool: ${toolName}`}
-        </Shimmer>
-      </div>
-    );
+export function useToolRunning(props: {
+  status?: ToolStatus;
+  result?: unknown;
+}): boolean {
+  const { isRunning: streamRunning } = useTimbalRuntime();
+  const partStatus = useAuiState((s) => s.part.status) as ToolStatus | undefined;
+  return detectRunning({
+    status: partStatus ?? props.status,
+    result: props.result,
+    streamRunning,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Formatting helpers
+// ---------------------------------------------------------------------------
+
+function formatToolLabel(toolName: string) {
+  return toolName
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .toLowerCase();
+}
+
+function formatToolResult(result: unknown): string {
+  if (typeof result === "string") return result;
+  try {
+    return JSON.stringify(result, null, 2);
+  } catch {
+    return String(result);
   }
+}
 
-  return (
-    <ToolPanel
-      toolName={toolName}
-      argsText={argsText}
-      result={result}
-      isError={isError}
-    />
-  );
-};
+// ---------------------------------------------------------------------------
+// Timeline row primitives
+// ---------------------------------------------------------------------------
+
+const TimelineActionLabel: FC<{
+  action: string;
+  detail?: string;
+  shimmer?: boolean;
+}> = ({ action, detail, shimmer = false }) => (
+  <span className="inline-flex min-w-0 max-w-full items-baseline gap-1">
+    {action ? (
+      shimmer ? (
+        <Shimmer
+          as="span"
+          className={cn(studioTimelineShimmerActionClass, "aui-tool-shimmer")}
+          duration={1.8}
+          spread={2.5}
+        >
+          {action}
+        </Shimmer>
+      ) : (
+        <span className={studioTimelineActionClass}>{action}</span>
+      )
+    ) : null}
+    {detail ? <span className={studioTimelineDetailClass}>{detail}</span> : null}
+  </span>
+);
+
+const TimelineHoverChevron: FC<{ expanded: boolean }> = ({ expanded }) => (
+  <ChevronRightIcon
+    className={studioTimelineChevronClass(expanded)}
+    aria-hidden
+  />
+);
 
 const ToolPanel: FC<{
   toolName: string;
@@ -43,69 +125,128 @@ const ToolPanel: FC<{
   isError?: boolean;
 }> = ({ toolName, argsText, result, isError }) => {
   const [open, setOpen] = useState(false);
+  const detail = formatToolLabel(toolName);
+
+  const formattedArgs = useMemo(() => {
+    if (!argsText || argsText === "{}") return null;
+    try {
+      return JSON.stringify(JSON.parse(argsText), null, 2);
+    } catch {
+      return argsText;
+    }
+  }, [argsText]);
+
+  const formattedResult = useMemo(() => {
+    if (result === undefined || result === null) return null;
+    return formatToolResult(result);
+  }, [result]);
+
+  const hasBody = Boolean(formattedArgs || formattedResult);
+  const action = isError ? "Failed" : "Used";
+
+  if (!hasBody) {
+    return (
+      <div className="aui-tool-row w-full min-w-0">
+        <TimelineActionLabel action={action} detail={detail} />
+      </div>
+    );
+  }
 
   return (
-    <div
-      className={cn(
-        "aui-tool-fallback-root my-2 overflow-hidden rounded-lg border border-border/60 bg-muted/30 text-sm",
-        isError && "border-destructive/50 bg-destructive/5",
-      )}
-    >
+    <div className="aui-tool-row w-full min-w-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="aui-tool-fallback-header flex w-full items-center gap-2 px-3 py-2 text-left text-muted-foreground transition-colors hover:bg-muted/50"
         aria-expanded={open}
+        aria-label={`${action} ${detail}`}
+        className={studioTimelineRowButtonClass}
       >
-        <WrenchIcon className="size-3.5" />
-        <span className="aui-tool-fallback-name flex-1 truncate font-mono text-xs font-medium text-foreground/80">
-          {toolName}
-        </span>
-        {isError && (
-          <span className="aui-tool-fallback-status text-xs font-medium text-destructive">
-            error
-          </span>
-        )}
-        <ChevronDownIcon
+        <span
           className={cn(
-            "size-3.5 shrink-0 transition-transform",
-            open && "rotate-180",
+            "inline-flex min-w-0 max-w-full items-center gap-0.5",
+            studioTimelineTextClass,
+            "text-foreground",
           )}
-        />
+        >
+          <TimelineActionLabel action={action} detail={detail} />
+          <TimelineHoverChevron expanded={open} />
+        </span>
       </button>
-      {open && (
-        <div className="aui-tool-fallback-body grid gap-2 border-t border-border/40 bg-background/50 px-3 py-2.5 text-xs">
-          {argsText && argsText !== "{}" && (
-            <Section label="Input" value={argsText} />
-          )}
-          {result !== undefined && result !== null && (
-            <Section label="Output" value={formatResult(result)} />
-          )}
-        </div>
-      )}
+
+      <ToolBodyPresence
+        open={open}
+        className={cn(studioTimelineBodyPadClass, "gap-2")}
+      >
+        {formattedArgs ? (
+          <div
+            className={cn(
+              studioComposerIoWellClass,
+              "max-h-48 overflow-auto px-2.5 py-2",
+            )}
+          >
+            <pre className="whitespace-pre-wrap break-words font-mono text-[11px] font-normal leading-relaxed text-foreground">
+              {formattedArgs}
+            </pre>
+          </div>
+        ) : null}
+        {formattedResult ? (
+          <div
+            className={cn(
+              studioComposerIoWellClass,
+              "max-h-48 overflow-auto px-2.5 py-2",
+            )}
+          >
+            <pre className="whitespace-pre-wrap break-words font-mono text-[11px] font-normal leading-relaxed text-foreground">
+              {formattedResult}
+            </pre>
+          </div>
+        ) : null}
+      </ToolBodyPresence>
     </div>
   );
 };
 
-const Section: FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="aui-tool-fallback-section">
-    <div className="aui-tool-fallback-section-label mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-      {label}
-    </div>
-    <pre className="aui-tool-fallback-section-value overflow-x-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed text-foreground/85">
-      {value}
-    </pre>
-  </div>
-);
+// ---------------------------------------------------------------------------
+// Default tool fallback — flat timeline row à la "Thought 512 ms"
+// ---------------------------------------------------------------------------
 
-function formatResult(result: unknown): string {
-  if (typeof result === "string") return result;
-  try {
-    return JSON.stringify(result, null, 2);
-  } catch {
-    return String(result);
-  }
-}
+const ToolFallbackImpl: ToolCallMessagePartComponent = ({
+  toolName,
+  argsText,
+  result,
+  status,
+}) => {
+  const isRunning = useToolRunning({ status, result });
+  const isError =
+    status?.type === "incomplete" && status.reason !== "cancelled";
+
+  const presenceKey = isRunning ? "running" : isError ? "error" : "complete";
+
+  return (
+    <ToolPresence
+      presenceKey={presenceKey}
+      variant={isRunning ? "executing" : "settled"}
+      className="py-0.5"
+    >
+      {isRunning ? (
+        <div className="aui-tool-running">
+          <TimelineActionLabel
+            action="Using"
+            detail={formatToolLabel(toolName)}
+            shimmer
+          />
+        </div>
+      ) : (
+        <ToolPanel
+          toolName={toolName}
+          argsText={argsText}
+          result={result}
+          isError={isError}
+        />
+      )}
+    </ToolPresence>
+  );
+};
 
 const ToolFallback = memo(
   ToolFallbackImpl,

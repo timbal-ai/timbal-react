@@ -1,9 +1,12 @@
 "use client";
 
 import { type FC, type ReactNode } from "react";
+
 import { TimbalChat, type TimbalChatProps } from "./chat";
 import { WorkforceSelector } from "./workforce-selector";
 import { useWorkforces } from "../hooks/use-workforces";
+import { studioChromeShellStyle } from "../design/tokens";
+import { studioPlaygroundGradientClass } from "../design/classes";
 import { cn } from "../utils";
 
 export interface TimbalChatShellProps
@@ -26,10 +29,12 @@ export interface TimbalChatShellProps
 }
 
 /**
- * Drop-in shell that combines the most common blueprint patterns: a header
- * with brand + workforce selector + actions, plus the chat thread occupying
- * the remaining vertical space. Falls back to `<TimbalChat>` directly when
- * `workforceId` is provided.
+ * Drop-in shell that wraps `TimbalChat` with the Studio playground chrome:
+ * floating topbar with brand + workforce selector + actions, soft gradient
+ * background, and the chat thread filling the remaining vertical space.
+ *
+ * Falls back to picking the first available workforce when `workforceId`
+ * isn't supplied.
  */
 export const TimbalChatShell: FC<TimbalChatShellProps> = ({
   workforceId,
@@ -42,11 +47,10 @@ export const TimbalChatShell: FC<TimbalChatShellProps> = ({
   fetch,
   ...chatProps
 }) => {
-  const {
-    workforces,
-    selectedId,
-    setSelectedId,
-  } = useWorkforces({ baseUrl, fetch });
+  const { workforces, selectedId, setSelectedId } = useWorkforces({
+    baseUrl,
+    fetch,
+  });
 
   const effectiveId = workforceId ?? selectedId;
   const showSelector =
@@ -55,30 +59,37 @@ export const TimbalChatShell: FC<TimbalChatShellProps> = ({
   return (
     <div
       className={cn(
-        "aui-chat-shell flex h-screen flex-col overflow-hidden",
+        "aui-chat-shell relative flex h-dvh flex-col overflow-hidden bg-background",
         className,
       )}
+      style={studioChromeShellStyle}
     >
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 z-0",
+          studioPlaygroundGradientClass,
+        )}
+        aria-hidden
+      />
+
       <header
         className={cn(
-          "aui-chat-shell-header flex shrink-0 items-center justify-between border-b border-border/50 bg-background/90 px-5 py-2 backdrop-blur-md",
+          "aui-chat-shell-header relative z-10 flex shrink-0 items-center justify-between px-4 pt-[var(--studio-topbar-gap)] pb-2",
           headerClassName,
         )}
+        style={{ minHeight: "var(--studio-topbar-height)" }}
       >
-        <div className="flex items-center">
+        <div className="flex min-w-0 items-center gap-2">
           {brand}
           {showSelector && (
-            <>
-              <div className="mx-3.5 h-3.5 w-px bg-border" />
-              <WorkforceSelector
-                workforces={workforces}
-                value={selectedId}
-                onChange={setSelectedId}
-              />
-            </>
+            <WorkforceSelector
+              workforces={workforces}
+              value={selectedId}
+              onChange={setSelectedId}
+            />
           )}
         </div>
-        <div className="flex items-center gap-0.5">{headerActions}</div>
+        <div className="flex shrink-0 items-center gap-1">{headerActions}</div>
       </header>
 
       <TimbalChat
@@ -86,7 +97,7 @@ export const TimbalChatShell: FC<TimbalChatShellProps> = ({
         workforceId={effectiveId}
         baseUrl={baseUrl}
         fetch={fetch}
-        className="min-h-0 flex-1"
+        className="relative z-10 min-h-0 flex-1 bg-transparent"
         {...chatProps}
       />
     </div>

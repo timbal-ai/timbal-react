@@ -7,39 +7,35 @@ import {
   useComposerRuntime,
 } from "@assistant-ui/react";
 import { ArrowUpIcon, SquareIcon } from "lucide-react";
+
 import { ComposerAddAttachment, ComposerAttachments } from "./attachment";
 import { TooltipIconButton } from "./tooltip-icon-button";
-import { Button } from "../ui/button";
+import { studioComposeInputShellClass } from "../design/classes";
 import { cn } from "../utils";
 
 export interface ComposerProps {
   /** Placeholder shown in the textarea. Default: "Send a message..." */
   placeholder?: string;
   /**
-   * Show the file-attach button. Default: true. Disable when the agent has
-   * no use for attachments to keep the UI clean.
+   * Show the file-attach button. Default: true. Disable when the agent has no
+   * use for attachments to keep the toolbar clean.
    */
   showAttachments?: boolean;
-  /**
-   * Extra content rendered inside the toolbar, to the left of the send
-   * button. Use for custom buttons (voice, model picker, etc).
-   */
+  /** Extra content rendered inside the toolbar, left of the send button. */
   toolbar?: ReactNode;
-  /**
-   * Tooltip on the send button. Default: "Send message".
-   */
+  /** Tooltip shown on the send button. Default: "Send message". */
   sendTooltip?: string;
-  /** Disable autofocus on mount. Default: false (autofocused). */
+  /** Disable autofocus on mount. Default: false. */
   noAutoFocus?: boolean;
   /** Extra className applied to the outer composer wrapper. */
   className?: string;
 }
 
 /**
- * Composer v2 — auto-resizing textarea, Enter-to-send / Shift+Enter newline,
- * attach button on the left, send/stop on the right. Use as a top-level
- * component inside `<TimbalRuntimeProvider>` (or via `<Thread components={{
- * Composer }}>`).
+ * Default chat composer — auto-resizing textarea with Enter-to-send,
+ * Shift+Enter for newline, attach pill on the left, and a circular send /
+ * cancel button on the right. Wraps `ComposerPrimitive` so consumers can
+ * override individual slots without losing the Studio chrome.
  */
 export const Composer: FC<ComposerProps> = ({
   placeholder = "Send a message...",
@@ -52,12 +48,15 @@ export const Composer: FC<ComposerProps> = ({
   return (
     <ComposerPrimitive.Root
       className={cn(
-        "aui-composer-root relative mt-3 flex w-full flex-col",
+        "aui-composer-root relative flex w-full flex-col",
         className,
       )}
     >
       <ComposerPrimitive.AttachmentDropzone
-        className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50"
+        className={cn(
+          studioComposeInputShellClass,
+          "data-[dragging=true]:border-2 data-[dragging=true]:border-dashed data-[dragging=true]:border-primary data-[dragging=true]:bg-accent/50",
+        )}
       >
         {showAttachments && <ComposerAttachments />}
         <ComposerInput placeholder={placeholder} autoFocus={!noAutoFocus} />
@@ -97,7 +96,7 @@ const ComposerInput: FC<{ placeholder: string; autoFocus: boolean }> = ({
   return (
     <ComposerPrimitive.Input
       placeholder={placeholder}
-      className="aui-composer-input mb-1 max-h-60 min-h-12 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
+      className="aui-composer-input max-h-60 min-h-14 w-full resize-none bg-composer-bg px-3 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
       rows={1}
       autoFocus={autoFocus}
       aria-label="Message input"
@@ -117,10 +116,11 @@ const ComposerToolbar: FC<{
   sendTooltip: string;
 }> = ({ showAttachments, toolbar, sendTooltip }) => {
   return (
-    <div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center gap-1">
-      {showAttachments && <ComposerAddAttachment />}
-      {toolbar}
-      <div className="flex-1" />
+    <div className="aui-composer-action-wrapper relative z-[1] flex items-center justify-between gap-1 bg-composer-bg px-2.5 pb-2.5">
+      <div className="flex items-center gap-1">
+        {showAttachments && <ComposerAddAttachment />}
+        {toolbar}
+      </div>
       <ComposerSendOrCancel sendTooltip={sendTooltip} />
     </div>
   );
@@ -133,11 +133,9 @@ const ComposerSendOrCancel: FC<{ sendTooltip: string }> = ({ sendTooltip }) => {
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip={sendTooltip}
-            side="bottom"
+            variant="primary"
             type="submit"
-            variant="default"
-            size="icon"
-            className="aui-composer-send size-8 rounded-full"
+            className="aui-composer-send shrink-0 disabled:opacity-30"
             aria-label="Send message"
           >
             <ArrowUpIcon className="aui-composer-send-icon size-4" />
@@ -146,15 +144,14 @@ const ComposerSendOrCancel: FC<{ sendTooltip: string }> = ({ sendTooltip }) => {
       </AuiIf>
       <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
-          <Button
-            type="button"
-            variant="default"
-            size="icon"
-            className="aui-composer-cancel size-8 rounded-full"
+          <TooltipIconButton
+            tooltip="Stop generating"
+            variant="primary"
+            className="aui-composer-cancel shrink-0"
             aria-label="Stop generating"
           >
             <SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
-          </Button>
+          </TooltipIconButton>
         </ComposerPrimitive.Cancel>
       </AuiIf>
     </>
