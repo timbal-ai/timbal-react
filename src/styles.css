@@ -69,8 +69,8 @@
 
   /* Composer shell — opaque card with stronger focus border. */
   --composer-bg: oklch(1 0 0);
-  --composer-border: oklch(0.91 0.004 260 / 0.6);
-  --composer-border-focus: oklch(0.62 0.005 260 / 0.8);
+  --composer-border: oklch(0.91 0.004 260);
+  --composer-border-focus: oklch(0.62 0.005 260);
 
   /* User message bubble — neutral-200 on light, neutral-700 on dark. */
   --bubble-user: oklch(0.922 0 0);
@@ -460,18 +460,17 @@
  * Component fixes — baked in so consumers don't need overrides    *
  * =============================================================== */
 
-/* The thread viewport footer no longer paints its own background. The
-   thread root already paints bg-background, so the sticky footer must
-   stay transparent — otherwise a token mismatch surfaces as a coloured
-   strip behind the composer. */
+/* Opaque sticky footer so scrolled messages and the playground gradient do
+   not bleed through the composer. */
 .aui-thread-viewport-footer {
-  background: transparent !important;
+  background-color: var(--background) !important;
   border-radius: 0 !important;
   isolation: isolate;
   z-index: 10;
 }
 
 /* Scrolled assistant action bars must not show through the composer shell. */
+.aui-composer-shell,
 .aui-composer-input,
 .aui-composer-action-wrapper {
   background-color: var(--composer-bg);

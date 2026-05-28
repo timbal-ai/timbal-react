@@ -189,7 +189,7 @@ export const Thread: FC<ThreadProps> = ({
               }}
             />
 
-            <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) isolate flex-col gap-4 bg-transparent pt-2 pb-4 md:pb-6">
+            <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) isolate flex-col gap-4 bg-background pt-2 pb-4 md:pb-6">
               <ScrollToBottomSlot />
               <ComposerSlot placeholder={composerPlaceholder} />
             </ThreadPrimitive.ViewportFooter>

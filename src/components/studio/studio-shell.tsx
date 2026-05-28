@@ -340,7 +340,7 @@ export const TimbalStudioShell: FC<TimbalStudioShellProps> = ({
               key={activeWorkforceId}
               welcome={welcome}
               components={resolvedComponents}
-              className={cn("min-h-0 flex-1 bg-transparent", chatProps.className)}
+              className={cn("min-h-0 flex-1", chatProps.className)}
             />
           ) : null}
         </motion.main>

@@ -97,7 +97,7 @@ export const TimbalChatShell: FC<TimbalChatShellProps> = ({
         workforceId={effectiveId}
         baseUrl={baseUrl}
         fetch={fetch}
-        className="relative z-10 min-h-0 flex-1 bg-transparent"
+        className="relative z-10 min-h-0 flex-1"
         {...chatProps}
       />
     </div>
