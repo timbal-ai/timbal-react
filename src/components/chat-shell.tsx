@@ -74,7 +74,7 @@ export const TimbalChatShell: FC<TimbalChatShellProps> = ({
 
       <header
         className={cn(
-          "aui-chat-shell-header relative z-10 flex shrink-0 items-center justify-between px-4 pt-[var(--studio-topbar-gap)] pb-2",
+          "aui-chat-shell-header relative z-10 flex shrink-0 items-center justify-between bg-transparent px-4 pt-[var(--studio-topbar-gap)] pb-2",
           headerClassName,
         )}
         style={{ minHeight: "var(--studio-topbar-height)" }}

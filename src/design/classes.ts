@@ -36,7 +36,7 @@ export const studioPlaygroundGradientClass =
 
 /** Composer outer shell — rounded surface with focus-within affordances. */
 export const studioComposeInputShellClass = cn(
-  "aui-composer-shell flex w-full flex-col rounded-2xl bg-composer-bg shadow-card-elevated outline-none",
+  "aui-composer-shell flex w-full flex-col overflow-hidden rounded-2xl bg-composer-bg shadow-card-elevated outline-none",
   "border border-composer-border",
   "transition-[box-shadow,border-color]",
   "focus-within:border-composer-border-focus focus-within:ring-2 focus-within:ring-foreground/5",

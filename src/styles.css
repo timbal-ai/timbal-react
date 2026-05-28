@@ -460,11 +460,8 @@
  * Component fixes — baked in so consumers don't need overrides    *
  * =============================================================== */
 
-/* Opaque sticky footer so scrolled messages and the playground gradient do
-   not bleed through the composer. */
+/* Sticky footer stacks above scrolling messages; composer shell is opaque. */
 .aui-thread-viewport-footer {
-  background-color: var(--background) !important;
-  border-radius: 0 !important;
   isolation: isolate;
   z-index: 10;
 }
