@@ -9,6 +9,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../../ui/tooltip";
+import {
+  TIMBAL_V2_SWITCH_THUMB,
+  TIMBAL_V2_SWITCH_TRACK_OFF,
+} from "../../design/button-tokens";
 import { Button } from "../../ui/button";
 import { cn } from "../../utils";
 import type {
@@ -294,15 +298,16 @@ const ToggleNode: FC<{ node: UiToggleNode }> = ({ node }) => {
         aria-checked={value}
         onClick={onToggle}
         className={cn(
-          "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors",
+          "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-[background,box-shadow,border-color] duration-200",
           value
-            ? "border-primary bg-primary"
-            : "border-border bg-muted hover:bg-muted/80",
+            ? "border-foreground/15 bg-gradient-to-b from-primary-fill-from to-primary-fill-to shadow-card"
+            : cn(TIMBAL_V2_SWITCH_TRACK_OFF, "hover:from-secondary-fill-hover-from hover:to-secondary-fill-hover-to"),
         )}
       >
         <span
           className={cn(
-            "inline-block size-4 transform rounded-full bg-background shadow transition-transform",
+            "inline-block size-4 transform rounded-full transition-transform",
+            TIMBAL_V2_SWITCH_THUMB,
             value ? "translate-x-4" : "translate-x-0.5",
           )}
           aria-hidden

@@ -1,6 +1,28 @@
 # @timbal-ai/timbal-react
 
-React components and runtime for building Timbal chat UIs. Drop in a single component to get a fully-featured streaming chat interface connected to a Timbal workforce agent.
+React components and runtime for building Timbal chat UIs and studio apps. Drop in a single component to get a fully-featured streaming chat interface connected to a Timbal workforce agent, or compose dashboards with the **app kit**.
+
+## Package structure (0.6+)
+
+| Subpath | Use when |
+|---------|----------|
+| `@timbal-ai/timbal-react` | Full surface (chat shells, auth, artifacts, app kit) |
+| `@timbal-ai/timbal-react/chat` | Chat-only apps — `Thread`, `Composer`, runtime, layout helpers |
+| `@timbal-ai/timbal-react/studio` | Studio chrome — `TimbalChatShell`, `TimbalStudioShell`, sidebar |
+| `@timbal-ai/timbal-react/ui` | Primitives — `Button`, `Dialog`, `Avatar`, `Shimmer` |
+| `@timbal-ai/timbal-react/app` | Dashboards — `AppShell`, `Page`, `DataTable`, `StatTile`, … |
+| `@timbal-ai/timbal-react/styles.css` | Theme tokens (required once) |
+
+### API tiers
+
+1. **Stable** — `TimbalChat`, shells, `Thread`, `Composer`, auth, `styles.css`, documented app kit components.
+2. **Composable** — `@assistant-ui/react` primitives re-exported from the main entry; message column classes from `./chat` (`threadMessageColumnClass`, `assistantMessageRootClass`, …).
+3. **Internal** — `src/design/*` class composites (not exported); extend via CSS variables or public layout helpers.
+
+```tsx
+import { threadMessageColumnClass } from "@timbal-ai/timbal-react/chat";
+import { AppShell, Page, StatTile } from "@timbal-ai/timbal-react/app";
+```
 
 ## Installation
 
@@ -187,7 +209,24 @@ function MyShell() {
 }
 ```
 
-The `--studio-inset-left` CSS variable is automatically set on the document by `StudioSidebar`, so a normal Tailwind `pl-[var(--studio-inset-left)]` call resolves to the correct offset.
+`--studio-inset-left` is a **static** CSS variable (the expanded sidebar width) — good for layouts where the sidebar never collapses. It does **not** track the collapse animation on its own.
+
+To inset a main column that follows the sidebar as it collapses, use `AppShell`, which wires the tracking automatically:
+
+```tsx
+import { AppShell, StudioSidebar } from "@timbal-ai/timbal-react";
+
+function MyShell() {
+  const [agent, setAgent] = useState("agent-a");
+  return (
+    <AppShell sidebar={<StudioSidebar selectedId={agent} onSelect={setAgent} />}>
+      {/* main content insets + animates with the sidebar */}
+    </AppShell>
+  );
+}
+```
+
+For a fully custom shell, drive your own offset from `StudioSidebar`'s `onInsetChange` callback, which fires with the live inset width (px) whenever the collapse state changes.
 
 ### Drop-in shell (header + agent picker)
 
@@ -826,6 +865,64 @@ For a fully custom header, combine `useWorkforces` with `TimbalChat` instead of 
 
 ---
 
+## Dashboard + side copilot (`./app`)
+
+Compose a data UI with a **floating** copilot — main content stays full width:
+
+```tsx
+import {
+  AppShell,
+  AppShellTopbar,
+  AppCopilotProvider,
+  AppChatPanel,
+  Page,
+  Section,
+} from "@timbal-ai/timbal-react/app";
+
+export function OperationsApp() {
+  return (
+    <AppCopilotProvider value={{ page: "Operations", tab: "overview" }}>
+      <AppShell
+        sidebar={<StudioSidebar /* … */ />}
+        topbar={<AppShellTopbar actions={<ModeToggle />} />}
+        chat={
+          <AppChatPanel workforceId="your-workforce-id" />
+        }
+        chatTriggerLabel="Assistant"
+        chatCollapsible
+      >
+        <Page title="Operations">{/* dashboard */}</Page>
+      </AppShell>
+    </AppCopilotProvider>
+  );
+}
+```
+
+The shell renders a rounded floating panel (bottom-right) and a **text-only** pill trigger — no sidebar column, no chat icons. Use `useAppShellChat()` for a custom trigger; set `hideChatTrigger` if you provide your own.
+
+| Piece | Role |
+|-------|------|
+| `AppCopilotProvider` | Page context via `useAppCopilotContext` (not shown in UI) |
+| `AppChatPanel` | Full-height floating thread; dismiss via **X** in the corner |
+| `AppShell` `chat` | Floating overlay — `chatWidth`; optional `chatHeight` (default: stretch top–bottom) |
+| `ChartPanel` `artifact` | Built-in SVG charts without extra imports |
+| `FieldTextarea` / `FieldSelect` / `FieldSwitch` | Settings forms matching `FieldInput` |
+| `AppConfirmDialog` | Delete/export confirmations |
+
+Full gallery: [`examples/app-kit`](examples/app-kit) (`bun run example:app`).
+
+---
+
+## Migrating from 0.5 to 0.6
+
+- Source layout is now grouped by domain: `src/chat/`, `src/studio/`, `src/app/`, `src/ui/`.
+- Optional subpath imports: `@timbal-ai/timbal-react/chat`, `/studio`, `/ui`, `/app`.
+- Message column helpers moved to the library: import `threadMessageColumnClass` from `./chat` instead of copying class strings.
+- New **app kit** (`./app`): `AppShell`, `Page`, `StatTile`, `DataTable`, etc. See [`examples/app-kit`](examples/app-kit).
+- Newly exported types: `ThreadVariant` (main entry) and the content-part types `ContentPart`, `TextContentPart`, `ToolCallContentPart`, `ThinkingContentPart` (from `./chat`).
+
+The main entry still exports the high-level surface (`TimbalChat`, `Thread`, the runtime hooks, …), so existing `import { TimbalChat } from "@timbal-ai/timbal-react"` apps keep working. Some lower-level helpers now live only on the subpath entries (`./chat`, `./ui`, `./studio`, `./app`).
+
 ## Migrating from 0.4 to 0.5
 
 `0.5.0` slims the public API to the surface that blueprint apps actually use. Every feature still works — only the export list changed.
@@ -858,6 +955,11 @@ Everything else (the three shells, primitives, hooks, auth, artifact API, design
 
 ---
 
+## Examples
+
+- [`examples/mock-ui`](examples/mock-ui) — chat + artifact gallery (mock `fetch`).
+- [`examples/app-kit`](examples/app-kit) — dashboard / app kit component gallery (no API).
+
 ## Mock UI demo
 
 An offline Vite app lives in [`examples/mock-ui`](examples/mock-ui). It uses a scripted mock `fetch` (no API keys) and includes a component gallery for artifacts. See that folder’s README for run instructions.
@@ -876,7 +978,7 @@ Install via a local path reference:
 
 Adjust the relative path to where `timbal-react` lives on your machine.
 
-After editing source files, rebuild:
+After editing source files, rebuild `dist/` (Vite does **not** read `src/`):
 
 ```bash
 cd timbal-react
@@ -884,4 +986,26 @@ bun run build        # one-off build
 bun run build:watch  # rebuild on every change
 ```
 
-Vite picks up the new `dist/` automatically via HMR — no reinstall needed.
+### Vite apps linked with `file:../timbal-react`
+
+Without extra config, Vite pre-bundles a **cached** copy under `node_modules/.vite/deps` and your UI will look stuck on an old build.
+
+1. Add the local-dev plugin in `vite.config.ts`:
+
+```ts
+import { timbalReactLocalDev } from "@timbal-ai/timbal-react/vite";
+
+export default defineConfig({
+  plugins: [timbalReactLocalDev(), /* react(), … */],
+});
+```
+
+2. Run dev with a watch build (from your app):
+
+```bash
+node ../timbal-react/scripts/dev-linked.mjs vite
+```
+
+Or use the `dev` script in `blueprint-ui-dashboard` / examples (already wired).
+
+One-time if you still see stale UI: `rm -rf node_modules/.vite` then restart dev.

@@ -110,8 +110,14 @@ async function readUploadedUrl(res: Response): Promise<string> {
 
   if (contentType.includes("application/json")) {
     const data = (await res.json()) as Record<string, unknown>;
-    const candidate = data.url ?? data.signed_url ?? data.id;
-    if (typeof candidate === "string" && candidate.length > 0) {
+    const raw = data.url ?? data.signed_url ?? data.id;
+    const candidate =
+      typeof raw === "string"
+        ? raw
+        : typeof raw === "number"
+          ? String(raw)
+          : "";
+    if (candidate.length > 0) {
       return candidate;
     }
     throw new Error(

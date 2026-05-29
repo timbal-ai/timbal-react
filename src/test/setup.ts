@@ -1,3 +1,4 @@
+import { afterEach } from "bun:test";
 import { GlobalWindow } from "happy-dom";
 import "@testing-library/jest-dom";
 
@@ -28,4 +29,12 @@ Object.defineProperties(globalThis, {
   FileReader: { value: window.FileReader, writable: true, configurable: true },
   File: { value: window.File, writable: true, configurable: true },
   Blob: { value: window.Blob, writable: true, configurable: true },
+});
+
+// Unmount React trees between tests so DOM queries (e.g. getAllByRole) don't
+// pick up nodes leaked from a prior render. Imported lazily so Testing Library
+// binds `screen` to `document.body` only after the globals above are installed.
+afterEach(async () => {
+  const { cleanup } = await import("@testing-library/react");
+  cleanup();
 });

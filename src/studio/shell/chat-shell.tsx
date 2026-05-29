@@ -2,12 +2,12 @@
 
 import { type FC, type ReactNode } from "react";
 
-import { TimbalChat, type TimbalChatProps } from "./chat";
-import { WorkforceSelector } from "./workforce-selector";
-import { useWorkforces } from "../hooks/use-workforces";
-import { studioChromeShellStyle } from "../design/tokens";
-import { studioPlaygroundGradientClass } from "../design/classes";
-import { cn } from "../utils";
+import { TimbalChat, type TimbalChatProps } from "../../chat/chat";
+import { WorkforceSelector } from "../../chat/workforce-selector";
+import { useWorkforces } from "../../hooks/use-workforces";
+import { studioChromeShellStyle } from "../../design/tokens";
+import { studioPlaygroundGradientClass } from "../../design/classes";
+import { cn } from "../../utils";
 
 export interface TimbalChatShellProps
   extends Omit<TimbalChatProps, "workforceId"> {
@@ -74,7 +74,7 @@ export const TimbalChatShell: FC<TimbalChatShellProps> = ({
 
       <header
         className={cn(
-          "aui-chat-shell-header relative z-10 flex shrink-0 items-center justify-between px-4 pt-[var(--studio-topbar-gap)] pb-2",
+          "aui-chat-shell-header relative z-10 flex shrink-0 items-center justify-between bg-transparent px-4 pt-[var(--studio-topbar-gap)] pb-2",
           headerClassName,
         )}
         style={{ minHeight: "var(--studio-topbar-height)" }}
@@ -97,7 +97,7 @@ export const TimbalChatShell: FC<TimbalChatShellProps> = ({
         workforceId={effectiveId}
         baseUrl={baseUrl}
         fetch={fetch}
-        className="relative z-10 min-h-0 flex-1 bg-transparent"
+        className="relative z-10 min-h-0 flex-1"
         {...chatProps}
       />
     </div>

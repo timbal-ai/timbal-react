@@ -45,6 +45,11 @@ import {
   type UiEventEnvelope,
 } from "../artifacts/ui/registry";
 import { cn } from "../utils";
+import {
+  ThreadVariantProvider,
+  useThreadVariant,
+  type ThreadVariant,
+} from "./thread-variant";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -100,9 +105,16 @@ export interface ThreadArtifactsConfig {
 
 export type { UiEventEnvelope };
 
+export type { ThreadVariant } from "./thread-variant";
+
 export interface ThreadProps {
   className?: string;
-  /** Max width of the message column. Default: "44rem". */
+  /**
+   * `panel` — side column / narrow copilot: full width, compact welcome, tighter padding.
+   * `default` — centered chat page.
+   */
+  variant?: ThreadVariant;
+  /** Max width of the message column. Default: `44rem` or `100%` when `variant="panel"`. */
   maxWidth?: string;
   /** Welcome screen text + optional brand icon. */
   welcome?: ThreadWelcomeConfig;
@@ -137,14 +149,19 @@ export interface ThreadProps {
 
 export const Thread: FC<ThreadProps> = ({
   className,
-  maxWidth = "44rem",
+  variant = "default",
+  maxWidth: maxWidthProp,
   welcome,
   suggestions,
-  composerPlaceholder = "Send a message...",
+  composerPlaceholder,
   components,
   artifacts,
   onArtifactEvent,
 }) => {
+  const isPanel = variant === "panel";
+  const maxWidth = maxWidthProp ?? (isPanel ? "100%" : "44rem");
+  const placeholder =
+    composerPlaceholder ?? (isPanel ? "Ask about this page…" : "Send a message...");
   const WelcomeSlot = components?.Welcome ?? ThreadWelcome;
   const ComposerSlot = components?.Composer ?? Composer;
   const UserMessageSlot = components?.UserMessage ?? UserMessage;
@@ -159,22 +176,28 @@ export const Thread: FC<ThreadProps> = ({
   }, []);
 
   return (
-    <ArtifactRegistryProvider
-      renderers={artifacts?.renderers}
-      override={artifacts?.override}
-    >
-      <UiEventProvider onEvent={onArtifactEvent ?? (() => {})}>
-        <ThreadPrimitive.Root
-          className={cn(
-            "aui-root aui-thread-root @container flex h-full flex-col bg-background",
-            className,
-          )}
-          style={{ ["--thread-max-width" as string]: maxWidth }}
-        >
-          <ThreadPrimitive.Viewport
-            turnAnchor="bottom"
-            className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-pb-4 px-4 pt-4"
+    <ThreadVariantProvider value={variant}>
+      <ArtifactRegistryProvider
+        renderers={artifacts?.renderers}
+        override={artifacts?.override}
+      >
+        <UiEventProvider onEvent={onArtifactEvent ?? (() => {})}>
+          <ThreadPrimitive.Root
+            className={cn(
+              "aui-root aui-thread-root @container flex h-full flex-col bg-transparent",
+              isPanel && "aui-thread-root--panel",
+              className,
+            )}
+            style={{ ["--thread-max-width" as string]: maxWidth }}
+            data-thread-variant={variant}
           >
+            <ThreadPrimitive.Viewport
+              turnAnchor="bottom"
+              className={cn(
+                "aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-pb-28",
+                isPanel ? "px-2 pt-2" : "px-4 pt-4",
+              )}
+            >
             <WelcomeSlot
               config={welcome}
               suggestions={suggestions}
@@ -189,14 +212,27 @@ export const Thread: FC<ThreadProps> = ({
               }}
             />
 
-            <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) isolate flex-col gap-4 bg-transparent pt-2 pb-4 md:pb-6">
-              <ScrollToBottomSlot />
-              <ComposerSlot placeholder={composerPlaceholder} />
+            <ThreadPrimitive.ViewportFooter
+              className={cn(
+                "aui-thread-viewport-footer sticky bottom-0 z-10 mt-auto w-full isolate pt-2",
+                isPanel ? "bg-card pb-2" : "bg-background pb-4 md:pb-6",
+              )}
+            >
+              <div
+                className={cn(
+                  "mx-auto flex w-full max-w-(--thread-max-width) flex-col",
+                  isPanel ? "gap-2" : "gap-4",
+                )}
+              >
+                <ScrollToBottomSlot />
+                <ComposerSlot placeholder={placeholder} />
+              </div>
             </ThreadPrimitive.ViewportFooter>
           </ThreadPrimitive.Viewport>
         </ThreadPrimitive.Root>
       </UiEventProvider>
     </ArtifactRegistryProvider>
+    </ThreadVariantProvider>
   );
 };
 
@@ -259,41 +295,55 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({
   Suggestions: SuggestionsSlot = Suggestions,
 }) => {
   const isEmpty = useThread((s) => s.messages.length === 0);
+  const isPanel = useThreadVariant() === "panel";
   if (!isEmpty) return null;
+
+  const defaultHeading = isPanel
+    ? "Ask about this page"
+    : "How can I help you today?";
+  const defaultSubheading = isPanel
+    ? "The assistant can use dashboard context from your app."
+    : "Send a message to start a conversation.";
 
   return (
     <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
       <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
         <motion.div
-          className="aui-thread-welcome-message flex flex-col items-center justify-center px-4 text-center"
+          className={cn(
+            "aui-thread-welcome-message flex flex-col items-center justify-center text-center",
+            isPanel ? "px-2" : "px-4",
+          )}
           variants={welcomeStagger}
           initial="initial"
           animate="animate"
         >
           {config?.icon && (
-            <motion.div variants={welcomeIcon} className="mb-5">
+            <motion.div variants={welcomeIcon} className={isPanel ? "mb-3" : "mb-5"}>
               {config.icon}
             </motion.div>
           )}
           <motion.h1
             variants={welcomeItem}
-            className="aui-thread-welcome-message-inner font-semibold text-2xl"
+            className={cn(
+              "aui-thread-welcome-message-inner font-semibold",
+              isPanel ? "text-base" : "text-2xl",
+            )}
           >
-            {config?.heading ?? "How can I help you today?"}
+            {config?.heading ?? defaultHeading}
           </motion.h1>
           <motion.p
             variants={welcomeItem}
-            className="aui-thread-welcome-message-inner mt-2 text-muted-foreground"
+            className="aui-thread-welcome-message-inner mt-1.5 text-muted-foreground text-sm"
           >
-            {config?.subheading ?? "Send a message to start a conversation."}
+            {config?.subheading ?? defaultSubheading}
           </motion.p>
         </motion.div>
       </div>
-      {suggestions && (
+      {suggestions && !isPanel ? (
         <div className="aui-thread-welcome-suggestions mx-auto w-full max-w-(--thread-max-width) px-2">
           <SuggestionsSlot suggestions={suggestions} />
         </div>
-      )}
+      ) : null}
     </div>
   );
 };
@@ -313,12 +363,21 @@ const MessageError: FC = () => {
 };
 
 const AssistantMessage: FC = () => {
+  const isPanel = useThreadVariant() === "panel";
   return (
     <MessagePrimitive.Root
-      className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
+      className={cn(
+        "aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in duration-150",
+        isPanel ? "py-2" : "py-3",
+      )}
       data-role="assistant"
     >
-      <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
+      <div
+        className={cn(
+          "aui-assistant-message-content wrap-break-word text-foreground leading-relaxed",
+          isPanel ? "px-1 text-sm" : "px-2",
+        )}
+      >
         <MessagePrimitive.Parts
           components={{
             Text: MarkdownText,
@@ -342,7 +401,7 @@ const ASSISTANT_ACTION_ICON_CLASS = cn(
   // The v2 fill span sits inside `group/tbv2 > span:first-child`. We mute it
   // here so action-bar buttons read as subtle icons rather than full pills.
   "[&>span:first-child]:bg-transparent",
-  "[&>span:first-child]:group-hover/tbv2:bg-muted/70",
+  "[&>span:first-child]:group-hover/tbv2:bg-ghost-fill-hover",
 );
 
 const AssistantActionBar: FC = () => {
@@ -423,14 +482,21 @@ const UserMessageText: FC = () => {
 };
 
 const UserMessage: FC = () => {
+  const isPanel = useThreadVariant() === "panel";
   return (
     <MessagePrimitive.Root
-      className="aui-user-message-root mx-auto flex w-full max-w-(--thread-max-width) flex-col items-end gap-2 px-2 py-3"
+      className={cn(
+        "aui-user-message-root mx-auto flex w-full max-w-(--thread-max-width) flex-col items-end gap-2",
+        isPanel ? "px-1 py-2" : "px-2 py-3",
+      )}
       data-role="user"
     >
       <UserMessageAttachments />
       <motion.div
-        className="aui-user-message-content relative inline-block max-w-[80%] rounded-2xl bg-bubble-user px-4 py-2.5 text-bubble-user-foreground"
+        className={cn(
+          "aui-user-message-content relative inline-block max-w-[85%] rounded-2xl bg-bubble-user text-bubble-user-foreground",
+          isPanel ? "px-3 py-2 text-sm" : "max-w-[80%] px-4 py-2.5",
+        )}
         initial={{ opacity: 0, y: 8, scale: 0.99 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.65, ease: luxuryEase }}
@@ -448,7 +514,7 @@ const UserActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
-      autohide="never"
+      autohide="always"
       className="aui-user-action-bar-root flex flex-col items-end"
     >
       <ActionBarPrimitive.Edit asChild>

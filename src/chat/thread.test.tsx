@@ -81,6 +81,11 @@ describe("composer", () => {
     expect(screen.getByPlaceholderText("Ask me anything...")).toBeInTheDocument();
   });
 
+  it("hides the add-attachment button when attachments are not enabled", () => {
+    renderChat();
+    expect(screen.queryByLabelText("Add Attachment")).toBeNull();
+  });
+
   it("renders the add-attachment button when attachments are enabled", () => {
     renderChat({ attachments: true });
     expect(screen.getByLabelText("Add Attachment")).toBeInTheDocument();

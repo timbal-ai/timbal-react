@@ -1,16 +1,8 @@
 // =============================================================================
-// @timbal-ai/timbal-react — public API
+// @timbal-ai/timbal-react — public API (main entry)
 //
-// Everything below is what application code (e.g. the blueprint apps under
-// `blueprint-*`) is expected to import. Internal design tokens, class
-// composites, sidebar sub-components, motion easings, and the V2 button
-// token bag live under `src/design/` and `src/components/studio/` and are
-// deliberately NOT re-exported — they are implementation details that can
-// change between minor versions.
-//
-// If you need to extend the studio shell or reproduce its chrome in your
-// own component, prefer overriding CSS variables in `:root` / `.dark`
-// (see styles.css) over reaching into internal modules.
+// Subpath entries: ./chat, ./studio, ./ui, ./app, ./styles.css
+// See README for stable / composable / internal API tiers.
 // =============================================================================
 
 // ── Runtime + streaming ──────────────────────────────────────────────────────
@@ -56,54 +48,136 @@ export type {
 
 // ── Chat surfaces (three escalating tiers) ───────────────────────────────────
 
-export { TimbalChat } from "./components/chat";
-export type { TimbalChatProps } from "./components/chat";
-export { TimbalChatShell } from "./components/chat-shell";
-export type { TimbalChatShellProps } from "./components/chat-shell";
-export { TimbalStudioShell } from "./components/studio/studio-shell";
-export type { TimbalStudioShellProps } from "./components/studio/studio-shell";
+export { TimbalChat } from "./chat/chat";
+export type { TimbalChatProps } from "./chat/chat";
+export { TimbalChatShell } from "./studio/shell/chat-shell";
+export type { TimbalChatShellProps } from "./studio/shell/chat-shell";
+export { TimbalStudioShell } from "./studio/shell/studio-shell";
+export type { TimbalStudioShellProps } from "./studio/shell/studio-shell";
 
 // ── Chat building blocks ─────────────────────────────────────────────────────
 
-export { Thread } from "./components/thread";
+export { Thread } from "./chat/thread";
 export type {
   ThreadProps,
+  ThreadVariant,
   ThreadComponents,
   ThreadWelcomeConfig,
   ThreadWelcomeProps,
   ThreadArtifactsConfig,
-} from "./components/thread";
-export { Composer } from "./components/composer";
-export type { ComposerProps } from "./components/composer";
+} from "./chat/thread";
+export { Composer } from "./chat/composer";
+export type { ComposerProps } from "./chat/composer";
 export {
   Suggestions,
   useResolvedSuggestions,
-} from "./components/suggestions";
+} from "./chat/suggestions";
 export type {
   ThreadSuggestion,
   ThreadSuggestionsProps,
   SuggestionsSource,
   SuggestionsComponent,
   SuggestionsSlotProps,
-} from "./components/suggestions";
-export { MarkdownText } from "./components/markdown-text";
-export { ToolFallback, useToolRunning } from "./components/tool-fallback";
-export { WorkforceSelector } from "./components/workforce-selector";
-export type { WorkforceSelectorProps } from "./components/workforce-selector";
+} from "./chat/suggestions";
+export { MarkdownText } from "./chat/markdown-text";
+export { ToolFallback, useToolRunning } from "./chat/tool-fallback";
+export { WorkforceSelector } from "./chat/workforce-selector";
+export type { WorkforceSelectorProps } from "./chat/workforce-selector";
+
+/** Composable layout classes for custom message slots — also available from `./chat`. */
+export {
+  THREAD_DEFAULT_MAX_WIDTH,
+  threadMessageColumnClass,
+  assistantMessageRootClass,
+  assistantMessageContentClass,
+  userMessageRootClass,
+} from "./chat/layout";
 
 // ── Studio extras (sidebar, brand mark, theme toggle) ────────────────────────
 
-export { StudioSidebar } from "./components/studio/sidebar";
-export type { StudioSidebarProps } from "./components/studio/sidebar";
-export { TimbalMark } from "./components/studio/timbal-mark";
-export type { TimbalMarkProps } from "./components/studio/timbal-mark";
-export { ModeToggle } from "./components/studio/mode-toggle";
+export { StudioSidebar } from "./studio/sidebar/sidebar";
+export type { StudioSidebarProps } from "./studio/sidebar/sidebar";
+export { TimbalMark } from "./studio/sidebar/timbal-mark";
+export type { TimbalMarkProps } from "./studio/sidebar/timbal-mark";
+export { ModeToggle } from "./studio/sidebar/mode-toggle";
 export type {
   ModeToggleProps,
   ModeToggleTheme,
-} from "./components/studio/mode-toggle";
-export { StudioWelcome } from "./components/studio/welcome";
-export type { StudioWelcomeProps } from "./components/studio/welcome";
+} from "./studio/sidebar/mode-toggle";
+export {
+  StudioModeSwitch,
+  STUDIO_NAV_MODE,
+} from "./studio/mode-switch";
+export type { StudioModeSwitchProps, StudioNavMode } from "./studio/mode-switch";
+export { StudioWelcome } from "./studio/sidebar/welcome";
+export type { StudioWelcomeProps } from "./studio/sidebar/welcome";
+
+// ── App kit (dashboards / complex apps) — also available from `./app` ────────
+
+export {
+  AppShell,
+  AppShellTopbar,
+  AppShellChatTrigger,
+  useAppShellChat,
+  AppCopilotProvider,
+  useAppCopilotContext,
+  AppChatPanel,
+  Page,
+  PageHeader,
+  Section,
+  SurfaceCard,
+  StatTile,
+  EmptyState,
+  StatusBadge,
+  AppConfirmDialog,
+  SubNav,
+  Breadcrumbs,
+  Field,
+  FieldInput,
+  FieldTextarea,
+  FieldSelect,
+  FieldSwitch,
+  SearchInput,
+  FormSection,
+  FilterBar,
+  DataTable,
+  ChartPanel,
+} from "./app/index";
+export type {
+  AppShellProps,
+  AppShellTopbarProps,
+  AppShellChatTriggerProps,
+  AppShellChatControls,
+  AppCopilotProviderProps,
+  AppCopilotContextValue,
+  AppChatPanelProps,
+  PageProps,
+  PageHeaderProps,
+  SectionProps,
+  SurfaceCardProps,
+  StatTileProps,
+  EmptyStateProps,
+  StatusBadgeProps,
+  StatusBadgeTone,
+  AppConfirmDialogProps,
+  SubNavProps,
+  SubNavItem,
+  BreadcrumbsProps,
+  BreadcrumbItem,
+  FieldProps,
+  FieldInputProps,
+  FieldTextareaProps,
+  FieldSelectProps,
+  FieldSwitchProps,
+  SearchInputProps,
+  FormSectionProps,
+  FilterBarProps,
+  DataTableProps,
+  DataTableColumn,
+  DataTableSort,
+  DataTableSortDirection,
+  ChartPanelProps,
+} from "./app/index";
 
 // ── Hooks ────────────────────────────────────────────────────────────────────
 
@@ -222,8 +296,16 @@ export {
 } from "./ui/dialog";
 export { Shimmer } from "./ui/shimmer";
 export type { TextShimmerProps } from "./ui/shimmer";
-export { TooltipIconButton } from "./components/tooltip-icon-button";
-export type { TooltipIconButtonProps } from "./components/tooltip-icon-button";
+export {
+  PillSegmentedTabs,
+  MemoPillSegmentedTabs,
+} from "./ui/pill-segmented-tabs";
+export type {
+  PillSegmentedTab,
+  PillSegmentedTabsProps,
+} from "./ui/pill-segmented-tabs";
+export { TooltipIconButton } from "./chat/tooltip-icon-button";
+export type { TooltipIconButtonProps } from "./chat/tooltip-icon-button";
 
 // ── Utils ────────────────────────────────────────────────────────────────────
 

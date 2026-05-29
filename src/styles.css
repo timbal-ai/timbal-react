@@ -7,7 +7,7 @@
  *
  * The package's components are written exclusively against semantic Tailwind
  * tokens (bg-card, text-foreground, border-border, bg-elevated-from/to,
- * shadow-card, …). Every token has a complete light + dark definition here
+ * from-modal-from/to, shadow-card, …). Every token has a complete light + dark definition here
  * so a consumer's host CSS only needs:
  *
  *   @import "tailwindcss";
@@ -62,6 +62,10 @@
   --elevated-from: oklch(1 0 0);
   --elevated-to: oklch(0.985 0.002 260 / 0.7);
 
+  /* Opaque modal/dialog gradient — same hue as elevated, no alpha bleed-through. */
+  --modal-from: oklch(1 0 0);
+  --modal-to: oklch(0.975 0.002 260);
+
   /* Soft playground gradient behind the message column. */
   --playground-from: oklch(0.91 0.004 260 / 0.6);
   --playground-via: oklch(0.965 0.002 260 / 0.3);
@@ -69,8 +73,8 @@
 
   /* Composer shell — opaque card with stronger focus border. */
   --composer-bg: oklch(1 0 0);
-  --composer-border: oklch(0.91 0.004 260 / 0.6);
-  --composer-border-focus: oklch(0.62 0.005 260 / 0.8);
+  --composer-border: oklch(0.91 0.004 260);
+  --composer-border-focus: oklch(0.62 0.005 260);
 
   /* User message bubble — neutral-200 on light, neutral-700 on dark. */
   --bubble-user: oklch(0.922 0 0);
@@ -136,6 +140,15 @@
     var(--studio-sidebar-gap) + var(--studio-sidebar-width-collapsed) +
       var(--studio-sidebar-content-gap)
   );
+
+  /* Pill segmented control (WorkshopPillSegmentedTabs / Build–Manage). */
+  --pill-segmented-track: var(--muted);
+  --pill-segmented-track-border: transparent;
+  --pill-segmented-track-shadow: none;
+  --pill-segmented-indicator-from: oklch(1 0 0);
+  --pill-segmented-indicator-to: oklch(0.985 0.002 260 / 0.7);
+  --pill-segmented-indicator-border: oklch(0.9 0.004 260 / 0.8);
+  --pill-segmented-indicator-shadow: 0 1px 2px -0.5px rgba(0, 0, 0, 0.05);
 }
 
 .dark {
@@ -170,6 +183,21 @@
 
   --elevated-from: oklch(1 0 0 / 0.05);
   --elevated-to: oklch(1 0 0 / 0.025);
+
+  --modal-from: oklch(0.22 0.005 260);
+  --modal-to: oklch(0.19 0.005 260);
+
+  --pill-segmented-track: linear-gradient(
+    to bottom,
+    oklch(1 0 0 / 0.05),
+    oklch(1 0 0 / 0.025)
+  );
+  --pill-segmented-track-border: oklch(1 0 0 / 0.08);
+  --pill-segmented-track-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+  --pill-segmented-indicator-from: oklch(1 0 0 / 0.05);
+  --pill-segmented-indicator-to: oklch(1 0 0 / 0.025);
+  --pill-segmented-indicator-border: oklch(1 0 0 / 0.08);
+  --pill-segmented-indicator-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
 
   --playground-from: oklch(0.27 0.005 285);
   --playground-via: oklch(0.19 0.005 260);
@@ -263,6 +291,8 @@
      bg-*, border-*, text-*, from-*, via-*, to-* utilities alike. */
   --color-elevated-from: var(--elevated-from);
   --color-elevated-to: var(--elevated-to);
+  --color-modal-from: var(--modal-from);
+  --color-modal-to: var(--modal-to);
   --color-playground-from: var(--playground-from);
   --color-playground-via: var(--playground-via);
   --color-playground-to: var(--playground-to);
@@ -303,6 +333,11 @@
    class. Apps using next-themes / a manual toggle just add/remove `.dark`
    from `<html>` and every utility flips together with the base tokens. */
 @custom-variant dark (&:is(.dark *));
+
+/** Pill segmented track — supports solid or gradient via `--pill-segmented-track`. */
+@utility bg-pill-segmented-track {
+  background: var(--pill-segmented-track);
+}
 
 /* =============================================================== *
  * Polish — markdown, shiki, katex, scrollbars                     *
@@ -457,21 +492,32 @@
 }
 
 /* =============================================================== *
+ * App kit — layout shells use .aui-app-* class hooks in components *
+ * =============================================================== */
+
+/* =============================================================== *
  * Component fixes — baked in so consumers don't need overrides    *
  * =============================================================== */
 
-/* The thread viewport footer no longer paints its own background. The
-   thread root already paints bg-background, so the sticky footer must
-   stay transparent — otherwise a token mismatch surfaces as a coloured
-   strip behind the composer. */
+/* Sticky footer stacks above scrolling messages. */
 .aui-thread-viewport-footer {
-  background: transparent !important;
-  border-radius: 0 !important;
   isolation: isolate;
   z-index: 10;
+  background-color: var(--background);
+}
+
+.aui-thread-root[data-thread-variant="panel"] .aui-thread-viewport-footer {
+  background-color: var(--card);
+}
+
+/* Clip inner textarea/toolbar fills to the rounded shell (also in Tailwind class). */
+.aui-composer-shell {
+  border-radius: var(--radius-2xl, 1rem);
+  overflow: hidden;
 }
 
 /* Scrolled assistant action bars must not show through the composer shell. */
+.aui-composer-shell,
 .aui-composer-input,
 .aui-composer-action-wrapper {
   background-color: var(--composer-bg);

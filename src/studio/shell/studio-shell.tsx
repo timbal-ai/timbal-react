@@ -26,18 +26,18 @@ import {
 } from "../../design/classes";
 import { studioSidebarWidthTransition } from "../../design/sidebar-motion";
 import { TimbalV2Button } from "../../ui/timbal-v2-button";
-import { TimbalChat, type TimbalChatProps } from "../chat";
-import { Composer } from "../composer";
+import { TimbalChat, type TimbalChatProps } from "../../chat/chat";
+import { Composer } from "../../chat/composer";
 import { useWorkforces } from "../../hooks/use-workforces";
 import { useSidebarCollapsePhase } from "../../hooks/use-sidebar-collapse-phase";
-import { StudioSidebarBackdrop } from "./sidebar-backdrop";
-import { StudioSidebarContext } from "./sidebar-context";
-import { StudioSidebarPanel } from "./sidebar";
-import { StudioSidebarRuntimePortal } from "./sidebar-runtime-portal";
-import { studioSidebarIconOnlyLayout } from "./sidebar-layout";
-import { StudioWelcome } from "./welcome";
-import type { ComposerProps } from "../composer";
-import type { ThreadComponents } from "../thread";
+import { StudioSidebarBackdrop } from "../sidebar/sidebar-backdrop";
+import { StudioSidebarContext } from "../sidebar/sidebar-context";
+import { StudioSidebarPanel } from "../sidebar/sidebar";
+import { StudioSidebarRuntimePortal } from "../sidebar/sidebar-runtime-portal";
+import { studioSidebarIconOnlyLayout } from "../sidebar/sidebar-layout";
+import { StudioWelcome } from "../sidebar/welcome";
+import type { ComposerProps } from "../../chat/composer";
+import type { ThreadComponents } from "../../chat/thread";
 
 const DEFAULT_BREAKPOINT_PX = 768;
 
@@ -340,7 +340,7 @@ export const TimbalStudioShell: FC<TimbalStudioShellProps> = ({
               key={activeWorkforceId}
               welcome={welcome}
               components={resolvedComponents}
-              className={cn("min-h-0 flex-1 bg-transparent", chatProps.className)}
+              className={cn("min-h-0 flex-1", chatProps.className)}
             />
           ) : null}
         </motion.main>

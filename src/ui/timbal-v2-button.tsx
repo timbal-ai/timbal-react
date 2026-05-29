@@ -6,8 +6,10 @@ import { Slot } from "radix-ui";
 import { cn } from "../utils";
 import {
   TIMBAL_V2_BORDER,
+  TIMBAL_V2_ELEVATED_GRADIENT,
   TIMBAL_V2_FILL,
   TIMBAL_V2_LABEL,
+  TIMBAL_V2_PRIMARY_GRADIENT,
   TIMBAL_V2_SHADOW,
   TIMBAL_V2_SIZE_HEIGHT,
   TIMBAL_V2_SIZE_ICON,
@@ -22,9 +24,50 @@ export interface TimbalV2ButtonProps extends React.ComponentProps<"button"> {
   isIconOnly?: boolean;
   isLoading?: boolean;
   fullWidth?: boolean;
-  /** When true, renders children as the underlying element (Radix Slot pattern). */
+  /** `pill` (default) — full rounding; `rect` — `rounded-md` for shadcn-style buttons. */
+  shape?: "pill" | "rect";
+  /**
+   * When true, merges props onto the single child element (Radix Slot).
+   * Uses a flat surface (no layered fill spans) — required for `asChild` to work.
+   */
   asChild?: boolean;
 }
+
+/** Flat fill/label tokens for `asChild` — layered `group/tbv2` spans cannot be used with Slot. */
+const TIMBAL_V2_FILL_AS_CHILD: Record<TimbalV2Variant, string> = {
+  primary: [
+    "bg-gradient-to-b from-primary-fill-from to-primary-fill-to",
+    "hover:from-primary-fill-hover-from hover:to-primary-fill-hover-to",
+    "active:from-primary-fill-active-from active:to-primary-fill-active-to",
+  ].join(" "),
+  informative: [
+    TIMBAL_V2_PRIMARY_GRADIENT,
+    "hover:from-primary-fill-hover-from hover:to-primary-fill-hover-to",
+    "active:from-primary-fill-active-from active:to-primary-fill-active-to",
+    "active:[background-image:linear-gradient(to_top,rgba(0,0,0,0.08),transparent_55%)]",
+  ].join(" "),
+  destructive: [
+    TIMBAL_V2_ELEVATED_GRADIENT,
+    "hover:from-destructive-fill-hover-from hover:to-destructive-fill-hover-to",
+    "active:from-destructive-fill-active-from active:to-destructive-fill-active-to",
+  ].join(" "),
+  secondary: [
+    TIMBAL_V2_ELEVATED_GRADIENT,
+    "hover:from-secondary-fill-hover-from hover:to-secondary-fill-hover-to",
+    "active:from-secondary-fill-active-from active:to-secondary-fill-active-to",
+  ].join(" "),
+  ghost: [
+    "bg-transparent",
+    "hover:bg-ghost-fill-hover",
+    "active:bg-ghost-fill-active",
+  ].join(" "),
+  link: "bg-transparent",
+};
+
+const TIMBAL_V2_LABEL_AS_CHILD: Record<TimbalV2Variant, string> = {
+  ...TIMBAL_V2_LABEL,
+  link: "text-foreground underline decoration-foreground/25 underline-offset-2 hover:decoration-foreground/45",
+};
 
 /**
  * Canonical Timbal pill button — layered absolute-fill span + relative label
@@ -41,6 +84,7 @@ export const TimbalV2Button = React.forwardRef<
     isIconOnly = false,
     isLoading = false,
     fullWidth = false,
+    shape = "pill",
     asChild = false,
     className,
     disabled,
@@ -51,34 +95,64 @@ export const TimbalV2Button = React.forwardRef<
   ref,
 ) {
   const isDisabled = disabled || isLoading;
-  const Comp = asChild ? Slot.Root : "button";
 
   const sizeClass = isIconOnly
     ? TIMBAL_V2_SIZE_ICON[size]
     : TIMBAL_V2_SIZE_HEIGHT[size];
 
-  // Ghost/link buttons keep a softer rounded-md to read as inline affordances.
   const radiusClass =
-    variant === "link" || variant === "ghost" ? "rounded-md" : "rounded-full";
+    variant === "link" || variant === "ghost"
+      ? "rounded-md"
+      : shape === "rect"
+        ? "rounded-md"
+        : "rounded-full";
+
+  const sharedRootClass = cn(
+    "relative box-border inline-flex items-center justify-center gap-2 whitespace-nowrap border-0 text-sm font-normal shadow-none transition duration-200 ease-in-out",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+    sizeClass,
+    radiusClass,
+    TIMBAL_V2_BORDER[variant],
+    TIMBAL_V2_SHADOW[variant],
+    fullWidth && "w-full",
+    isDisabled && "pointer-events-none opacity-50",
+    className,
+  );
+
+  if (asChild) {
+    return (
+      <Slot.Root
+        ref={ref}
+        aria-disabled={isDisabled ? true : undefined}
+        data-slot="timbal-v2-button"
+        data-variant={variant}
+        className={cn(
+          sharedRootClass,
+          TIMBAL_V2_FILL_AS_CHILD[variant],
+          !isIconOnly && TIMBAL_V2_SIZE_LABEL_PX[size],
+          TIMBAL_V2_LABEL_AS_CHILD[variant],
+        )}
+        {...props}
+      >
+        {isLoading ? (
+          <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        ) : (
+          children
+        )}
+      </Slot.Root>
+    );
+  }
 
   return (
-    <Comp
+    <button
       ref={ref}
-      type={asChild ? undefined : type}
-      disabled={asChild ? undefined : isDisabled}
-      aria-disabled={asChild && isDisabled ? true : undefined}
+      type={type}
+      disabled={isDisabled}
       data-slot="timbal-v2-button"
       data-variant={variant}
       className={cn(
-        "group/tbv2 relative box-border inline-flex flex-col items-stretch overflow-hidden border-0 bg-transparent p-0 text-sm font-normal shadow-none transition duration-200 ease-in-out",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-        sizeClass,
-        radiusClass,
-        TIMBAL_V2_BORDER[variant],
-        TIMBAL_V2_SHADOW[variant],
-        fullWidth && "w-full",
-        isDisabled && "pointer-events-none opacity-50",
-        className,
+        "group/tbv2 flex-col items-stretch overflow-hidden bg-transparent p-0",
+        sharedRootClass,
       )}
       {...props}
     >
@@ -102,6 +176,6 @@ export const TimbalV2Button = React.forwardRef<
           children
         )}
       </span>
-    </Comp>
+    </button>
   );
 });

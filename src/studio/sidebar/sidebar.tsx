@@ -33,6 +33,7 @@ import {
 import { StudioSidebarNav } from "./sidebar-nav";
 import { TimbalMark } from "./timbal-mark";
 import { studioSidebarIconOnlyLayout } from "./sidebar-layout";
+import { StudioSidebarShellInsetBridge } from "./shell-inset-bridge-context";
 
 const DEFAULT_BREAKPOINT_PX = 768;
 
@@ -235,6 +236,11 @@ export interface StudioSidebarProps {
   /** External control over the mobile drawer (used by `TimbalStudioShell`). */
   mobileOpen?: boolean;
   onMobileOpenChange?: (open: boolean) => void;
+  /**
+   * Notified with the sidebar inset width (px) whenever collapse state changes.
+   * Use to inset a sibling main column. `AppShell` wires this automatically.
+   */
+  onInsetChange?: (insetPx: number) => void;
 }
 
 /**
@@ -254,6 +260,7 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
   emptyCaption,
   mobileOpen: mobileOpenProp,
   onMobileOpenChange: onMobileOpenChangeProp,
+  onInsetChange,
 }) => {
   const reducedMotion = useReducedMotion();
 
@@ -344,6 +351,7 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
 
   return (
     <StudioSidebarContext.Provider value={contextValue}>
+      <StudioSidebarShellInsetBridge onInsetChange={onInsetChange} />
       <StudioSidebarPanel
         workforces={workforces}
         selectedId={selectedId}
