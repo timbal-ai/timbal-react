@@ -11,14 +11,16 @@ import { ArrowUpIcon, SquareIcon } from "lucide-react";
 import { ComposerAddAttachment, ComposerAttachments } from "./attachment";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import { studioComposeInputShellClass } from "../design/classes";
+import { useTimbalAttachmentsEnabled } from "../runtime/attachments-context";
 import { cn } from "../utils";
 
 export interface ComposerProps {
   /** Placeholder shown in the textarea. Default: "Send a message..." */
   placeholder?: string;
   /**
-   * Show the file-attach button. Default: true. Disable when the agent has no
-   * use for attachments to keep the toolbar clean.
+   * Show the file-attach button and dropzone. Default: follow the runtime
+   * (`attachments` on `TimbalChat`). Pass `false` to hide even when uploads
+   * are enabled; pass `true` to show only when an attachment adapter is active.
    */
   showAttachments?: boolean;
   /** Extra content rendered inside the toolbar, left of the send button. */
@@ -39,12 +41,27 @@ export interface ComposerProps {
  */
 export const Composer: FC<ComposerProps> = ({
   placeholder = "Send a message...",
-  showAttachments = true,
+  showAttachments,
   toolbar,
   sendTooltip = "Send message",
   noAutoFocus,
   className,
 }) => {
+  const attachmentsEnabled = useTimbalAttachmentsEnabled();
+  const attachUi = showAttachments !== false && attachmentsEnabled;
+
+  const shell = (
+    <>
+      {attachUi && <ComposerAttachments />}
+      <ComposerInput placeholder={placeholder} autoFocus={!noAutoFocus} />
+      <ComposerToolbar
+        showAttachments={attachUi}
+        toolbar={toolbar}
+        sendTooltip={sendTooltip}
+      />
+    </>
+  );
+
   return (
     <ComposerPrimitive.Root
       className={cn(
@@ -52,20 +69,18 @@ export const Composer: FC<ComposerProps> = ({
         className,
       )}
     >
-      <ComposerPrimitive.AttachmentDropzone
-        className={cn(
-          studioComposeInputShellClass,
-          "data-[dragging=true]:border-2 data-[dragging=true]:border-dashed data-[dragging=true]:border-primary data-[dragging=true]:bg-accent/50",
-        )}
-      >
-        {showAttachments && <ComposerAttachments />}
-        <ComposerInput placeholder={placeholder} autoFocus={!noAutoFocus} />
-        <ComposerToolbar
-          showAttachments={showAttachments}
-          toolbar={toolbar}
-          sendTooltip={sendTooltip}
-        />
-      </ComposerPrimitive.AttachmentDropzone>
+      {attachUi ? (
+        <ComposerPrimitive.AttachmentDropzone
+          className={cn(
+            studioComposeInputShellClass,
+            "data-[dragging=true]:border-2 data-[dragging=true]:border-dashed data-[dragging=true]:border-primary data-[dragging=true]:bg-accent/50",
+          )}
+        >
+          {shell}
+        </ComposerPrimitive.AttachmentDropzone>
+      ) : (
+        <div className={studioComposeInputShellClass}>{shell}</div>
+      )}
     </ComposerPrimitive.Root>
   );
 };

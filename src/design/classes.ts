@@ -10,11 +10,9 @@
  * [./tokens.ts](./tokens.ts) — this module owns only class strings.
  */
 
+import { TIMBAL_V2_ELEVATED_GRADIENT } from "./button-tokens";
 import { cn } from "../utils";
-import {
-  TIMBAL_V2_PILL_SURFACE,
-  TIMBAL_V2_SECONDARY_CHROME,
-} from "./button-tokens";
+import { TIMBAL_V2_SECONDARY_CHROME } from "./button-tokens";
 
 // ---------------------------------------------------------------------------
 // Topbar pills
@@ -42,29 +40,32 @@ export const studioComposeInputShellClass = cn(
   "focus-within:border-composer-border-focus focus-within:ring-2 focus-within:ring-foreground/5",
 );
 
-/** Resting pill surface — sidebars, badges. */
-export const studioPillSurfaceClass = TIMBAL_V2_PILL_SURFACE;
-
 /** Interactive secondary chrome — select triggers, search shells. */
 export const studioSecondaryChromeClass = TIMBAL_V2_SECONDARY_CHROME;
+
+/**
+ * Search field shell — full pill (`rounded-full`), matches timbal-platform
+ * `SearchBar` with `pill` + `RUNS_FILTER_SEARCH_INPUT_WRAPPER`.
+ */
+export const studioSearchChromeClass = cn(
+  studioSecondaryChromeClass,
+  studioTopbarPillHeightClass,
+  "inline-flex items-center gap-2 rounded-full px-2.5",
+);
 
 /**
  * Solid integration-card surface — used for in-thread tool / artifact cards
  * so they read on the playground gradient.
  */
-export const studioIntegrationSurfaceSolid =
-  "bg-gradient-to-b from-elevated-from to-elevated-to shadow-card";
+export const studioIntegrationSurfaceSolid = cn(
+  TIMBAL_V2_ELEVATED_GRADIENT,
+  "shadow-card",
+);
 
 export const studioIntegrationBorder = "border border-border";
 
 export const studioIntegrationCardClass = cn(
   "rounded-xl",
-  studioIntegrationSurfaceSolid,
-  studioIntegrationBorder,
-);
-
-export const studioIntegrationIconTileClass = cn(
-  "flex size-9 shrink-0 items-center justify-center rounded-lg",
   studioIntegrationSurfaceSolid,
   studioIntegrationBorder,
 );
@@ -86,12 +87,6 @@ export const studioComposerIoWellClass = cn(
   "rounded-lg",
   studioIntegrationSurfaceSolid,
   studioIntegrationBorder,
-);
-
-/** Collapsible tool-call card shell. */
-export const studioToolCardShellClass = cn(
-  studioIntegrationCardClass,
-  "my-2 min-h-0 overflow-hidden",
 );
 
 // ---------------------------------------------------------------------------
@@ -196,10 +191,14 @@ export const studioArtifactShellClass = cn(
   "my-2 w-full min-w-0 overflow-hidden",
 );
 
-export const studioQuestionOptionClass =
-  "flex w-full items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-left text-sm transition-[background-color,border-color,box-shadow] duration-200 hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-2";
+export const studioQuestionOptionClass = cn(
+  "flex w-full items-center gap-2 rounded-lg border border-transparent px-2 py-1.5 text-left text-sm",
+  "transition-[background-color,border-color,box-shadow] duration-200",
+  "hover:border-border hover:bg-gradient-to-b hover:from-elevated-from hover:to-elevated-to hover:shadow-card",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-2",
+);
 
 export const studioQuestionOptionSelectedClass = cn(
   studioQuestionOptionClass,
-  "border-border bg-accent ring-1 ring-foreground/10",
+  "border-border bg-gradient-to-b from-elevated-from to-elevated-to shadow-card ring-1 ring-foreground/10",
 );

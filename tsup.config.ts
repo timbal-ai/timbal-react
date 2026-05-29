@@ -3,7 +3,13 @@ import { copyFile, mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: [
+    "src/index.ts",
+    "src/chat.ts",
+    "src/studio.ts",
+    "src/ui.ts",
+    "src/app.ts",
+  ],
   format: ["esm", "cjs"],
   dts: true,
   clean: true,

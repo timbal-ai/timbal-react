@@ -27,17 +27,12 @@ import {
   extractAttachment,
   type AuiAttachment,
 } from "./attachments";
+import { TimbalAttachmentsEnabledProvider } from "./attachments-context";
 import {
   resolveAttachmentAdapter,
   type TimbalAttachmentsProp,
 } from "./resolve-attachments";
-import type {
-  ChatAttachment,
-  ChatMessage,
-  ContentPart,
-  TextContentPart,
-  ToolCallContentPart,
-} from "./types";
+import type { ChatAttachment, ChatMessage } from "./types";
 
 export type {
   ChatAttachment,
@@ -538,9 +533,11 @@ export function TimbalRuntimeProvider({
 
   return (
     <TimbalStreamContext.Provider value={stream}>
-      <AssistantRuntimeProvider runtime={runtime}>
-        {children}
-      </AssistantRuntimeProvider>
+      <TimbalAttachmentsEnabledProvider enabled={attachmentAdapter !== undefined}>
+        <AssistantRuntimeProvider runtime={runtime}>
+          {children}
+        </AssistantRuntimeProvider>
+      </TimbalAttachmentsEnabledProvider>
     </TimbalStreamContext.Provider>
   );
 }

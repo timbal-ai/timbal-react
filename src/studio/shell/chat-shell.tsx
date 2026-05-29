@@ -2,12 +2,12 @@
 
 import { type FC, type ReactNode } from "react";
 
-import { TimbalChat, type TimbalChatProps } from "./chat";
-import { WorkforceSelector } from "./workforce-selector";
-import { useWorkforces } from "../hooks/use-workforces";
-import { studioChromeShellStyle } from "../design/tokens";
-import { studioPlaygroundGradientClass } from "../design/classes";
-import { cn } from "../utils";
+import { TimbalChat, type TimbalChatProps } from "../../chat/chat";
+import { WorkforceSelector } from "../../chat/workforce-selector";
+import { useWorkforces } from "../../hooks/use-workforces";
+import { studioChromeShellStyle } from "../../design/tokens";
+import { studioPlaygroundGradientClass } from "../../design/classes";
+import { cn } from "../../utils";
 
 export interface TimbalChatShellProps
   extends Omit<TimbalChatProps, "workforceId"> {

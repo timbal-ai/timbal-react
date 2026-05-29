@@ -4,10 +4,9 @@ import { type FC, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { useThread } from "@assistant-ui/react";
 
-import type { ThreadWelcomeProps } from "../thread";
+import type { ThreadWelcomeProps } from "../../chat/thread";
+import { luxuryEase } from "../../chat/motion";
 import { TimbalMark } from "./timbal-mark";
-
-const luxuryEase = [0.16, 1, 0.3, 1] as const;
 
 const welcomeStagger = {
   initial: {},

@@ -121,6 +121,19 @@ describe("createUploadAttachmentAdapter", () => {
     expect((c2.content[0] as { image: string }).image).toBe("file_123");
   });
 
+  it("coerces a numeric `id` from JSON responses (Timbal SDK File shape)", async () => {
+    const adapter = createUploadAttachmentAdapter({
+      fetch: async () =>
+        new Response(JSON.stringify({ id: 42 }), {
+          headers: { "content-type": "application/json" },
+        }),
+    });
+    const complete = await adapter.send(
+      (await adapter.add({ file: makeFile("a", "image/png") })) as never,
+    );
+    expect((complete.content[0] as { image: string }).image).toBe("42");
+  });
+
   it("derives uploadUrl from baseUrl when uploadUrl is omitted", async () => {
     let capturedUrl = "";
     const adapter = createUploadAttachmentAdapter({

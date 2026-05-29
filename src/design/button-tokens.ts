@@ -1,3 +1,5 @@
+import { cn } from "../utils";
+
 /**
  * Timbal V2 button design tokens.
  *
@@ -21,6 +23,33 @@ export type TimbalV2Variant =
   | "link";
 
 export type TimbalV2Size = "xs" | "sm" | "md" | "lg";
+
+/** Elevated card / secondary chrome gradient — shared by fills, switches, pills. */
+export const TIMBAL_V2_ELEVATED_GRADIENT =
+  "bg-gradient-to-b from-elevated-from to-elevated-to";
+
+/** Opaque modal/dialog surface — elevated gradient without alpha bleed-through. */
+export const TIMBAL_V2_MODAL_SURFACE = cn(
+  "bg-gradient-to-b from-modal-from to-modal-to",
+  "border border-border shadow-card-elevated",
+);
+
+/** Primary pill gradient (static — no hover group). */
+export const TIMBAL_V2_PRIMARY_GRADIENT =
+  "bg-gradient-to-b from-primary-fill-from to-primary-fill-to";
+
+/** Maps shadcn `Button` variants to v2 fill keys. */
+export const TIMBAL_V2_FROM_LEGACY_BUTTON: Record<
+  "default" | "destructive" | "outline" | "secondary" | "ghost" | "link",
+  TimbalV2Variant
+> = {
+  default: "primary",
+  destructive: "destructive",
+  outline: "secondary",
+  secondary: "secondary",
+  ghost: "ghost",
+  link: "link",
+};
 
 export const TIMBAL_V2_SIZE_HEIGHT: Record<TimbalV2Size, string> = {
   xs: "min-h-8 h-8",
@@ -59,16 +88,18 @@ export const TIMBAL_V2_FILL: Record<TimbalV2Variant, string> = {
     "group-active/tbv2:from-primary-fill-active-from group-active/tbv2:to-primary-fill-active-to",
   ].join(" "),
   informative: [
-    "bg-primary",
+    TIMBAL_V2_PRIMARY_GRADIENT,
+    "group-hover/tbv2:from-primary-fill-hover-from group-hover/tbv2:to-primary-fill-hover-to",
+    "group-active/tbv2:from-primary-fill-active-from group-active/tbv2:to-primary-fill-active-to",
     "group-active/tbv2:[background-image:linear-gradient(to_top,rgba(0,0,0,0.08),transparent_55%)]",
   ].join(" "),
   destructive: [
-    "bg-gradient-to-b from-elevated-from to-elevated-to",
+    TIMBAL_V2_ELEVATED_GRADIENT,
     "group-hover/tbv2:from-destructive-fill-hover-from group-hover/tbv2:to-destructive-fill-hover-to",
     "group-active/tbv2:from-destructive-fill-active-from group-active/tbv2:to-destructive-fill-active-to",
   ].join(" "),
   secondary: [
-    "bg-gradient-to-b from-elevated-from to-elevated-to",
+    TIMBAL_V2_ELEVATED_GRADIENT,
     "group-hover/tbv2:from-secondary-fill-hover-from group-hover/tbv2:to-secondary-fill-hover-to",
     "group-active/tbv2:from-secondary-fill-active-from group-active/tbv2:to-secondary-fill-active-to",
   ].join(" "),
@@ -107,13 +138,22 @@ export const TIMBAL_V2_SHADOW: Record<TimbalV2Variant, string> = {
   link: "",
 };
 
-/** Static pill surface — sidebars, badges, anywhere a button shape is needed without interaction. */
-export const TIMBAL_V2_PILL_SURFACE =
-  "bg-gradient-to-b from-elevated-from to-elevated-to border border-border shadow-card";
+/** Switch track (off) — elevated gradient like cards. */
+export const TIMBAL_V2_SWITCH_TRACK_OFF = cn(
+  TIMBAL_V2_ELEVATED_GRADIENT,
+  "border border-border shadow-card",
+);
+
+/** Switch thumb — elevated surface (reads as white / soft on dark). */
+export const TIMBAL_V2_SWITCH_THUMB = cn(
+  TIMBAL_V2_ELEVATED_GRADIENT,
+  "border border-border/80 shadow-sm",
+);
 
 /** Interactive secondary chrome for native controls beside v2 buttons (selects, search inputs). */
 export const TIMBAL_V2_SECONDARY_CHROME = [
-  "bg-gradient-to-b from-elevated-from to-elevated-to border border-border shadow-card",
+  TIMBAL_V2_ELEVATED_GRADIENT,
+  "border border-border shadow-card",
   "transition-[background-color,box-shadow,border-color] duration-200 ease-in-out",
   "hover:from-secondary-fill-hover-from hover:to-secondary-fill-hover-to",
   "active:from-secondary-fill-active-from active:to-secondary-fill-active-to",

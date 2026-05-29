@@ -3,8 +3,8 @@
 import { type ComponentType } from "react";
 import { type ToolCallMessagePartComponent } from "@assistant-ui/react";
 
-import { ToolFallback, useToolRunning } from "../components/tool-fallback";
-import { ToolMotion } from "../components/motion";
+import { ToolFallback, useToolRunning } from "../chat/tool-fallback";
+import { ToolMotion } from "../chat/motion";
 import { parseArtifactFromToolResult } from "./parse";
 import { useArtifactRegistry } from "./registry";
 import type { AnyArtifact } from "./types";
