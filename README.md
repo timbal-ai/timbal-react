@@ -71,6 +71,45 @@ Every token has a CSS-variable indirection in `styles.css`. Override individual 
 
 Both light AND dark blocks must be defined for every overridden token — otherwise toggling dark mode produces an inconsistent UI. The library prints a one-time dev-only console warning when it detects a mismatch.
 
+### Programmatic theming (no hand-authored OKLCH)
+
+Instead of hand-writing paired `:root` / `.dark` blocks, derive a complete, contrast-correct palette from a single brand color. The package owns the OKLCH math for every token (primary, foreground, ring, the full button gradient, the playground tint):
+
+```ts
+import { createTimbalTheme, themeToCss, applyTimbalTheme } from "@timbal-ai/timbal-react";
+
+const theme = createTimbalTheme({ brand: "#4f46e5", radius: 0.75 });
+
+// Build-time / SSR — paste into index.css (paired light + dark, always in sync):
+const css = themeToCss(theme);
+
+// Runtime — inject a managed <style>, swappable, returns a disposer:
+const dispose = applyTimbalTheme(theme);
+```
+
+Or render it as a component near your app root:
+
+```tsx
+import { TimbalThemeStyle } from "@timbal-ai/timbal-react";
+
+<TimbalThemeStyle theme={createTimbalTheme({ brand: "#4f46e5" })} />
+// or: <TimbalThemeStyle preset="indigo" />
+```
+
+### Presets + the picker
+
+A small closed catalog (`TIMBAL_THEME_PRESETS`: `platform`, `indigo`, `violet`, `forest`, `warm`, `slate`) lets you offer styles by stable id and apply on selection. `ThemePresetGallery` previews each option with real components, scoped so the live app doesn't change until the user picks:
+
+```tsx
+import { ThemePresetGallery, applyThemePreset } from "@timbal-ai/timbal-react";
+
+<ThemePresetGallery value={id} onSelect={(next) => { setId(next); applyThemePreset(next); }} />
+```
+
+`applyThemePreset` persists the choice to `localStorage` (`timbal-theme-preset`); `getStoredThemePreset()` restores it on reload.
+
+**For UI-generation agents:** inject `THEME_AGENT_INSTRUCTIONS` into the system prompt so the model themes via these APIs (and never emits raw OKLCH), mirroring `APP_KIT_AGENT_INSTRUCTIONS`.
+
 ### CSS imports
 
 Import these stylesheets once in your app entry:
@@ -800,9 +839,16 @@ if (res.ok) {
 
 ### UI primitives
 
-Re-exported Radix UI wrappers pre-styled to match the Timbal design system:
+Radix-backed wrappers pre-styled with the design tokens (`bg-popover`, `border-border`, `shadow-card`, …) — import from `@timbal-ai/timbal-react/ui` or the root. Use these instead of `npx shadcn`; raw shadcn references token names the app doesn't define and renders unstyled.
 
-`Button` · `Tooltip` · `TooltipTrigger` · `TooltipContent` · `TooltipProvider` · `Avatar` · `AvatarImage` · `AvatarFallback` · `Dialog` · `DialogContent` · `DialogTitle` · `DialogTrigger` · `Shimmer`
+- **Button:** `Button`
+- **Dialog:** `Dialog` · `DialogTrigger` · `DialogContent` · `DialogTitle` · `DialogDescription` · `DialogHeader` · `DialogFooter` · `DialogClose` · `DialogOverlay` · `DialogPortal`
+- **Dropdown menu:** `DropdownMenu` · `DropdownMenuTrigger` · `DropdownMenuContent` · `DropdownMenuItem` · `DropdownMenuCheckboxItem` · `DropdownMenuRadioGroup` · `DropdownMenuRadioItem` · `DropdownMenuLabel` · `DropdownMenuSeparator` · `DropdownMenuShortcut` · `DropdownMenuGroup` · `DropdownMenuSub` · `DropdownMenuSubTrigger` · `DropdownMenuSubContent`
+- **Popover:** `Popover` · `PopoverTrigger` · `PopoverContent` · `PopoverAnchor`
+- **Select:** `Select` · `SelectTrigger` · `SelectValue` · `SelectContent` · `SelectItem` · `SelectGroup` · `SelectLabel` · `SelectSeparator` · `SelectScrollUpButton` · `SelectScrollDownButton`
+- **Tooltip:** `Tooltip` · `TooltipTrigger` · `TooltipContent` · `TooltipProvider`
+- **Avatar:** `Avatar` · `AvatarImage` · `AvatarFallback`
+- **Misc:** `Shimmer`
 
 ---
 
@@ -976,7 +1022,7 @@ The following symbols are no longer exported. Most have no replacement because t
 
 - All `STUDIO_*` layout constants (`STUDIO_SIDEBAR_WIDTH`, `STUDIO_INSET_LEFT`, `STUDIO_SIDEBAR_COLLAPSED_STORAGE_KEY`, `STUDIO_SIDEBAR_PX_*`, …) — override the matching `--studio-*` CSS variables instead.
 - All `studio*Class` / `studioChromeShellStyle` helpers — re-create the look with normal Tailwind classes against semantic tokens (`bg-elevated-from`, `border-border`, `shadow-card`, …).
-- All `TIMBAL_V2_*` button token records and `TimbalV2Button` — use the standard `Button` export from this package; it covers the same variants.
+- All `TIMBAL_V2_*` button token records and `TimbalV2Button` — use the standard `Button` export from this package; it covers the same variants. (Note: `TimbalV2Button` and several `TIMBAL_V2_*` surface tokens were re-introduced as public exports in 0.7 for catalog/list surfaces — see the CHANGELOG.)
 - `StudioSidebarPanel`, `StudioSidebarHeader/Nav/Footer/Entries/Backdrop/Tooltip/RuntimePortal/EntryMotion`, `StudioSidebarContext`, `useStudioSidebarLayout`, `useStudioSidebarCollapsed`, `useSidebarCollapsePhase`, `workforceItemId/Label/Initial` — use `StudioSidebar` or `TimbalStudioShell` directly.
 - `runThemeSanityCheck` — `<Thread>` already schedules the dev-only check.
 - `SyntaxHighlighter`, `UserMessageAttachments`, `ComposerAttachments`, `ComposerAddAttachment`, `MessagePartPrimitive`, `ActionBarMorePrimitive`, `ErrorPrimitive`, `useAuiState`, `buttonVariants` — internal composer/markdown details. Override the `Composer` / `AssistantMessage` slot via the `components` prop if you need a custom layout.

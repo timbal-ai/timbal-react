@@ -42,6 +42,8 @@ Presentational groups — import from the package root, not from these paths:
 
 Also re-exported: \`Button\`, \`TimbalChat\`, \`ChartArtifactView\`, \`APP_KIT_AGENT_INSTRUCTIONS\`.
 
+Theming helpers (import from the package root or \`/app\`): \`createTimbalTheme\`, \`themeToCss\`, \`applyTimbalTheme\`, \`TIMBAL_THEME_PRESETS\`, \`applyThemePreset\`, \`ThemePresetGallery\`, \`TimbalThemeStyle\`, \`THEME_AGENT_INSTRUCTIONS\`.
+
 ### Design guidelines (required)
 
 | Area | Rule |
@@ -49,7 +51,7 @@ Also re-exported: \`Button\`, \`TimbalChat\`, \`ChartArtifactView\`, \`APP_KIT_A
 | **Copilot** | Use \`AppCopilotProvider\` for page context (\`useAppCopilotContext\`). Copilot is a **floating overlay** via \`AppShell\` \`chat={<AppChatPanel />}\` — not a sidebar column that shrinks main content. |
 | **Chat panel** | \`AppChatPanel\` only; \`Thread\` uses \`variant="panel"\` internally. Dismiss with **X**; trigger is a **text-only** pill (e.g. "Assistant") — **no** MessageSquare or chat icons on the shell trigger. |
 | **Context** | Do not show raw JSON context in the panel header; keep context in \`AppCopilotProvider\` only. |
-| **Theming** | Use semantic Tailwind tokens (\`bg-background\`, \`text-foreground\`, \`border-border\`, \`bg-elevated-from\`, etc.) from the host app's \`styles.css\`. Optional: \`import "@timbal-ai/timbal-react/styles.css"\`. |
+| **Theming** | Use semantic Tailwind tokens (\`bg-background\`, \`text-foreground\`, \`border-border\`, \`bg-elevated-from\`, etc.) from the host app's \`styles.css\`. To rebrand, **never hand-author OKLCH** — call \`createTimbalTheme({ brand })\` + \`themeToCss\`/\`applyTimbalTheme\`, or apply a catalog preset (\`TIMBAL_THEME_PRESETS\` / \`applyThemePreset\`). To offer styles, render \`ThemePresetGallery\`. See \`THEME_AGENT_INSTRUCTIONS\`. |
 | **Layout chrome** | \`Page\` → \`Section\` for main content hierarchy. \`AppShellTopbar\` for global actions (auth, theme). |
 | **Data** | Prefer \`DataTable\` with typed \`columns\` / \`rows\` / \`getRowKey\`; use \`ChartPanel\` with \`ChartArtifact\` for charts. |
 | **Modals** | Use \`AppConfirmDialog\` for destructive/export confirmations. |
@@ -149,6 +151,7 @@ Studio chrome (\`StudioSidebar\`, \`ModeToggle\`, …) lives in \`@timbal-ai/tim
 | \`resource-gallery.tsx\` | \`ResourceCard\`, \`StatusDot\`, \`Sparkline\` |
 | \`charts-panel.tsx\` | \`ChartPanel\`, \`ChartArtifact\` |
 | \`copilot-overlay.tsx\` | \`AppShell\`, \`AppChatPanel\` |
+| \`theme-presets.tsx\` | \`ThemePresetGallery\`, \`applyTimbalTheme\` |
 
 ### Typical compositions
 

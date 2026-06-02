@@ -167,6 +167,17 @@ export {
   ConnectionRowList,
   connectionRowListClass,
   APP_KIT_AGENT_INSTRUCTIONS,
+  createTimbalTheme,
+  themeToCss,
+  applyTimbalTheme,
+  clearTimbalTheme,
+  TIMBAL_THEME_PRESETS,
+  getThemePreset,
+  applyThemePreset,
+  getStoredThemePreset,
+  THEME_AGENT_INSTRUCTIONS,
+  TimbalThemeStyle,
+  ThemePresetGallery,
 } from "./app/index";
 export type {
   AppShellProps,
@@ -232,6 +243,14 @@ export type {
   PlanBadgeTone,
   ConnectionRowProps,
   ConnectionRowListProps,
+  TimbalThemeIntent,
+  TimbalThemeTokens,
+  ThemeTokenMap,
+  ThemeToCssOptions,
+  TimbalThemePreset,
+  TimbalThemePresetId,
+  TimbalThemeStyleProps,
+  ThemePresetGalleryProps,
 } from "./app/index";
 
 // ── Hooks ────────────────────────────────────────────────────────────────────

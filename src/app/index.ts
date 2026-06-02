@@ -1,5 +1,30 @@
 export { APP_KIT_AGENT_INSTRUCTIONS } from "./agent-instructions";
 
+// Theming — generator, presets, apply helpers, preview UI, agent instructions
+export {
+  createTimbalTheme,
+  themeToCss,
+  applyTimbalTheme,
+  clearTimbalTheme,
+  TIMBAL_THEME_PRESETS,
+  getThemePreset,
+  applyThemePreset,
+  getStoredThemePreset,
+  THEME_AGENT_INSTRUCTIONS,
+  TimbalThemeStyle,
+  ThemePresetGallery,
+} from "./theme/index";
+export type {
+  TimbalThemeIntent,
+  TimbalThemeTokens,
+  ThemeTokenMap,
+  ThemeToCssOptions,
+  TimbalThemePreset,
+  TimbalThemePresetId,
+  TimbalThemeStyleProps,
+  ThemePresetGalleryProps,
+} from "./theme/index";
+
 // Layout
 export { AppShell } from "./layout/AppShell";
 export type { AppShellProps } from "./layout/AppShell";

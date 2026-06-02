@@ -2,6 +2,21 @@
 
 All notable changes to `@timbal-ai/timbal-react` are documented here.
 
+## [0.8.1] — 2026-06-02
+
+### Added
+
+- **Programmatic theming** — derive a complete, paired light + dark palette from a single brand color so apps and UI-generation agents never hand-author OKLCH or risk a light-only override:
+  - **`createTimbalTheme({ brand, accent?, radius?, tintNeutrals? })`** — owns the OKLCH math for `--primary`, its foreground, `--ring`, the full primary button gradient, and the soft playground tint. Returns paired `{ light, dark, root }` token maps.
+  - **`themeToCss(theme, { scope? })`** — serialize to a paired `:root` / `.dark` (or `[data-timbal-theme]`-scoped) CSS string for build-time/SSR.
+  - **`applyTimbalTheme(theme)` / `clearTimbalTheme()`** — runtime apply via a managed `<style>` (works with the `.dark` toggle); returns a disposer.
+  - **`TimbalThemeStyle`** — render a generated theme (or `preset`) as a `<style>` near the app root.
+  - **`TIMBAL_THEME_PRESETS`** + **`getThemePreset`**, **`applyThemePreset`**, **`getStoredThemePreset`** — a closed catalog (`platform`, `indigo`, `violet`, `forest`, `warm`, `slate`) to offer styles by stable id; persists to `STORAGE_KEYS.themePreset` (`timbal-theme-preset`).
+  - **`ThemePresetGallery`** — preview + pick presets with real-component swatches, scoped so the live app doesn't change until selection.
+  - **`THEME_AGENT_INSTRUCTIONS`** — system-prompt text directing UI-generation agents to theme via these APIs, never raw OKLCH.
+
+---
+
 ## [0.8.0] — 2026-06-02
 
 ### Added

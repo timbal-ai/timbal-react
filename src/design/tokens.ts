@@ -86,6 +86,8 @@ export const STORAGE_KEYS = {
   sidebarCollapsed: "timbal-studio-sidebar-collapsed",
   /** Used by `ModeToggle` in uncontrolled mode (`localStorage`). */
   theme: "timbal-theme",
+  /** Used by the theme preset picker to remember the selected brand preset. */
+  themePreset: "timbal-theme-preset",
 } as const;
 
 export const DOM_IDS = {
