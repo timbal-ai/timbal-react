@@ -2,6 +2,27 @@
 
 All notable changes to `@timbal-ai/timbal-react` are documented here.
 
+## [1.0.0] — 2026-06-02
+
+First stable release. The `@timbal-ai/timbal-react/ui` primitive layer, the control-surface contract, and the app-kit are now a settled public surface.
+
+### Added
+
+- **Built-in motion engine** — Dialog, AlertDialog, Sheet, Popover, DropdownMenu, Select, Tooltip, Toast, NavigationMenu, and Accordion / Collapsible now animate (fade / zoom / slide / height) out of the box. The `animate-in` / `animate-out` / `fade-*` / `zoom-*` / `slide-*` utilities and the `accordion` / `collapsible` / `caret-blink` keyframes are **inlined in `styles.css`** — no `tailwindcss-animate` / `tw-animate-css` dependency and no consumer config. Duration flows from any `duration-*` utility via `--tw-duration` (default 150ms). Compose `overlayAnimationClass` for custom overlays.
+- **Complete vendored primitive catalog** on the control-surface contract: `Form`, `AspectRatio`, `Toolbar`, `Menubar`, `NavigationMenu`, `Breadcrumb`, `Pagination`, `Command` (cmdk), `Calendar` (react-day-picker), `Combobox`, `DatePicker`, `InputOTP`, `Kbd`, `Spinner`, `InputGroup` — alongside the existing `Input`, `Select`, `Dialog`, `Sheet`, `AlertDialog`, `Table`, `Toast`, `Card`, `Badge`, `Slider`, `Progress`, and more.
+- **`overlayListPanelClass`** + **`PopoverContent` `variant="list"`** — one shared listbox/menu chrome so `Select`, `DropdownMenu`, `Combobox`, and `Command` panels are visually identical. `Combobox` uses `ComboboxTrigger` (control skin), not a `Button`.
+- **App-kit organized into two libraries** (example): a **UI primitives** catalog (per-family audit, sidebar) and a **Blocks** library (composed sections — Project settings, Settings form, Metrics, Analytics, Charts, Table, Integrations, Resources, Confirm & destructive, Detail sheet, Empty states, Sign-in). Driven by `primitives-catalog.ts` / `blocks-catalog.ts`.
+
+### Changed
+
+- `overlayAnimationClass` is now exported from `@timbal-ai/timbal-react/ui` and the root for composing custom overlays.
+
+### Removed (breaking)
+
+- **`Tabs` / `TabsList` / `TabsTrigger` / `TabsContent` are no longer exported.** Radix/shadcn Tabs are intentionally not part of this package. Use **`PillSegmentedTabs`** (`trackVariant="flush"`) or the app-kit **`SubNav`** for section bars; switch panel content with local state or the router. Use `Accordion` / `Collapsible` for expand-collapse.
+
+---
+
 ## [0.8.2] — 2026-06-02
 
 ### Added

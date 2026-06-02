@@ -4,10 +4,8 @@ import { type FC } from "react";
 import { ChevronDownIcon } from "lucide-react";
 import type { WorkforceItem } from "@timbal-ai/timbal-sdk";
 
-import {
-  studioSecondaryChromeClass,
-  studioTopbarPillHeightClass,
-} from "../design/classes";
+import { controlSurfaceClass } from "../design/control-surface";
+import { studioTopbarPillHeightClass } from "../design/classes";
 import { cn } from "../utils";
 
 export interface WorkforceSelectorProps {
@@ -46,8 +44,8 @@ export const WorkforceSelector: FC<WorkforceSelectorProps> = ({
     <div
       className={cn(
         "aui-workforce-selector relative inline-flex items-center",
+        controlSurfaceClass,
         studioTopbarPillHeightClass,
-        studioSecondaryChromeClass,
         "rounded-full",
         className,
       )}

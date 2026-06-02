@@ -2,7 +2,7 @@
 
 React components and runtime for building Timbal chat UIs and studio apps. Drop in a single component to get a fully-featured streaming chat interface connected to a Timbal workforce agent, or compose dashboards with the **app kit**.
 
-## Package structure (0.8+)
+## Package structure (1.0)
 
 | Subpath | Use when |
 |---------|----------|
@@ -119,6 +119,33 @@ import { ThemePresetGallery, applyThemePreset } from "@timbal-ai/timbal-react";
 `applyThemePreset` persists the choice to `localStorage` (`timbal-theme-preset`); `getStoredThemePreset()` restores it on reload.
 
 **For UI-generation agents:** inject `THEME_AGENT_INSTRUCTIONS` into the system prompt so the model themes via these APIs (and never emits raw OKLCH), mirroring `APP_KIT_AGENT_INSTRUCTIONS`.
+
+### Anti-slop guardrails for generated UIs
+
+When an agent composes app-kit UIs, taste is enforced — not just suggested — through three layers built on one shared vocabulary (`HOUSE_RULES`, `SEMANTIC_COLOR_TOKENS`, `SLOP_BUDGETS`):
+
+```ts
+import {
+  lintGeneratedUi,
+  reviewGeneratedUi,
+  UI_REVIEW_AGENT_INSTRUCTIONS,
+} from "@timbal-ai/timbal-react"; // or "/app"
+
+// 1. Prompt: APP_KIT_AGENT_INSTRUCTIONS renders its anti-slop checklist from
+//    HOUSE_RULES; add UI_REVIEW_AGENT_INSTRUCTIONS so the model self-reviews.
+const systemPrompt = `${basePrompt}\n\n${APP_KIT_AGENT_INSTRUCTIONS}\n\n${UI_REVIEW_AGENT_INSTRUCTIONS}`;
+
+// 2. Lint: deterministic checks reject hardcoded palette colors / hex / oklch
+//    (errors) and flag icon-spam, bold giant values, per-row dividers, and
+//    gradients on data surfaces (warnings).
+const { ok, findings } = lintGeneratedUi(generatedTsx);
+
+// 3. Critique loop: review → fix → re-review until it passes clean.
+const review = reviewGeneratedUi(generatedTsx, { strict: true });
+if (!review.passed) regenerate(review.revisionPrompt); // names the exact lines + fixes
+```
+
+Color decisions belong to the theme generator and semantic tokens, never to the per-component agent — the linter enforces exactly that.
 
 ### CSS imports
 
@@ -851,6 +878,17 @@ if (res.ok) {
 
 Radix-backed wrappers pre-styled with the design tokens (`bg-popover`, `border-border`, `shadow-card`, …) — import from `@timbal-ai/timbal-react/ui` or the root. Use these instead of `npx shadcn`; raw shadcn references token names the app doesn't define and renders unstyled.
 
+**Control-surface contract.** Every input, select / dropdown trigger, and search field shares **one** skin so they match side by side regardless of origin. Build custom controls by composing it — never hand-roll a `rounded-* border-input bg-…` surface:
+
+```tsx
+import { controlClass, overlaySurfaceClass, overlayItemClass } from "@timbal-ai/timbal-react/ui";
+
+<input className={controlClass({}, "w-full")} />            {/* field shape, h-10 */}
+<button className={controlClass({ shape: "pill", size: "sm" })} />  {/* chrome pill */}
+```
+
+`controlClass({ size, shape })` — `size`: `"sm" | "default"`; `shape`: `"field"` (rounded-lg, default) or `"pill"` (chrome rows). Floating panels (popover, menu, listbox) compose `overlaySurfaceClass` + `overlayItemClass`. Vendoring a new shadcn primitive means swapping its inline surface string for these before shipping.
+
 - **Button:** `Button`
 - **Dialog:** `Dialog` · `DialogTrigger` · `DialogContent` · `DialogTitle` · `DialogDescription` · `DialogHeader` · `DialogFooter` · `DialogClose` · `DialogOverlay` · `DialogPortal`
 - **Dropdown menu:** `DropdownMenu` · `DropdownMenuTrigger` · `DropdownMenuContent` · `DropdownMenuItem` · `DropdownMenuCheckboxItem` · `DropdownMenuRadioGroup` · `DropdownMenuRadioItem` · `DropdownMenuLabel` · `DropdownMenuSeparator` · `DropdownMenuShortcut` · `DropdownMenuGroup` · `DropdownMenuSub` · `DropdownMenuSubTrigger` · `DropdownMenuSubContent`
@@ -858,7 +896,22 @@ Radix-backed wrappers pre-styled with the design tokens (`bg-popover`, `border-b
 - **Select:** `Select` · `SelectTrigger` · `SelectValue` · `SelectContent` · `SelectItem` · `SelectGroup` · `SelectLabel` · `SelectSeparator` · `SelectScrollUpButton` · `SelectScrollDownButton`
 - **Tooltip:** `Tooltip` · `TooltipTrigger` · `TooltipContent` · `TooltipProvider`
 - **Avatar:** `Avatar` · `AvatarImage` · `AvatarFallback`
-- **Misc:** `Shimmer`
+- **Form:** `Input` · `Textarea` · `Label` · `Checkbox` · `Switch` · `RadioGroup` · `RadioGroupItem` · `Form` (+ field/item/label/control/message/submit)
+- **Navigation / chrome:** `Breadcrumb` (+ list/item/link/page/separator/ellipsis) · `Pagination` (+ content/item/link/previous/next/ellipsis) · `Menubar` (+ sub-parts) · `NavigationMenu` (+ sub-parts) · `Toolbar` (+ button/separator/toggle/link)
+- **Command & date:** `Command` (+ dialog/input/list/group/item/…) · `Calendar` · `Combobox` (Popover + Command) · `DatePicker` (Popover + Calendar)
+- **Input OTP:** `InputOTP` · `InputOTPGroup` · `InputOTPSlot` · `InputOTPHiddenInput` · `InputOTPSeparator` (Radix OTP field via unified `radix-ui`)
+- **Misc:** `Kbd` · `KbdGroup` · `Shimmer`
+- **Feedback / data:** `Slider` · `Progress` · `Badge`
+- **Overlays:** `Sheet` · `AlertDialog` · `HoverCard` · `ContextMenu` (+ sub-parts) · `Toast` / `Toaster` / `toast()` / `useToast`
+- **Surfaces:** `Card` (+ header/footer/title/description/content) · `Alert` · `Skeleton` · `Table` (+ header/body/row/cell)
+- **Toggles:** `Toggle` · `ToggleGroup` · `Collapsible` · `ScrollArea`
+- **Section navigation (pill switcher):** `PillSegmentedTabs` · `SubNav` (app kit) — **not** shadcn `Tabs`; Radix `Tabs` is not exported
+- **Layout / disclosure:** `Accordion` · `AccordionItem` · `AccordionTrigger` · `AccordionContent` · `Separator` · `AspectRatio`
+- **Input chrome:** `InputGroup` (+ addon/control/text) · `Spinner`
+
+**Motion is built in.** Dialog, AlertDialog, Sheet, Popover, DropdownMenu, Select, Tooltip, Toast, NavigationMenu, and Accordion / Collapsible animate out of the box (fade / zoom / slide / height). The animation engine is **inlined in `styles.css`** — no `tailwindcss-animate` / `tw-animate-css` dependency and no consumer config. Duration flows from any `duration-*` utility (`--tw-duration`, default 150ms). When composing a custom overlay, reuse `overlayAnimationClass` rather than adding another animation library.
+
+All primitives are Radix-backed (via the unified `radix-ui` package) or thin wrappers (`cmdk` for Command, `react-day-picker` for Calendar) and styled with the design tokens + the control-surface contract, so a new primitive matches the rest on arrival. Browse them live in the app-kit example: the **UI primitives** library (per-family audit) and the **Blocks** library (composed sections — Project settings, Confirm flow, Detail sheet, Empty states, Sign-in).
 
 ---
 

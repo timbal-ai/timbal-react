@@ -1,5 +1,31 @@
 export { APP_KIT_AGENT_INSTRUCTIONS } from "./agent-instructions";
 
+// Codegen guardrails — anti-slop vocabulary, linter, and critique loop
+export {
+  SEMANTIC_COLOR_TOKENS,
+  RESERVED_GRADIENT_TOKENS,
+  TAILWIND_PALETTE_COLORS,
+  COLOR_UTILITY_PREFIXES,
+  SLOP_BUDGETS,
+  HOUSE_RULES,
+} from "../design/ui-vocabulary";
+export type {
+  SemanticColorToken,
+  HouseRule,
+} from "../design/ui-vocabulary";
+export { lintGeneratedUi, formatLintReport } from "../design/ui-lint";
+export type {
+  LintFinding,
+  LintResult,
+  LintOptions,
+  LintSeverity,
+} from "../design/ui-lint";
+export {
+  reviewGeneratedUi,
+  UI_REVIEW_AGENT_INSTRUCTIONS,
+} from "../design/ui-review";
+export type { ReviewResult } from "../design/ui-review";
+
 // Theming — generator, presets, apply helpers, preview UI, agent instructions
 export {
   createTimbalTheme,
@@ -110,7 +136,7 @@ export type { ConnectionRowListProps } from "./integrations/ConnectionRowList";
 export { SubNav } from "./navigation/SubNav";
 export type { SubNavProps, SubNavItem } from "./navigation/SubNav";
 export { Breadcrumbs } from "./navigation/Breadcrumbs";
-export type { BreadcrumbsProps, BreadcrumbItem } from "./navigation/Breadcrumbs";
+export type { BreadcrumbsProps, BreadcrumbEntry, BreadcrumbItem } from "./navigation/Breadcrumbs";
 
 // Forms
 export { Field, FieldInput } from "./forms/Field";

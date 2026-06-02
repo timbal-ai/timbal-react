@@ -4,10 +4,9 @@
  */
 
 import { cn } from "../utils";
+import { controlClass } from "./control-surface";
 import {
   studioIntegrationCardClass,
-  studioSearchChromeClass,
-  studioSecondaryChromeClass,
   studioTopbarPillHeightClass,
 } from "./classes";
 
@@ -71,8 +70,9 @@ export const appFilterBarClass = cn(
   studioTopbarPillHeightClass,
 );
 
-/** Search inputs in filter bars — always full pill rounding. */
-export const appSearchInputClass = cn(studioSearchChromeClass, "text-sm");
+/** Search inputs in filter bars — shared control skin (field shape), so a
+ *  search field and a dropdown placed side by side match exactly. */
+export const appSearchInputClass = controlClass({}, "inline-flex items-center gap-2");
 
 /** Breadcrumbs. */
 export const appBreadcrumbsClass =
@@ -88,12 +88,8 @@ export const appFieldLabelClass = "text-sm font-medium text-foreground";
 
 export const appFieldHintClass = "text-xs text-muted-foreground";
 
-export const appInputClass = cn(
-  studioSecondaryChromeClass,
-  "h-10 w-full rounded-lg px-3 text-sm text-foreground outline-none",
-  "placeholder:text-muted-foreground/70",
-  "focus-visible:ring-2 focus-visible:ring-foreground/10",
-);
+/** Form inputs / selects / textareas — shared control skin (field shape, full width). */
+export const appInputClass = controlClass({}, "w-full");
 
 /** Empty state block. */
 export const appEmptyStateClass = cn(

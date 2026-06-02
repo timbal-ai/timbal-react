@@ -167,6 +167,16 @@ export {
   ConnectionRowList,
   connectionRowListClass,
   APP_KIT_AGENT_INSTRUCTIONS,
+  SEMANTIC_COLOR_TOKENS,
+  RESERVED_GRADIENT_TOKENS,
+  TAILWIND_PALETTE_COLORS,
+  COLOR_UTILITY_PREFIXES,
+  SLOP_BUDGETS,
+  HOUSE_RULES,
+  lintGeneratedUi,
+  formatLintReport,
+  reviewGeneratedUi,
+  UI_REVIEW_AGENT_INSTRUCTIONS,
   createTimbalTheme,
   themeToCss,
   applyTimbalTheme,
@@ -200,7 +210,8 @@ export type {
   SubNavProps,
   SubNavItem,
   BreadcrumbsProps,
-  BreadcrumbItem,
+  BreadcrumbEntry,
+  BreadcrumbItem as AppBreadcrumbItem,
   FieldProps,
   FieldInputProps,
   FieldTextareaProps,
@@ -254,6 +265,13 @@ export type {
   TimbalThemePresetId,
   TimbalThemeStyleProps,
   ThemePresetGalleryProps,
+  SemanticColorToken,
+  HouseRule,
+  LintFinding,
+  LintResult,
+  LintOptions,
+  LintSeverity,
+  ReviewResult,
 } from "./app/index";
 
 // ── Hooks ────────────────────────────────────────────────────────────────────
@@ -408,6 +426,210 @@ export {
   SelectScrollUpButton,
   SelectScrollDownButton,
 } from "./ui/select";
+export { Input } from "./ui/input";
+export { Textarea } from "./ui/textarea";
+export { Label } from "./ui/label";
+export { Checkbox } from "./ui/checkbox";
+export { Switch } from "./ui/switch";
+export { RadioGroup, RadioGroupItem } from "./ui/radio-group";
+export {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  FormSubmit,
+} from "./ui/form";
+export { AspectRatio } from "./ui/aspect-ratio";
+export {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+  BreadcrumbEllipsis,
+} from "./ui/breadcrumb";
+export {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from "./ui/pagination";
+export {
+  Toolbar,
+  ToolbarButton,
+  ToolbarSeparator,
+  ToolbarToggleGroup,
+  ToolbarToggleItem,
+  ToolbarLink,
+} from "./ui/toolbar";
+export {
+  Menubar,
+  MenubarMenu,
+  MenubarTrigger,
+  MenubarContent,
+  MenubarItem,
+  MenubarCheckboxItem,
+  MenubarRadioGroup,
+  MenubarRadioItem,
+  MenubarLabel,
+  MenubarSeparator,
+  MenubarShortcut,
+  MenubarSub,
+  MenubarSubTrigger,
+  MenubarSubContent,
+} from "./ui/menubar";
+export {
+  NavigationMenu,
+  NavigationMenuList,
+  NavigationMenuItem,
+  NavigationMenuContent,
+  NavigationMenuTrigger,
+  NavigationMenuLink,
+  NavigationMenuIndicator,
+  NavigationMenuViewport,
+  navigationMenuTriggerStyle,
+} from "./ui/navigation-menu";
+export {
+  Command,
+  CommandDialog,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandShortcut,
+  CommandSeparator,
+} from "./ui/command";
+export { Calendar, CalendarDayButton } from "./ui/calendar";
+export {
+  Combobox,
+  ComboboxTrigger,
+  ComboboxAnchor,
+  ComboboxContent,
+  ComboboxCommand,
+  ComboboxInput,
+  ComboboxList,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxItem,
+  ComboboxSeparator,
+  ComboboxShortcut,
+} from "./ui/combobox";
+export {
+  DatePicker,
+  DatePickerTrigger,
+  DatePickerContent,
+  DatePickerCalendar,
+  DatePickerButton,
+  formatPickerDate,
+} from "./ui/date-picker";
+export {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+  InputOTPHiddenInput,
+  InputOTPSeparator,
+} from "./ui/input-otp";
+export { Kbd, KbdGroup } from "./ui/kbd";
+export { Spinner } from "./ui/spinner";
+export {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "./ui/input-group";
+export {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "./ui/accordion";
+export { Separator } from "./ui/separator";
+export { Slider } from "./ui/slider";
+export { Progress } from "./ui/progress";
+export { Badge, badgeVariants } from "./ui/badge";
+export {
+  Sheet,
+  SheetTrigger,
+  SheetClose,
+  SheetContent,
+  SheetHeader,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+} from "./ui/sheet";
+export {
+  AlertDialog,
+  AlertDialogPortal,
+  AlertDialogOverlay,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "./ui/alert-dialog";
+export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./ui/collapsible";
+export { ScrollArea, ScrollBar } from "./ui/scroll-area";
+export { Toggle, toggleVariants } from "./ui/toggle";
+export { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
+export { HoverCard, HoverCardTrigger, HoverCardContent } from "./ui/hover-card";
+export {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuCheckboxItem,
+  ContextMenuRadioGroup,
+  ContextMenuRadioItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent,
+} from "./ui/context-menu";
+export { Alert, AlertTitle, AlertDescription, alertVariants } from "./ui/alert";
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "./ui/card";
+export { Skeleton } from "./ui/skeleton";
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+} from "./ui/table";
+export {
+  ToastProvider,
+  ToastViewport,
+  Toast,
+  ToastTitle,
+  ToastDescription,
+  ToastClose,
+  ToastAction,
+} from "./ui/toast";
+export { Toaster } from "./ui/toaster";
+export { toast, useToast } from "./ui/use-toast";
+export type { ToastProps } from "./ui/use-toast";
 export { Shimmer } from "./ui/shimmer";
 export type { TextShimmerProps } from "./ui/shimmer";
 export {
@@ -420,6 +642,22 @@ export type {
 } from "./ui/pill-segmented-tabs";
 export { TooltipIconButton } from "./chat/tooltip-icon-button";
 export type { TooltipIconButtonProps } from "./chat/tooltip-icon-button";
+
+/** Control-surface contract — compose to build custom controls that match the kit. */
+export {
+  controlClass,
+  controlSurfaceClass,
+  overlaySurfaceClass,
+  overlayListPanelClass,
+  overlayItemClass,
+  overlayAnimationClass,
+  CONTROL_SIZE,
+} from "./design/control-surface";
+export type {
+  ControlSize,
+  ControlShape,
+  ControlClassOptions,
+} from "./design/control-surface";
 
 // ── Utils ────────────────────────────────────────────────────────────────────
 

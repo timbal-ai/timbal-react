@@ -1,3 +1,19 @@
+import { HOUSE_RULES, SLOP_BUDGETS } from "../design/ui-vocabulary";
+
+/**
+ * Anti-slop checklist rendered from the shared `HOUSE_RULES` vocabulary so the
+ * prompt the model reads and the linter (`lintGeneratedUi`) it is checked
+ * against never drift apart. Each rule shows a slop vs. good fragment when one
+ * exists.
+ */
+const ANTI_SLOP_CHECKLIST = HOUSE_RULES.map((r) => {
+  const pair =
+    r.slop && r.good
+      ? `\n  - slop: \`${r.slop}\`\n  - good: \`${r.good}\``
+      : "";
+  return `- **${r.id}** — ${r.rule} (${r.why})${pair}`;
+}).join("\n");
+
 /**
  * Copy-paste into a workforce agent system prompt (or codegen tool context) so the
  * model knows which app-kit components exist and how to compose them — without
@@ -57,7 +73,15 @@ Theming helpers (import from the package root or \`/app\`): \`createTimbalTheme\
 | **Modals** | Use \`AppConfirmDialog\` for destructive/export confirmations. |
 | **Metrics** | Overview KPIs → \`MetricRow\` or \`MetricChartCard\` (not four separate heavy cards). Values use **normal** font weight, not bold. |
 | **Integrations** | Catalog → \`IntegrationCard\` grid; connected list → \`ConnectionRow\` inside \`ConnectionRowList\`. Footer CTAs: \`Button variant="secondary"\`. |
-| **Anti-slop** | No loud green/red trend pills on every tile; no \`bg-card\` flat grids when platform chrome exists; avoid recycling demo names ("Operations", mock workforce lists). |
+| **Anti-slop** | Follow the **anti-slop checklist** below. No loud green/red trend pills on every tile; no \`bg-card\` flat grids when platform chrome exists; avoid recycling demo names ("Operations", mock workforce lists). |
+
+### Anti-slop checklist (required — output is linted against this)
+
+Generated UIs are checked by \`lintGeneratedUi\` and rejected on any error. Self-review against these before returning code (icon budget: ${SLOP_BUDGETS.maxIconsPerView} per view; at most ${SLOP_BUDGETS.maxRowDividers} ruled rows before it reads as a ledger):
+
+${ANTI_SLOP_CHECKLIST}
+
+The cause of slop is dropping **below** the curated block layer into raw primitives + free Tailwind. Stay on the blocks; reach for primitives only when no block fits, and even then keep colors on semantic tokens.
 
 ### Accessibility (required)
 
@@ -83,7 +107,8 @@ Theming helpers (import from the package root or \`/app\`): \`createTimbalTheme\
 | \`useAppShellChat\` | Custom open/close trigger when \`hideChatTrigger\` on shell. |
 | \`Page\` | Page title, description, \`breadcrumbs\`, \`actions\`, children. |
 | \`Section\` | Titled block inside a page. |
-| \`SubNav\` | In-page tabs: \`items\`, \`activeId\`, \`onChange\`. |
+| \`SubNav\` | **Section switcher** (Overview / Reports pill bar): \`items\`, \`activeId\`, \`onChange\`. Never use Radix/shadcn \`Tabs\` — it is not in this package. Switch panels with state or the router. |
+| **Menus** | **Select** = short list, no search. **Combobox** = searchable (same trigger as Select). **Command** only inside \`PopoverContent variant=\"list\"\` or Combobox — never padded default Popover. See \`examples/app-kit/src/recipes/primitives-catalog.ts\`. |
 | \`Breadcrumbs\` | Trail: \`items: [{ label, href? }]\`. |
 | \`Button\` | Actions — \`variant="secondary"\` for catalog/secondary CTAs; \`variant="default"\` for primary. |
 | \`StatTile\` | Single KPI in its own card (grid of scattered stats). Prefer \`MetricRow\` for a unified overview strip. |
@@ -152,6 +177,7 @@ Studio chrome (\`StudioSidebar\`, \`ModeToggle\`, …) lives in \`@timbal-ai/tim
 | \`charts-panel.tsx\` | \`ChartPanel\`, \`ChartArtifact\` |
 | \`copilot-overlay.tsx\` | \`AppShell\`, \`AppChatPanel\` |
 | \`theme-presets.tsx\` | \`ThemePresetGallery\`, \`applyTimbalTheme\` |
+| \`blocks-gallery.tsx\` | Block library index — Project settings, Confirm flow, Detail sheet, Empty states, Sign-in |
 
 ### Typical compositions
 
@@ -162,6 +188,7 @@ Studio chrome (\`StudioSidebar\`, \`ModeToggle\`, …) lives in \`@timbal-ai/tim
 - **Integrations** — grid of \`IntegrationCard\`; \`ConnectionRowList\` for connected providers; \`IntegrationsEmptyState\` when empty.
 - **Resource gallery** — grid of \`ResourceCard\`.
 - **Copilot-assisted app** — \`AppCopilotProvider\` + \`AppShell\` with \`chat={<AppChatPanel workforceId="…" />}\`.
+- **Motion is automatic** — Dialog, AlertDialog, Sheet, Popover, DropdownMenu, Select, Tooltip, Toast, and Accordion/Collapsible animate out of the box (fade/zoom/slide/height) via the engine inlined in \`styles.css\`. Do not add a separate animation library or hand-write \`@keyframes\`.
 
 ### Example imports
 
