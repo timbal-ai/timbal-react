@@ -18,18 +18,29 @@ The package ships a complete light + dark token system (\`styles.css\`). Compone
 
 **Never write \`oklch(...)\` / hex literals or hand-author paired \`:root\` + \`.dark\` blocks.** Express intent and let the package derive a complete, contrast-correct, paired palette.
 
-### Pick a brand color (rebrand)
+### Generate a full personality (color + roundness + fonts + shadows)
 
 \`\`\`ts
 import { createTimbalTheme, themeToCss } from "@timbal-ai/timbal-react";
 
-const theme = createTimbalTheme({ brand: "#4f46e5" /* accent?, radius?, tintNeutrals? */ });
-// Build-time: write once into your app CSS (paired light + dark, guaranteed in sync):
-const css = themeToCss(theme);
+const theme = createTimbalTheme({
+  brand: "#4f46e5",
+  radius: 0.875,          // corner roundness in rem (sets --radius + --radius-2xl)
+  shadow: "soft",         // "none" | "hairline" | "soft" | "medium" | "strong"
+  tintNeutrals: false,    // tint background/border toward the brand hue
+  accent: "#10b981",      // optional secondary accent
+  typography: {           // optional — re-skins every component's font
+    sans: '"Geist", ui-sans-serif, system-ui, sans-serif',
+    importUrl: "https://fonts.googleapis.com/css2?family=Geist:wght@400..600&display=swap",
+    // display?, mono? also supported
+  },
+});
+const css = themeToCss(theme); // paired light + dark, guaranteed in sync
 \`\`\`
 
-- For a real company, look up the actual brand hex first (brandfetch / "<company> brand color hex"), then pass it as \`brand\`.
-- \`createTimbalTheme\` derives \`--primary\`, its foreground, ring, the full button gradient, and a soft playground tint. You only supply intent.
+- \`createTimbalTheme\` derives \`--primary\`, its foreground, ring, the full button gradient, and a soft playground tint from \`brand\`. \`radius\` sets roundness, \`shadow\` sets card depth, \`typography\` sets fonts. You only supply intent — never raw OKLCH.
+- For a real company, look up the actual brand hex first (brandfetch / "<company> brand color hex").
+- **Web fonts must be loaded.** \`applyTimbalTheme\` / \`TimbalThemeStyle\` inject the \`<link>\` for \`typography.importUrl\` automatically. For build-time \`themeToCss\`, add the \`<link rel="stylesheet" href="…">\` to your \`index.html\` yourself (or pass \`themeToCss(theme, { includeFontImport: true })\` when the result is a standalone stylesheet).
 
 ### Apply a theme
 
@@ -46,14 +57,18 @@ import { TIMBAL_THEME_PRESETS, applyThemePreset } from "@timbal-ai/timbal-react"
 // TIMBAL_THEME_PRESETS: { id, label, description, swatch, tokens }[]
 \`\`\`
 
-| Preset id | Use when |
-|-----------|----------|
-| \`platform\` | Neutral monochrome default (no brand) |
-| \`indigo\` | Cool, trustworthy — analytics / ops dashboards |
-| \`violet\` | Expressive purple — product / marketing |
-| \`forest\` | Green — finance, sustainability, positive status |
-| \`warm\` | Orange — consumer / creative / high-engagement |
-| \`slate\` | Muted enterprise gray-blue (tinted neutrals) |
+Each preset is a **full personality** (color + radius + shadows + font), not just a color:
+
+| Preset id | Personality |
+|-----------|-------------|
+| \`platform\` | Neutral monochrome, system font (the default — no brand) |
+| \`indigo\` | Blue-violet, Geist, generous radius, soft shadows — analytics / ops |
+| \`violet\` | Purple, Sora, rounded — product / marketing |
+| \`forest\` | Green, Lexend, compact — finance / sustainability |
+| \`warm\` | Orange, Lexend, friendly — consumer / creative |
+| \`slate\` | Enterprise gray-blue, Inter, tight radius, hairline shadows |
+| \`folio\` | Editorial serif (Fraunces), near-sharp corners — content / docs |
+| \`carbon\` | Terminal monospace (JetBrains Mono), green accent — dev / infra |
 
 - To present options visually, render \`<ThemePresetGallery value={id} onSelect={setId} />\` — each swatch previews real components (Button + metric tile) scoped via \`data-timbal-theme\`, so the live app doesn't change until the user picks.
 - On selection, call \`applyThemePreset(id)\` (persists to \`localStorage\` and restores on reload).

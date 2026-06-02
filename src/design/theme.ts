@@ -36,8 +36,34 @@ export interface TimbalThemeTokens {
   light: ThemeTokenMap;
   /** Variables applied in `.dark`. */
   dark: ThemeTokenMap;
-  /** Mode-independent variables (e.g. `--radius`) applied once in `:root`. */
+  /** Mode-independent variables (e.g. `--radius`, `--font-sans`) applied once in `:root`. */
   root?: ThemeTokenMap;
+  /**
+   * Font stack applied as `font-family` on the theme scope (and `body`), so
+   * every component re-skins. Set independently of the `--font-*` vars so the
+   * serializer can emit the actual `font-family` declaration.
+   */
+  fontFamily?: string;
+  /**
+   * Optional stylesheet URL (e.g. a Google Fonts link) that loads the font in
+   * `fontFamily`. Injected as a `<link>` by `applyTimbalTheme` / `TimbalThemeStyle`;
+   * for build-time `themeToCss` the host should add the link itself.
+   */
+  fontImportUrl?: string;
+}
+
+/** Drop-shadow weight for cards / elevated surfaces. */
+export type ThemeShadow = "none" | "hairline" | "soft" | "medium" | "strong";
+
+export interface TimbalThemeTypography {
+  /** Body / UI font stack. Applied as `font-family` and `--font-sans`. */
+  sans: string;
+  /** Optional heading/display stack (`--font-display`; falls back to sans). */
+  display?: string;
+  /** Optional monospace stack (`--font-mono`). */
+  mono?: string;
+  /** Optional stylesheet URL that loads the fonts (Google Fonts CSS, etc.). */
+  importUrl?: string;
 }
 
 export interface TimbalThemeIntent {
@@ -45,7 +71,7 @@ export interface TimbalThemeIntent {
   brand: string;
   /** Optional secondary accent. Defaults to a desaturated brand. */
   accent?: string;
-  /** Corner radius in rem (maps to `--radius`). Default keeps the shipped 0.75. */
+  /** Corner radius in rem (maps to `--radius` + `--radius-2xl`). Default 0.75. */
   radius?: number;
   /**
    * Tint neutral surfaces (background / muted / border) toward the brand hue
@@ -53,7 +79,52 @@ export interface TimbalThemeIntent {
    * keeps the shipped neutral grays.
    */
   tintNeutrals?: boolean;
+  /**
+   * Full typography personality (font stacks + optional web-font URL). When
+   * set, the generated theme re-skins every component's font.
+   */
+  typography?: TimbalThemeTypography;
+  /** Shadow weight for cards / elevated surfaces. Default keeps the shipped `medium`. */
+  shadow?: ThemeShadow;
 }
+
+// Card / elevated shadow presets per weight, paired light + dark. `medium` is
+// the shipped default (see `styles.css`) — included so presets can opt back in.
+const SHADOW_PRESETS: Record<
+  ThemeShadow,
+  { lightCard: string; lightElevated: string; darkCard: string; darkElevated: string }
+> = {
+  none: {
+    lightCard: "none",
+    lightElevated: "none",
+    darkCard: "none",
+    darkElevated: "none",
+  },
+  hairline: {
+    lightCard: "0 0 0 1px rgba(15, 23, 42, 0.06)",
+    lightElevated: "0 1px 2px rgba(15, 23, 42, 0.06)",
+    darkCard: "0 0 0 1px rgba(255, 255, 255, 0.06)",
+    darkElevated: "0 2px 8px rgba(0, 0, 0, 0.4)",
+  },
+  soft: {
+    lightCard: "0 1px 2px rgba(15, 23, 42, 0.04)",
+    lightElevated: "0 8px 30px rgba(15, 23, 42, 0.07)",
+    darkCard: "0 1px 2px rgba(0, 0, 0, 0.3)",
+    darkElevated: "0 10px 34px rgba(0, 0, 0, 0.45)",
+  },
+  medium: {
+    lightCard: "0 1px 2px -0.5px rgba(0, 0, 0, 0.05)",
+    lightElevated: "0 4px 24px rgba(0, 0, 0, 0.06)",
+    darkCard: "0 1px 3px rgba(0, 0, 0, 0.22)",
+    darkElevated: "0 4px 24px rgba(0, 0, 0, 0.35)",
+  },
+  strong: {
+    lightCard: "0 2px 6px rgba(15, 23, 42, 0.10)",
+    lightElevated: "0 16px 48px rgba(15, 23, 42, 0.16)",
+    darkCard: "0 2px 6px rgba(0, 0, 0, 0.4)",
+    darkElevated: "0 18px 50px rgba(0, 0, 0, 0.6)",
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Derivation
@@ -121,9 +192,33 @@ export function createTimbalTheme(intent: TimbalThemeIntent): TimbalThemeTokens 
   const light: ThemeTokenMap = {};
   const dark: ThemeTokenMap = {};
   const root: ThemeTokenMap = {};
+  let fontFamily: string | undefined;
+  let fontImportUrl: string | undefined;
 
   if (typeof intent.radius === "number") {
     root["--radius"] = `${intent.radius}rem`;
+    // `--radius-2xl` (composer shell) isn't derived from `--radius`, so scale it
+    // alongside to keep the corner language consistent.
+    root["--radius-2xl"] = `${Math.max(intent.radius + 0.25, 0)}rem`;
+  }
+
+  // ── Typography ────────────────────────────────────────────────────────────
+  if (intent.typography) {
+    const { sans, display, mono, importUrl } = intent.typography;
+    root["--font-sans"] = sans;
+    if (display) root["--font-display"] = display;
+    if (mono) root["--font-mono"] = mono;
+    fontFamily = sans;
+    fontImportUrl = importUrl;
+  }
+
+  // ── Shadows ───────────────────────────────────────────────────────────────
+  if (intent.shadow) {
+    const s = SHADOW_PRESETS[intent.shadow];
+    light["--shadow-card-value"] = s.lightCard;
+    light["--shadow-card-elevated-value"] = s.lightElevated;
+    dark["--shadow-card-value"] = s.darkCard;
+    dark["--shadow-card-elevated-value"] = s.darkElevated;
   }
 
   // ── Primary + foreground + ring ──────────────────────────────────────────
@@ -241,7 +336,7 @@ export function createTimbalTheme(intent: TimbalThemeIntent): TimbalThemeTokens 
     }
   }
 
-  return { light, dark, root };
+  return { light, dark, root, fontFamily, fontImportUrl };
 }
 
 // ---------------------------------------------------------------------------
@@ -257,6 +352,13 @@ export interface ThemeToCssOptions {
   scope?: string;
   /** Indentation for emitted declarations. Default two spaces. */
   indent?: string;
+  /**
+   * Prepend an `@import url("…")` for the theme's `fontImportUrl`. Off by
+   * default — `@import` must precede all other rules, so this is only safe when
+   * the returned CSS is the entire stylesheet. Prefer loading the font with a
+   * `<link>` (which `applyTimbalTheme` / `TimbalThemeStyle` do automatically).
+   */
+  includeFontImport?: boolean;
 }
 
 function declarations(map: ThemeTokenMap, indent: string): string {
@@ -268,7 +370,9 @@ function declarations(map: ThemeTokenMap, indent: string): string {
 /**
  * Serialize a theme to a CSS string with paired `:root` (light) and `.dark`
  * blocks — the exact shape apps would otherwise hand-author. Writing this in a
- * single block guarantees light + dark stay in sync.
+ * single block guarantees light + dark stay in sync. When the theme carries a
+ * `fontFamily`, a matching `font-family` rule is emitted so every component
+ * re-skins (scoped to the subtree for previews, or `:root` + `body` globally).
  */
 export function themeToCss(
   theme: TimbalThemeTokens,
@@ -289,6 +393,10 @@ export function themeToCss(
         `.dark ${sel}, ${sel}.dark {\n${declarations(theme.dark, indent)}\n}`,
       );
     }
+    // Cascade the font into the scoped subtree.
+    if (theme.fontFamily) {
+      blocks.push(`${sel} {\n${indent}font-family: var(--font-sans);\n}`);
+    }
   } else {
     if (Object.keys(lightVars).length) {
       blocks.push(`:root {\n${declarations(lightVars, indent)}\n}`);
@@ -296,9 +404,19 @@ export function themeToCss(
     if (Object.keys(theme.dark).length) {
       blocks.push(`.dark {\n${declarations(theme.dark, indent)}\n}`);
     }
+    // Apply the font globally. Targeting `body` too overrides scaffolds that
+    // pin `body { font-family }`; both resolve through `--font-sans`.
+    if (theme.fontFamily) {
+      blocks.push(`:root,\nbody {\n${indent}font-family: var(--font-sans);\n}`);
+    }
   }
 
-  return blocks.join("\n\n");
+  const css = blocks.join("\n\n");
+
+  if (options.includeFontImport && theme.fontImportUrl) {
+    return `@import url("${theme.fontImportUrl}");\n\n${css}`;
+  }
+  return css;
 }
 
 // ---------------------------------------------------------------------------
@@ -306,17 +424,42 @@ export function themeToCss(
 // ---------------------------------------------------------------------------
 
 const RUNTIME_STYLE_ID = "timbal-theme-runtime";
+const FONT_LINK_ATTR = "data-timbal-theme-font";
+
+/**
+ * Ensure a stylesheet `<link>` for a web-font URL exists in `<head>`. Idempotent
+ * per URL; replaces any previously injected theme font link. No-op in SSR.
+ */
+export function ensureThemeFontLink(url: string | undefined): void {
+  if (typeof document === "undefined") return;
+  const existing = document.head.querySelector<HTMLLinkElement>(
+    `link[${FONT_LINK_ATTR}]`,
+  );
+  if (!url) {
+    existing?.remove();
+    return;
+  }
+  if (existing?.getAttribute("href") === url) return;
+  const link = existing ?? document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = url;
+  link.setAttribute(FONT_LINK_ATTR, "");
+  if (!existing) document.head.appendChild(link);
+}
 
 /**
  * Apply a theme at runtime by injecting (or replacing) a single managed
- * `<style>` element in `<head>`. Works with the `.dark` class toggle used by
- * `next-themes` / `ModeToggle` — both light and dark blocks are written, so
- * switching mode never desyncs. No-op in SSR / non-DOM contexts.
+ * `<style>` element in `<head>` (and a font `<link>` when the theme carries
+ * one). Works with the `.dark` class toggle used by `next-themes` / `ModeToggle`
+ * — both light and dark blocks are written, so switching mode never desyncs.
+ * No-op in SSR / non-DOM contexts.
  *
- * Returns a disposer that removes the injected style.
+ * Returns a disposer that removes the injected style + font link.
  */
 export function applyTimbalTheme(theme: TimbalThemeTokens): () => void {
   if (typeof document === "undefined") return () => {};
+
+  ensureThemeFontLink(theme.fontImportUrl);
 
   let el = document.getElementById(RUNTIME_STYLE_ID) as HTMLStyleElement | null;
   if (!el) {
@@ -329,6 +472,7 @@ export function applyTimbalTheme(theme: TimbalThemeTokens): () => void {
 
   return () => {
     el?.parentNode?.removeChild(el);
+    ensureThemeFontLink(undefined);
   };
 }
 
@@ -336,6 +480,7 @@ export function applyTimbalTheme(theme: TimbalThemeTokens): () => void {
 export function clearTimbalTheme(): void {
   if (typeof document === "undefined") return;
   document.getElementById(RUNTIME_STYLE_ID)?.remove();
+  ensureThemeFontLink(undefined);
 }
 
 function isDev(): boolean {

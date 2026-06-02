@@ -5,10 +5,13 @@ export {
   themeToCss,
   applyTimbalTheme,
   clearTimbalTheme,
+  ensureThemeFontLink,
 } from "../../design/theme";
 export type {
   TimbalThemeIntent,
   TimbalThemeTokens,
+  TimbalThemeTypography,
+  ThemeShadow,
   ThemeTokenMap,
   ThemeToCssOptions,
 } from "../../design/theme";

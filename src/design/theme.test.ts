@@ -96,17 +96,42 @@ describe("createTimbalTheme", () => {
     expect(lightKeys).toEqual(darkKeys);
   });
 
-  it("emits --radius only when requested", () => {
+  it("emits --radius and --radius-2xl only when requested", () => {
     expect(createTimbalTheme({ brand: "#000" }).root?.["--radius"]).toBeUndefined();
-    expect(
-      createTimbalTheme({ brand: "#000", radius: 1 }).root?.["--radius"],
-    ).toBe("1rem");
+    const withRadius = createTimbalTheme({ brand: "#000", radius: 1 });
+    expect(withRadius.root?.["--radius"]).toBe("1rem");
+    expect(withRadius.root?.["--radius-2xl"]).toBe("1.25rem");
   });
 
   it("adds accent tokens when an accent is given", () => {
     const withAccent = createTimbalTheme({ brand: "#4f46e5", accent: "#10b981" });
     expect(withAccent.light["--accent"]).toBeDefined();
     expect(withAccent.dark["--accent"]).toBeDefined();
+  });
+
+  it("sets font vars + fontFamily/importUrl from typography", () => {
+    const t = createTimbalTheme({
+      brand: "#4f46e5",
+      typography: {
+        sans: '"Geist", sans-serif',
+        mono: '"JetBrains Mono", monospace',
+        importUrl: "https://fonts.example/geist.css",
+      },
+    });
+    expect(t.root?.["--font-sans"]).toBe('"Geist", sans-serif');
+    expect(t.root?.["--font-mono"]).toBe('"JetBrains Mono", monospace');
+    expect(t.fontFamily).toBe('"Geist", sans-serif');
+    expect(t.fontImportUrl).toBe("https://fonts.example/geist.css");
+  });
+
+  it("maps shadow weight to paired card shadow vars", () => {
+    const t = createTimbalTheme({ brand: "#000", shadow: "hairline" });
+    expect(t.light["--shadow-card-value"]).toBeDefined();
+    expect(t.light["--shadow-card-elevated-value"]).toBeDefined();
+    expect(t.dark["--shadow-card-value"]).toBeDefined();
+    expect(t.dark["--shadow-card-elevated-value"]).toBeDefined();
+    const none = createTimbalTheme({ brand: "#000", shadow: "none" });
+    expect(none.light["--shadow-card-value"]).toBe("none");
   });
 });
 
@@ -126,6 +151,29 @@ describe("themeToCss", () => {
     expect(css).toContain('[data-timbal-theme="indigo"] {');
     expect(css).toContain('.dark [data-timbal-theme="indigo"]');
     expect(css).not.toContain(":root {");
+  });
+
+  it("emits a font-family rule when the theme carries a font", () => {
+    const fontTheme = createTimbalTheme({
+      brand: "#4f46e5",
+      typography: { sans: '"Geist", sans-serif', importUrl: "https://x/g.css" },
+    });
+    const global = themeToCss(fontTheme);
+    expect(global).toContain("font-family: var(--font-sans)");
+    expect(global).toContain("body");
+    const scoped = themeToCss(fontTheme, { scope: "indigo" });
+    expect(scoped).toContain('[data-timbal-theme="indigo"] {\n  font-family: var(--font-sans);');
+  });
+
+  it("prepends @import only when includeFontImport is set", () => {
+    const fontTheme = createTimbalTheme({
+      brand: "#4f46e5",
+      typography: { sans: '"Geist", sans-serif', importUrl: "https://x/g.css" },
+    });
+    expect(themeToCss(fontTheme)).not.toContain("@import");
+    expect(themeToCss(fontTheme, { includeFontImport: true })).toContain(
+      '@import url("https://x/g.css");',
+    );
   });
 });
 

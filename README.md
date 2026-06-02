@@ -73,19 +73,29 @@ Both light AND dark blocks must be defined for every overridden token — otherw
 
 ### Programmatic theming (no hand-authored OKLCH)
 
-Instead of hand-writing paired `:root` / `.dark` blocks, derive a complete, contrast-correct palette from a single brand color. The package owns the OKLCH math for every token (primary, foreground, ring, the full button gradient, the playground tint):
+Instead of hand-writing paired `:root` / `.dark` blocks, derive a complete **personality** — color, roundness, shadows, and fonts — from a single intent object. The package owns the OKLCH math for every color token (primary, foreground, ring, the full button gradient, the playground tint):
 
 ```ts
 import { createTimbalTheme, themeToCss, applyTimbalTheme } from "@timbal-ai/timbal-react";
 
-const theme = createTimbalTheme({ brand: "#4f46e5", radius: 0.75 });
+const theme = createTimbalTheme({
+  brand: "#4f46e5",
+  radius: 0.875,     // corner roundness (rem) → --radius + --radius-2xl
+  shadow: "soft",    // "none" | "hairline" | "soft" | "medium" | "strong"
+  typography: {      // optional — re-skins every component's font
+    sans: '"Geist", ui-sans-serif, system-ui, sans-serif',
+    importUrl: "https://fonts.googleapis.com/css2?family=Geist:wght@400..600&display=swap",
+  },
+});
 
 // Build-time / SSR — paste into index.css (paired light + dark, always in sync):
 const css = themeToCss(theme);
 
-// Runtime — inject a managed <style>, swappable, returns a disposer:
+// Runtime — inject a managed <style> (+ font <link>), swappable, returns a disposer:
 const dispose = applyTimbalTheme(theme);
 ```
+
+> **Fonts must be loaded.** `applyTimbalTheme` and `TimbalThemeStyle` inject the `<link>` for `typography.importUrl` automatically. For build-time `themeToCss`, add the `<link rel="stylesheet">` to `index.html` yourself (or pass `themeToCss(theme, { includeFontImport: true })` when the result is a standalone stylesheet).
 
 Or render it as a component near your app root:
 
@@ -98,7 +108,7 @@ import { TimbalThemeStyle } from "@timbal-ai/timbal-react";
 
 ### Presets + the picker
 
-A small closed catalog (`TIMBAL_THEME_PRESETS`: `platform`, `indigo`, `violet`, `forest`, `warm`, `slate`) lets you offer styles by stable id and apply on selection. `ThemePresetGallery` previews each option with real components, scoped so the live app doesn't change until the user picks:
+A small closed catalog (`TIMBAL_THEME_PRESETS`) lets you offer styles by stable id and apply on selection. Each preset is a **full personality** (color + radius + shadows + font), not just a color: `platform` (system), `indigo` (Geist), `violet` (Sora), `forest`/`warm` (Lexend), `slate` (Inter), `folio` (Fraunces serif), `carbon` (JetBrains Mono). `ThemePresetGallery` previews each option with real components, scoped so the live app doesn't change until the user picks:
 
 ```tsx
 import { ThemePresetGallery, applyThemePreset } from "@timbal-ai/timbal-react";

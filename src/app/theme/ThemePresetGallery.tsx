@@ -89,6 +89,12 @@ export const ThemePresetGallery: FC<ThemePresetGalleryProps> = ({
                 {preset.description}
               </p>
 
+              {preset.font ? (
+                <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Aa · {preset.font}
+                </span>
+              ) : null}
+
               {/* Real-component preview using this preset's scoped tokens. */}
               <div className="flex flex-col gap-2 rounded-lg border border-border bg-background p-2">
                 <div className="flex items-center gap-2">

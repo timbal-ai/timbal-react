@@ -6,6 +6,7 @@ export {
   themeToCss,
   applyTimbalTheme,
   clearTimbalTheme,
+  ensureThemeFontLink,
   TIMBAL_THEME_PRESETS,
   getThemePreset,
   applyThemePreset,
@@ -17,6 +18,8 @@ export {
 export type {
   TimbalThemeIntent,
   TimbalThemeTokens,
+  TimbalThemeTypography,
+  ThemeShadow,
   ThemeTokenMap,
   ThemeToCssOptions,
   TimbalThemePreset,

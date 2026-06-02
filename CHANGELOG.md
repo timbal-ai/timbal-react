@@ -2,6 +2,25 @@
 
 All notable changes to `@timbal-ai/timbal-react` are documented here.
 
+## [0.8.2] — 2026-06-02
+
+### Added
+
+- **Full theme personalities** — extend programmatic theming beyond brand color to **roundness, shadows, and fonts** in one intent object:
+  - **`createTimbalTheme`** — new options: `shadow` (`none` | `hairline` | `soft` | `medium` | `strong`), `typography` (`sans`, optional `display`/`mono`, `importUrl` for web fonts). `radius` now also sets `--radius-2xl` (composer shell). Returns `fontFamily` + `fontImportUrl` for runtime font loading.
+  - **`themeToCss(theme, { scope?, includeFontImport? })`** — emits a `font-family: var(--font-sans)` rule when the theme carries a font; optional `@import` for standalone stylesheets.
+  - **`ensureThemeFontLink(url)`** — inject/remove a managed font `<link>` in `<head>`.
+  - **`applyTimbalTheme` / `TimbalThemeStyle`** — auto-load preset/custom web fonts via `<link>`.
+  - **`TIMBAL_THEME_PRESETS`** — each preset is now a full personality (color + radius + shadow + font), not color-only. New presets: **`folio`** (Fraunces serif, sharp corners), **`carbon`** (JetBrains Mono, green accent). Existing presets (`indigo`, `violet`, …) ship distinct fonts and radii.
+  - **`ThemePresetGallery`** — shows font name on each swatch card.
+  - **`THEME_AGENT_INSTRUCTIONS`** — documents typography, shadow, and font-loading rules for UI-generation agents.
+
+### Changed
+
+- **`TimbalThemePreset`** — adds optional `font` label for pickers.
+
+---
+
 ## [0.8.1] — 2026-06-02
 
 ### Added

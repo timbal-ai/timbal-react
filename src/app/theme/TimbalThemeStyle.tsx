@@ -44,10 +44,15 @@ export const TimbalThemeStyle: FC<TimbalThemeStyleProps> = ({
   if (!css) return null;
 
   return (
-    <style
-      data-timbal-theme-style={scope ?? "root"}
-      nonce={nonce}
-      dangerouslySetInnerHTML={{ __html: css }}
-    />
+    <>
+      {tokens.fontImportUrl ? (
+        <link rel="stylesheet" href={tokens.fontImportUrl} />
+      ) : null}
+      <style
+        data-timbal-theme-style={scope ?? "root"}
+        nonce={nonce}
+        dangerouslySetInnerHTML={{ __html: css }}
+      />
+    </>
   );
 };
