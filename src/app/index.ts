@@ -1,3 +1,5 @@
+export { APP_KIT_AGENT_INSTRUCTIONS } from "./agent-instructions";
+
 // Layout
 export { AppShell } from "./layout/AppShell";
 export type { AppShellProps } from "./layout/AppShell";
@@ -34,6 +36,47 @@ export { StatusBadge } from "./surfaces/StatusBadge";
 export type { StatusBadgeProps, StatusBadgeTone } from "./surfaces/StatusBadge";
 export { AppConfirmDialog } from "./surfaces/AppConfirmDialog";
 export type { AppConfirmDialogProps } from "./surfaces/AppConfirmDialog";
+export { InfoCard } from "./surfaces/InfoCard";
+export type { InfoCardProps, InfoCardTone } from "./surfaces/InfoCard";
+export { StatusDot } from "./surfaces/StatusDot";
+export type { StatusDotProps, StatusDotTone } from "./surfaces/StatusDot";
+export { DescriptionList } from "./surfaces/DescriptionList";
+export type { DescriptionListProps, DescriptionItem } from "./surfaces/DescriptionList";
+export { ExpandableSection } from "./surfaces/ExpandableSection";
+export type { ExpandableSectionProps } from "./surfaces/ExpandableSection";
+export { ResourceCard } from "./surfaces/ResourceCard";
+export type { ResourceCardProps } from "./surfaces/ResourceCard";
+
+// Settings
+export { SettingsSection, SettingsSectionHeader } from "./settings/SettingsSection";
+export type {
+  SettingsSectionProps,
+  SettingsSectionHeaderProps,
+} from "./settings/SettingsSection";
+export { FieldRow } from "./settings/FieldRow";
+export type { FieldRowProps } from "./settings/FieldRow";
+export { FloatingUnsavedChangesBar } from "./settings/FloatingUnsavedChangesBar";
+export type { FloatingUnsavedChangesBarProps } from "./settings/FloatingUnsavedChangesBar";
+export { DangerZone, DangerZoneAction } from "./settings/DangerZone";
+export type { DangerZoneProps, DangerZoneActionProps } from "./settings/DangerZone";
+
+// Integrations
+export {
+  IntegrationCard,
+  INTEGRATION_CATALOG_CARD_HEIGHT_CLASS,
+} from "./integrations/IntegrationCard";
+export type {
+  IntegrationCardProps,
+  IntegrationCardStatus,
+} from "./integrations/IntegrationCard";
+export { IntegrationsEmptyState } from "./integrations/IntegrationsEmptyState";
+export type { IntegrationsEmptyStateProps } from "./integrations/IntegrationsEmptyState";
+export { PlanBadge } from "./integrations/PlanBadge";
+export type { PlanBadgeProps, PlanBadgeTone } from "./integrations/PlanBadge";
+export { ConnectionRow, connectionRowListClass } from "./integrations/ConnectionRow";
+export type { ConnectionRowProps } from "./integrations/ConnectionRow";
+export { ConnectionRowList } from "./integrations/ConnectionRowList";
+export type { ConnectionRowListProps } from "./integrations/ConnectionRowList";
 
 // Navigation
 export { SubNav } from "./navigation/SubNav";
@@ -67,8 +110,25 @@ export type {
 } from "./data/DataTable";
 export { ChartPanel } from "./data/ChartPanel";
 export type { ChartPanelProps } from "./data/ChartPanel";
+export { MetricTile } from "./data/MetricTile";
+export type { MetricTileProps } from "./data/MetricTile";
+export { MetricRow } from "./data/MetricRow";
+export type { MetricRowProps, MetricRowItem } from "./data/MetricRow";
+export { MetricChartCard } from "./data/MetricChartCard";
+export type { MetricChartCardProps, MetricChartMetric } from "./data/MetricChartCard";
+
+// Charts (shared engine — also powers chart artifacts)
+export { LineAreaChart, Sparkline, CHART_PALETTE } from "../charts/index";
+export type {
+  LineAreaChartProps,
+  ChartSeries,
+  ChartVariant,
+  ChartLayout,
+  SparklineProps,
+} from "../charts/index";
 
 // Re-exports — single import path for dashboard + copilot apps
+export { Button } from "../ui/button";
 export { TimbalChat } from "../chat/chat";
 export type { TimbalChatProps } from "../chat/chat";
 export type { ThreadVariant } from "../chat/thread";

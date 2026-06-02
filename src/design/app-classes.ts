@@ -57,12 +57,13 @@ export const appSurfaceCardClass = cn(
 /** Metric / stat tile. */
 export const appStatTileClass = cn(
   appSurfaceCardClass,
-  "flex flex-col gap-1",
+  "flex flex-col gap-1 px-4 py-3 shadow-none",
 );
 
-export const appStatValueClass = "text-2xl font-semibold tracking-tight text-foreground";
+export const appStatValueClass =
+  "text-2xl font-normal tracking-tight text-foreground tabular-nums";
 
-export const appStatLabelClass = "text-sm text-muted-foreground";
+export const appStatLabelClass = "text-xs font-normal text-muted-foreground";
 
 /** Filter bar chrome — horizontal controls row. */
 export const appFilterBarClass = cn(

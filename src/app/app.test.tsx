@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { fireEvent, render, screen } from "@testing-library/react";
 
+import { APP_KIT_AGENT_INSTRUCTIONS } from "./agent-instructions";
 import { AppShell } from "./layout/AppShell";
 import { useAppCopilotContext, AppCopilotProvider } from "./copilot/app-copilot-context";
 import { DataTable } from "./data/DataTable";
@@ -20,6 +21,19 @@ const sampleRows = [
   { id: "1", name: "Beta", status: "Paused" },
   { id: "2", name: "Alpha", status: "Active" },
 ];
+
+describe("APP_KIT_AGENT_INSTRUCTIONS", () => {
+  it("documents creative freedom, recipes, and premade components", () => {
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("Creative freedom");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("examples/app-kit/recipes");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("MetricRow");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("MetricChartCard");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("ConnectionRowList");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("IntegrationCard");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("Accessibility");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("ariaLabel");
+  });
+});
 
 describe("app kit", () => {
   it("renders Page title", () => {

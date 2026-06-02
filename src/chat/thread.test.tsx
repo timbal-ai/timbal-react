@@ -1,6 +1,8 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { render, screen, cleanup } from "@testing-library/react";
 import { TimbalChat } from "./chat";
+import { Thread } from "./thread";
+import { TimbalRuntimeProvider } from "../runtime/provider";
 import { TooltipProvider } from "../ui/tooltip";
 
 // ---------------------------------------------------------------------------
@@ -62,6 +64,45 @@ describe("welcome screen", () => {
   it("renders no suggestion chips when suggestions is empty", () => {
     renderChat({ suggestions: [] });
     // welcome heading should still appear
+    expect(screen.getByText("How can I help you today?")).toBeInTheDocument();
+  });
+
+  it("hides suggestions on panel variant by default", () => {
+    render(
+      <TooltipProvider>
+        <TimbalRuntimeProvider workforceId="test-workforce" fetch={noop}>
+          <Thread
+            variant="panel"
+            suggestions={[{ title: "Panel suggestion" }]}
+          />
+        </TimbalRuntimeProvider>
+      </TooltipProvider>,
+    );
+    expect(screen.queryByText("Panel suggestion")).toBeNull();
+    expect(screen.getByText("Ask about this page")).toBeInTheDocument();
+  });
+
+  it("shows panel suggestions when showWelcomeSuggestions is true", () => {
+    render(
+      <TooltipProvider>
+        <TimbalRuntimeProvider workforceId="test-workforce" fetch={noop}>
+          <Thread
+            variant="panel"
+            showWelcomeSuggestions
+            suggestions={[{ title: "Panel suggestion" }]}
+          />
+        </TimbalRuntimeProvider>
+      </TooltipProvider>,
+    );
+    expect(screen.getByText("Panel suggestion")).toBeInTheDocument();
+  });
+
+  it("hides default-variant suggestions when showWelcomeSuggestions is false", () => {
+    renderChat({
+      showWelcomeSuggestions: false,
+      suggestions: [{ title: "Hidden suggestion" }],
+    });
+    expect(screen.queryByText("Hidden suggestion")).toBeNull();
     expect(screen.getByText("How can I help you today?")).toBeInTheDocument();
   });
 });

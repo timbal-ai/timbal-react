@@ -84,6 +84,8 @@ export function studioChromeSidebarWidth(collapsed: boolean) {
 
 export const STORAGE_KEYS = {
   sidebarCollapsed: "timbal-studio-sidebar-collapsed",
+  /** Used by `ModeToggle` in uncontrolled mode (`localStorage`). */
+  theme: "timbal-theme",
 } as const;
 
 export const DOM_IDS = {

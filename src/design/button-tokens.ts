@@ -150,6 +150,15 @@ export const TIMBAL_V2_SWITCH_THUMB = cn(
   "border border-border/80 shadow-sm",
 );
 
+/**
+ * Elevated card/list surface — same look as secondary chrome without hover/active
+ * fill shifts (integration catalog cards, connection lists).
+ */
+export const TIMBAL_V2_ELEVATED_SURFACE = cn(
+  TIMBAL_V2_ELEVATED_GRADIENT,
+  "border border-border shadow-card",
+);
+
 /** Interactive secondary chrome for native controls beside v2 buttons (selects, search inputs). */
 export const TIMBAL_V2_SECONDARY_CHROME = [
   TIMBAL_V2_ELEVATED_GRADIENT,
@@ -158,3 +167,13 @@ export const TIMBAL_V2_SECONDARY_CHROME = [
   "hover:from-secondary-fill-hover-from hover:to-secondary-fill-hover-to",
   "active:from-secondary-fill-active-from active:to-secondary-fill-active-to",
 ].join(" ");
+
+/**
+ * Logo / integration mark tiles — pinned to the light plate in both themes so
+ * dark provider logos stay legible (matches timbal-platform `TIMBAL_V2_LOGO_TILE_CLASS`).
+ */
+export const TIMBAL_V2_LOGO_TILE = cn(
+  "bg-gradient-to-b from-white to-neutral-100",
+  "border border-neutral-200",
+  "shadow-[0_1px_2px_-0.5px_rgba(0,0,0,0.08)]",
+);

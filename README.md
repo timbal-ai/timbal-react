@@ -2,14 +2,14 @@
 
 React components and runtime for building Timbal chat UIs and studio apps. Drop in a single component to get a fully-featured streaming chat interface connected to a Timbal workforce agent, or compose dashboards with the **app kit**.
 
-## Package structure (0.6+)
+## Package structure (0.8+)
 
 | Subpath | Use when |
 |---------|----------|
 | `@timbal-ai/timbal-react` | Full surface (chat shells, auth, artifacts, app kit) |
 | `@timbal-ai/timbal-react/chat` | Chat-only apps — `Thread`, `Composer`, runtime, layout helpers |
 | `@timbal-ai/timbal-react/studio` | Studio chrome — `TimbalChatShell`, `TimbalStudioShell`, sidebar |
-| `@timbal-ai/timbal-react/ui` | Primitives — `Button`, `Dialog`, `Avatar`, `Shimmer` |
+| `@timbal-ai/timbal-react/ui` | Primitives — `Button`, `Dialog`, `DropdownMenu`, `Popover`, `Select`, `Tooltip`, `Avatar`, `Shimmer` |
 | `@timbal-ai/timbal-react/app` | Dashboards — `AppShell`, `Page`, `DataTable`, `StatTile`, … |
 | `@timbal-ai/timbal-react/styles.css` | Theme tokens (required once) |
 
@@ -49,7 +49,7 @@ The package ships pre-built Tailwind class names **plus a complete light + dark 
 @source "../node_modules/@timbal-ai/timbal-react/dist";
 ```
 
-That's it — no `@theme`, `:root`, or `.dark` blocks of your own. Toggling dark mode is a single `document.documentElement.classList.toggle("dark")` (or `next-themes` `attribute="class"`).
+That's it — no `@theme`, `:root`, or `.dark` blocks of your own. Toggling dark mode is a single `document.documentElement.classList.toggle("dark")` (or `next-themes` `attribute="class"`). The built-in `ModeToggle` (uncontrolled) persists to `localStorage` key `timbal-theme` and restores on reload.
 
 > Adjust the `@source` path if your CSS file lives at a different depth relative to `node_modules`.
 
@@ -133,6 +133,16 @@ Suggestions also accept a function (sync or async) for per-user or server-driven
 ```
 
 Each chip supports `icon`, `description`, and `prompt` (sent instead of `title` when clicked).
+
+In `AppChatPanel` (`variant="panel"`), welcome suggestions are **off** by default. Enable them with `showWelcomeSuggestions`:
+
+```tsx
+<AppChatPanel
+  workforceId="your-workforce-id"
+  showWelcomeSuggestions
+  suggestions={[{ title: "Summarize this dashboard" }]}
+/>
+```
 
 ### Placeholder and width
 
@@ -605,6 +615,7 @@ import {
 | `welcome.heading` | `string` | `"How can I help you today?"` | Welcome screen heading |
 | `welcome.subheading` | `string` | `"Send a message to start a conversation."` | Welcome screen subheading |
 | `suggestions` | `{ title: string; description?: string }[]` | — | Suggestion chips on the welcome screen |
+| `showWelcomeSuggestions` | `boolean` | `true` (`default` variant), `false` (`panel`) | Show built-in welcome suggestions when `suggestions` is set |
 | `composerPlaceholder` | `string` | `"Send a message..."` | Composer input placeholder |
 | `components` | `ThreadComponents` | — | Override individual UI slots |
 | `onArtifactEvent` | `(event: UiEventEnvelope) => void` | — | Called when a `ui` artifact fires an `emit` action |
@@ -905,11 +916,30 @@ The shell renders a rounded floating panel (bottom-right) and a **text-only** pi
 | `AppCopilotProvider` | Page context via `useAppCopilotContext` (not shown in UI) |
 | `AppChatPanel` | Full-height floating thread; dismiss via **X** in the corner |
 | `AppShell` `chat` | Floating overlay — `chatWidth`; optional `chatHeight` (default: stretch top–bottom) |
-| `ChartPanel` `artifact` | Built-in SVG charts without extra imports |
+| `LineAreaChart` / `Sparkline` | Dependency-free charts (smooth area/line/bar, hover tooltip, responsive) |
+| `MetricRow` | Platform KPI strip in one card (overview metrics, no chart) |
+| `MetricChartCard` | `MetricRow` + selectable flush chart (Analytics / Infrastructure) |
+| `ChartPanel` `artifact` | Chrome around a `ChartArtifact` or any chart |
+| `SettingsSection` / `FieldRow` / `DangerZone` / `FloatingUnsavedChangesBar` | Two-column settings page building blocks |
+| `IntegrationCard` / `ConnectionRow` / `PlanBadge` / `IntegrationsEmptyState` | Integration catalog + connected list |
+| `InfoCard` / `DescriptionList` / `ExpandableSection` / `ResourceCard` / `StatusDot` | Surfaces & detail views |
 | `FieldTextarea` / `FieldSelect` / `FieldSwitch` | Settings forms matching `FieldInput` |
 | `AppConfirmDialog` | Delete/export confirmations |
 
-Full gallery: [`examples/app-kit`](examples/app-kit) (`bun run example:app`).
+Inject `APP_KIT_AGENT_INSTRUCTIONS` into codegen / workforce prompts (same idea as `ARTIFACT_AGENT_INSTRUCTIONS`). Agents should compose **creatively** from the component menu — not clone a single demo layout.
+
+```ts
+import { APP_KIT_AGENT_INSTRUCTIONS } from "@timbal-ai/timbal-react/app";
+
+const systemPrompt = `${basePrompt}\n\n${APP_KIT_AGENT_INSTRUCTIONS}`;
+```
+
+| Examples | Purpose |
+|----------|---------|
+| [`examples/app-kit/src/recipes/`](examples/app-kit/src/recipes/) | Short patterns (metrics, table, forms, copilot, …) — **preferred for agents** |
+| [`examples/app-kit/src/reference/`](examples/app-kit/src/reference/) | One full wired dashboard — **reference only** |
+
+Browse locally: [`examples/app-kit`](examples/app-kit) (`bun run example:app`).
 
 ---
 
@@ -958,7 +988,7 @@ Everything else (the three shells, primitives, hooks, auth, artifact API, design
 ## Examples
 
 - [`examples/mock-ui`](examples/mock-ui) — chat + artifact gallery (mock `fetch`).
-- [`examples/app-kit`](examples/app-kit) — dashboard / app kit component gallery (no API).
+- [`examples/app-kit`](examples/app-kit) — app kit **recipes** + optional **reference** dashboard (see `APP_KIT_AGENT_INSTRUCTIONS`).
 
 ## Mock UI demo
 

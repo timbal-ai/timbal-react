@@ -77,7 +77,7 @@ function Button({
       data-size={size}
       variant={v2Variant}
       size={v2Size}
-      shape="rect"
+      shape="pill"
       isIconOnly={isIconOnly}
       asChild={asChild}
       className={cn(buttonVariants({ variant, size, className }))}

@@ -24,7 +24,7 @@ export interface TimbalV2ButtonProps extends React.ComponentProps<"button"> {
   isIconOnly?: boolean;
   isLoading?: boolean;
   fullWidth?: boolean;
-  /** `pill` (default) — full rounding; `rect` — `rounded-md` for shadcn-style buttons. */
+  /** Kept for API compatibility — all shapes render fully rounded (`rounded-full`). */
   shape?: "pill" | "rect";
   /**
    * When true, merges props onto the single child element (Radix Slot).
@@ -84,7 +84,7 @@ export const TimbalV2Button = React.forwardRef<
     isIconOnly = false,
     isLoading = false,
     fullWidth = false,
-    shape = "pill",
+    shape: _shape = "pill",
     asChild = false,
     className,
     disabled,
@@ -100,12 +100,7 @@ export const TimbalV2Button = React.forwardRef<
     ? TIMBAL_V2_SIZE_ICON[size]
     : TIMBAL_V2_SIZE_HEIGHT[size];
 
-  const radiusClass =
-    variant === "link" || variant === "ghost"
-      ? "rounded-md"
-      : shape === "rect"
-        ? "rounded-md"
-        : "rounded-full";
+  const radiusClass = "rounded-full";
 
   const sharedRootClass = cn(
     "relative box-border inline-flex items-center justify-center gap-2 whitespace-nowrap border-0 text-sm font-normal shadow-none transition duration-200 ease-in-out",
