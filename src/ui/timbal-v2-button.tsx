@@ -24,7 +24,7 @@ export interface TimbalV2ButtonProps extends React.ComponentProps<"button"> {
   isIconOnly?: boolean;
   isLoading?: boolean;
   fullWidth?: boolean;
-  /** Kept for API compatibility — all shapes render fully rounded (`rounded-full`). */
+  /** Corner style — `pill` (fully rounded, default) or `rect` (rounded-lg). */
   shape?: "pill" | "rect";
   /**
    * When true, merges props onto the single child element (Radix Slot).
@@ -50,6 +50,11 @@ const TIMBAL_V2_FILL_AS_CHILD: Record<TimbalV2Variant, string> = {
     TIMBAL_V2_ELEVATED_GRADIENT,
     "hover:from-destructive-fill-hover-from hover:to-destructive-fill-hover-to",
     "active:from-destructive-fill-active-from active:to-destructive-fill-active-to",
+  ].join(" "),
+  "destructive-solid": [
+    "bg-gradient-to-b from-destructive-solid-from to-destructive-solid-to",
+    "hover:from-destructive-solid-hover-from hover:to-destructive-solid-hover-to",
+    "active:from-destructive-solid-active-from active:to-destructive-solid-active-to",
   ].join(" "),
   secondary: [
     TIMBAL_V2_ELEVATED_GRADIENT,
@@ -84,7 +89,7 @@ export const TimbalV2Button = React.forwardRef<
     isIconOnly = false,
     isLoading = false,
     fullWidth = false,
-    shape: _shape = "pill",
+    shape = "pill",
     asChild = false,
     className,
     disabled,
@@ -100,7 +105,7 @@ export const TimbalV2Button = React.forwardRef<
     ? TIMBAL_V2_SIZE_ICON[size]
     : TIMBAL_V2_SIZE_HEIGHT[size];
 
-  const radiusClass = "rounded-full";
+  const radiusClass = shape === "rect" ? "rounded-lg" : "rounded-full";
 
   const sharedRootClass = cn(
     "relative box-border inline-flex items-center justify-center gap-2 whitespace-nowrap border-0 text-sm font-normal shadow-none transition duration-200 ease-in-out",

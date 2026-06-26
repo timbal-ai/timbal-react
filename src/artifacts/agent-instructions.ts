@@ -30,7 +30,7 @@ The alias \`\`\`timbal\`\`\` is also accepted.
 
 | \`type\` | Use for |
 |---|---|
-| \`chart\` | Bar, line, area, or pie charts. Fields: \`data\`, optional \`chartType\`, \`xKey\`, \`dataKey\`, \`title\`, \`unit\`. |
+| \`chart\` | Charts (bar/pie fills render with theme gradients). \`chartType\`: \`bar\` \\| \`horizontalBar\` \\| \`line\` \\| \`area\` \\| \`pie\` \\| \`donut\` \\| \`radial\` \\| \`radar\`. Fields: \`data\`, \`xKey\`, \`dataKey\` (or \`series\`), \`title\`, \`unit\`. Options: \`stacked\`, \`curve\`, \`dots\`, \`legend\`, \`tooltipIndicator\`, \`colors\`, \`showAxes\` (rare — default false; category + values in hover tooltip). Colors default to \`--chart-N\`. |
 | \`table\` | Tabular data. Fields: \`rows\`, optional \`columns\`, \`title\`. |
 | \`question\` | In-thread multiple choice. Fields: \`options: [{ id, label, description? }]\`, optional \`prompt\`, \`multi\`. User replies are sent back as a normal user message. |
 | \`html\` | Custom HTML/CSS/JS in an iframe. Fields: \`content\` (HTML document or fragment), optional \`title\`, \`height\`, \`sandboxed\` (default \`true\`; set \`false\` for unrestricted scripts/CDN). |

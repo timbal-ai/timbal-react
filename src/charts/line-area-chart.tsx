@@ -1,26 +1,63 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type FC, type ReactNode } from "react";
+import { useId, type ComponentProps, type FC } from "react";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  BarStack,
+  CartesianGrid,
+  Line,
+  LineChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { cn } from "../utils";
-import { useChartWidth } from "./use-chart-width";
 import {
-  formatCompact,
-  monotoneAreaPath,
-  monotoneLinePath,
-  niceTicks,
-  toNum,
-  type Point,
-} from "./geometry";
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "../ui/chart";
+import { ChartAxisTick } from "./chart-axis-tick";
+import { barGradientId, BarGradientDefs, estimateYAxisWidth } from "./chart-gradients";
+import { formatCompact, toNum, type CurveType } from "./geometry";
+import {
+  flushBarCategoryGap,
+  flushLineAreaEdgeToEdge,
+  resolveChartMargin,
+  resolveTooltipCategory,
+} from "./line-area-chart-utils";
 
-/** Theme-aware default series palette. Primary uses the app's `--primary` token. */
+export {
+  flushBarCategoryGap,
+  flushLineAreaEdgeToEdge,
+  resolveChartMargin,
+  resolveTooltipCategory,
+} from "./line-area-chart-utils";
+export type { ChartMargin } from "./line-area-chart-utils";
+
+export type { CurveType };
+
+/** Internal x-position for flush line/area plots (numeric axis, edge-to-edge). */
+const INDEX_X_KEY = "__index";
+
+/**
+ * Theme-aware default series palette. Each entry reads a `--chart-N` token
+ * (defined in `styles.css`, overridable per host app) with a literal fallback,
+ * so charts rebrand automatically when the theme changes.
+ */
 export const CHART_PALETTE = [
-  "var(--primary, #6366f1)",
-  "#10b981",
-  "#f59e0b",
-  "#06b6d4",
-  "#a855f7",
-  "#ef4444",
+  "var(--chart-1, #4f46e5)",
+  "var(--chart-2, #3b82f6)",
+  "var(--chart-3, #0ea5e9)",
+  "var(--chart-4, #6366f1)",
+  "var(--chart-5, #60a5fa)",
+  "var(--chart-6, #2563eb)",
 ] as const;
 
 export interface ChartSeries {
@@ -35,6 +72,10 @@ export type ChartVariant = "area" | "line" | "bar";
 /** `flush` — plot edge-to-edge (no side/bottom inset); axes/legend off by default. */
 export type ChartLayout = "default" | "flush";
 
+/** Tooltip series marker, mirroring shadcn's `ChartTooltipContent` indicators. */
+export type ChartTooltipIndicator = "dot" | "line" | "dashed";
+
+/** Retained for API compatibility (the recharts engine manages its own margins). */
 export interface ChartPadding {
   top: number;
   right: number;
@@ -55,7 +96,19 @@ export interface LineAreaChartProps {
   unit?: string;
   /** Fix the y-domain max (e.g. 100 for percentages). */
   yMax?: number;
-  /** `flush` fills the container width/height except top inset (for `MetricChartCard`). */
+  /** Line / area interpolation. Default `monotone`. */
+  curve?: CurveType;
+  /** Stack series on top of each other (area + bar). Default false. */
+  stacked?: boolean;
+  /** Draw point markers on line/area series. */
+  dots?: boolean | "active";
+  /** Bar orientation. `horizontal` swaps category to the y-axis. Default `vertical`. */
+  orientation?: "vertical" | "horizontal";
+  /** Corner radius for bars. Default 4. */
+  barRadius?: number;
+  /** Grid line direction. Default `horizontal`. */
+  gridLines?: "horizontal" | "vertical" | "both" | "none";
+  /** `flush` fills the container width/height and hides axes/legend by default. */
   layout?: ChartLayout;
   showGrid?: boolean;
   showXAxis?: boolean;
@@ -63,20 +116,22 @@ export interface LineAreaChartProps {
   /** Series legend below the plot. Default: on when `layout` is `default` and multiple series. */
   showLegend?: boolean;
   showTooltip?: boolean;
+  /** Tooltip series marker style. Default `dot`. */
+  tooltipIndicator?: ChartTooltipIndicator;
   formatValue?: (value: number) => string;
   formatX?: (raw: unknown, index: number) => string;
+  /** Truncate long category axis labels (full text in native tooltip). Default true. */
+  clipTicks?: boolean;
   className?: string;
   /** Accessible label for the chart image. */
   ariaLabel?: string;
 }
 
-const PAD_DEFAULT: ChartPadding = { top: 12, right: 16, bottom: 26, left: 44 };
-const PAD_FLUSH: ChartPadding = { top: 20, right: 0, bottom: 8, left: 0 };
-
 /**
- * Polished, dependency-free chart: smooth monotone curves, gradient area fill,
- * faded dashed gridlines, hover crosshair + floating tooltip, and a cheap
- * clip-path grow-in animation. Renders crisp at the container's pixel width.
+ * shadcn-style chart built on recharts. A single component renders line, area,
+ * and bar charts (vertical or horizontal), with stacking, curve interpolation,
+ * dots, grid control, and the shared `ChartTooltipContent` / `ChartLegendContent`
+ * chrome. Series colors flow from the theme `--chart-N` tokens via `ChartConfig`.
  */
 export const LineAreaChart: FC<LineAreaChartProps> = ({
   data = [],
@@ -86,375 +141,409 @@ export const LineAreaChart: FC<LineAreaChartProps> = ({
   height = 240,
   unit,
   yMax,
+  curve = "monotone",
+  stacked = false,
+  dots = false,
+  orientation = "vertical",
+  barRadius = 4,
+  gridLines,
   layout = "default",
-  showGrid = true,
+  showGrid: showGridProp,
   showXAxis: showXAxisProp,
   showYAxis: showYAxisProp,
   showLegend: showLegendProp,
   showTooltip = true,
+  tooltipIndicator = "dot",
   formatValue,
   formatX,
+  clipTicks = true,
   className,
   ariaLabel = "Chart",
 }) => {
-  const uid = useId();
-  const { ref, width } = useChartWidth();
-  const [active, setActive] = useState<number | null>(null);
-  const [grown, setGrown] = useState(false);
-
+  const gradientScopeId = useId().replace(/:/g, "");
   const xKey = xKeyProp ?? inferXKey(data);
-  const series = useMemo<ChartSeries[]>(
-    () => resolveSeries(seriesProp, data, xKey),
-    [seriesProp, data, xKey],
-  );
+  const series = resolveSeries(seriesProp, data, xKey);
 
-  const pad = layout === "flush" ? PAD_FLUSH : PAD_DEFAULT;
-  const showXAxis = showXAxisProp ?? layout !== "flush";
-  const showYAxis = showYAxisProp ?? layout !== "flush";
-  const showLegend =
-    showLegendProp ?? (layout !== "flush" && series.length > 1);
-
-  useEffect(() => {
-    const t = requestAnimationFrame(() => setGrown(true));
-    return () => cancelAnimationFrame(t);
-  }, []);
-
-  const innerW = Math.max(0, width - pad.left - pad.right);
-  const innerH = Math.max(0, height - pad.top - pad.bottom);
-
-  const { minV, maxV } = useMemo(() => {
-    let lo = 0;
-    let hi = yMax ?? 0;
-    for (const s of series) {
-      for (const d of data) {
-        const v = toNum(d[s.dataKey]);
-        if (v > hi && yMax == null) hi = v;
-        if (v < lo) lo = v;
-      }
-    }
-    if (hi === lo) hi = lo + 1;
-    return { minV: lo, maxV: yMax != null ? yMax : hi * 1.08 };
-  }, [series, data, yMax]);
-
-  const ticks = useMemo(() => niceTicks(minV, maxV, 4), [minV, maxV]);
+  const flush = layout === "flush";
+  const showGrid = showGridProp ?? !flush;
+  const horizontal = orientation === "horizontal" && variant === "bar";
+  const showXAxis = showXAxisProp ?? !flush;
+  const showYAxis = showYAxisProp ?? !flush;
+  const showLegend = showLegendProp ?? (!flush && series.length > 1);
+  const grid = gridLines ?? (horizontal ? "vertical" : "horizontal");
 
   if (data.length === 0 || series.length === 0) {
-    return <ChartEmpty className={className} height={height} />;
+    return <ChartEmpty className={className} height={height} ariaLabel={ariaLabel} />;
   }
 
-  const yScale = (v: number) =>
-    pad.top + innerH - ((v - minV) / (maxV - minV || 1)) * innerH;
-  const xCount = data.length;
-  const xStep = xCount > 1 ? innerW / (xCount - 1) : innerW;
-  const xPos = (i: number) =>
-    variant === "bar"
-      ? pad.left + (innerW * (i + 0.5)) / xCount
-      : pad.left + i * xStep;
-  const baseY = yScale(Math.max(0, minV));
+  const config: ChartConfig = {};
+  series.forEach((s, i) => {
+    config[s.dataKey] = {
+      label: s.label ?? s.dataKey,
+      color: s.color ?? CHART_PALETTE[i % CHART_PALETTE.length],
+    };
+  });
 
-  const fmtV = (v: number) => (formatValue ? formatValue(v) : formatCompact(v, unit));
-  const fmtX = (i: number) =>
-    formatX ? formatX(data[i]?.[xKey], i) : String(data[i]?.[xKey] ?? i);
+  const valueFmt = (v: unknown) =>
+    formatValue ? formatValue(toNum(v)) : formatCompact(toNum(v), unit);
+  const xFmt = (v: unknown, i: number) => (formatX ? formatX(v, i) : String(v ?? ""));
 
-  const onMove = (event: React.MouseEvent<SVGRectElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const px = event.clientX - rect.left - pad.left;
-    const i = Math.round(px / (xStep || 1));
-    setActive(Math.max(0, Math.min(xCount - 1, i)));
-  };
+  const margin = resolveChartMargin({ flush, showXAxis, showYAxis });
 
-  const labelIdx = pickXLabels(xCount, innerW);
+  /** Recharts 3: `no-gap` only for labeled flush line/area (edge-to-edge stroke). Bars use band + margin inset. */
+  const flushCategoryXAxisProps =
+    flush && showXAxis && flushLineAreaEdgeToEdge(flush, variant, showXAxis, showYAxis)
+      ? ({ scale: "point" as const, padding: "no-gap" as const, interval: 0 as const })
+      : flush && showXAxis && variant === "bar"
+        ? ({ interval: 0 as const })
+        : {};
 
-  return (
-    <div ref={ref} className={cn("relative w-full", className)} style={{ height }}>
-      <svg
-        width={width}
-        height={height}
-        role="img"
-        aria-label={ariaLabel}
-        className="block overflow-visible"
-      >
-        <defs>
-          <clipPath id={`${uid}-grow`}>
-            <rect
-              x={pad.left}
-              y={0}
-              height={height}
-              width={grown ? innerW : 0}
-              style={{ transition: "width 900ms cubic-bezier(0.22,1,0.36,1)" }}
-            />
-          </clipPath>
-          <linearGradient id={`${uid}-gridfade`} x1="0%" x2="100%" y1="0" y2="0">
-            <stop offset="0%" stopColor="white" stopOpacity={0} />
-            <stop offset="8%" stopColor="white" stopOpacity={1} />
-            <stop offset="92%" stopColor="white" stopOpacity={1} />
-            <stop offset="100%" stopColor="white" stopOpacity={0} />
-          </linearGradient>
-          <mask id={`${uid}-gridmask`}>
-            <rect
-              x={pad.left}
-              y={pad.top}
-              width={innerW}
-              height={innerH}
-              fill={`url(#${uid}-gridfade)`}
-            />
-          </mask>
-          {series.map((s, i) => {
-            const color = s.color ?? CHART_PALETTE[i % CHART_PALETTE.length];
-            return (
-              <linearGradient
-                key={s.dataKey}
-                id={`${uid}-fill-${i}`}
-                x1="0"
-                x2="0"
-                y1="0"
-                y2="1"
-              >
-                <stop offset="0%" style={{ stopColor: color, stopOpacity: 0.28 }} />
-                <stop offset="100%" style={{ stopColor: color, stopOpacity: 0 }} />
-              </linearGradient>
-            );
-          })}
-        </defs>
+  const useIndexX = flushLineAreaEdgeToEdge(flush, variant, showXAxis, showYAxis);
+  const chartData = useIndexX
+    ? data.map((row, i) => ({ ...row, [INDEX_X_KEY]: i }))
+    : data;
+  const chartXKey = useIndexX ? INDEX_X_KEY : xKey;
 
-        {showGrid && (
-          <g mask={`url(#${uid}-gridmask)`}>
-            {ticks.map((t, i) => (
-              <line
-                key={i}
-                x1={pad.left}
-                x2={width - pad.right}
-                y1={yScale(t)}
-                y2={yScale(t)}
-                stroke="currentColor"
-                strokeOpacity={0.14}
-                strokeDasharray="4 4"
-                className="text-muted-foreground"
-              />
-            ))}
-          </g>
-        )}
+  const categoryTick = (textAnchor: "start" | "middle" | "end") => (
+    <ChartAxisTick textAnchor={textAnchor} clipTicks={clipTicks} />
+  );
 
-        {showYAxis &&
-          ticks.map((t, i) => (
-            <text
-              key={i}
-              x={pad.left - 8}
-              y={yScale(t)}
-              textAnchor="end"
-              dominantBaseline="middle"
-              className="fill-muted-foreground text-[10px] tabular-nums"
-            >
-              {fmtV(t)}
-            </text>
-          ))}
+  const showVGrid = showGrid && (grid === "vertical" || grid === "both");
+  const showHGrid = showGrid && (grid === "horizontal" || grid === "both");
 
-        {showXAxis &&
-          labelIdx.map((i) => (
-            <text
-              key={i}
-              x={xPos(i)}
-              y={height - pad.bottom + 16}
-              textAnchor={i === 0 ? "start" : i === xCount - 1 ? "end" : "middle"}
-              className="fill-muted-foreground text-[10px] tabular-nums"
-            >
-              {fmtX(i)}
-            </text>
-          ))}
-
-        <g clipPath={`url(#${uid}-grow)`}>
-          {variant === "bar"
-            ? renderBars({ data, series, xCount, xPos, yScale, baseY, innerW, uid })
-            : series.map((s, si) => {
-                const color = s.color ?? CHART_PALETTE[si % CHART_PALETTE.length];
-                const pts: Point[] = data.map((d, i) => ({
-                  x: xPos(i),
-                  y: yScale(toNum(d[s.dataKey])),
-                }));
-                return (
-                  <g key={s.dataKey}>
-                    {variant === "area" && (
-                      <path d={monotoneAreaPath(pts, baseY)} fill={`url(#${uid}-fill-${si})`} />
-                    )}
-                    <path
-                      d={monotoneLinePath(pts)}
-                      fill="none"
-                      stroke={color}
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </g>
-                );
-              })}
-        </g>
-
-        {showTooltip && active != null && variant !== "bar" && (
-          <g pointerEvents="none">
-            <line
-              x1={xPos(active)}
-              x2={xPos(active)}
-              y1={pad.top}
-              y2={pad.top + innerH}
-              stroke="currentColor"
-              strokeOpacity={0.25}
-              className="text-foreground"
-            />
-            {series.map((s, si) => {
-              const color = s.color ?? CHART_PALETTE[si % CHART_PALETTE.length];
-              return (
-                <circle
-                  key={s.dataKey}
-                  cx={xPos(active)}
-                  cy={yScale(toNum(data[active]?.[s.dataKey]))}
-                  r={4}
-                  fill={color}
-                  stroke="var(--background, #fff)"
-                  strokeWidth={2}
-                />
-              );
-            })}
-          </g>
-        )}
-
-        {showTooltip && (
-          <rect
-            x={pad.left}
-            y={pad.top}
-            width={innerW}
-            height={innerH}
-            fill="transparent"
-            style={{ cursor: "crosshair" }}
-            onMouseMove={onMove}
-            onMouseLeave={() => setActive(null)}
-          />
-        )}
-      </svg>
-
-      {showTooltip && active != null && (
-        <ChartTooltip
-          x={xPos(active)}
-          width={width}
-          title={fmtX(active)}
-          rows={series.map((s, si) => ({
-            color: s.color ?? CHART_PALETTE[si % CHART_PALETTE.length],
-            label: s.label ?? s.dataKey,
-            value: fmtV(toNum(data[active]?.[s.dataKey])),
-          }))}
+  const tooltipEl = showTooltip ? (
+    <ChartTooltip
+      cursor={variant === "bar"}
+      content={({ active, payload, label }) => (
+        <ChartTooltipContent
+          active={active}
+          payload={
+            payload as unknown as ComponentProps<typeof ChartTooltipContent>["payload"]
+          }
+          label={label}
+          indicator={tooltipIndicator}
+          labelFormatter={(_value, items) => {
+            const category = resolveTooltipCategory(label, items, xKey, data, xFmt);
+            return category || null;
+          }}
+          valueFormatter={(value) => (value != null ? valueFmt(value) : null)}
         />
       )}
+    />
+  ) : null;
 
-      {showLegend ? <ChartLegend series={series} /> : null}
-    </div>
+  const legendEl = showLegend ? (
+    <ChartLegend content={<ChartLegendContent />} />
+  ) : null;
+
+  const gridEl =
+    showGrid && grid !== "none" ? (
+      <CartesianGrid vertical={showVGrid} horizontal={showHGrid} strokeDasharray="4 4" />
+    ) : null;
+
+  const yDomain: [number | string, number | string] | undefined =
+    yMax != null ? [0, yMax] : undefined;
+
+  // ---- Bars -------------------------------------------------------------
+  if (variant === "bar") {
+    const dataKeys = series.map((s) => s.dataKey);
+    const barDefs = (
+      <BarGradientDefs scopeId={gradientScopeId} dataKeys={dataKeys} horizontal={horizontal} />
+    );
+    const bars = stacked ? (
+      <BarStack
+        radius={barCornerRadius(barRadius, horizontal, false)}
+        stackId="stack"
+      >
+        {series.map((s) => (
+          <Bar
+            key={s.dataKey}
+            dataKey={s.dataKey}
+            fill={`url(#${barGradientId(gradientScopeId, s.dataKey)})`}
+            isAnimationActive
+          />
+        ))}
+      </BarStack>
+    ) : (
+      series.map((s) => (
+        <Bar
+          key={s.dataKey}
+          dataKey={s.dataKey}
+          fill={`url(#${barGradientId(gradientScopeId, s.dataKey)})`}
+          radius={barCornerRadius(barRadius, horizontal, false)}
+          isAnimationActive
+        />
+      ))
+    );
+
+    if (horizontal) {
+      const categoryLabels = data.map((row, i) => xFmt(row[xKey], i));
+      const yAxisWidth = showYAxis
+        ? estimateYAxisWidth(
+            clipTicks
+              ? categoryLabels.map((l) => l.slice(0, 14))
+              : categoryLabels,
+          )
+        : 0;
+
+      return (
+        <ChartShell config={config} height={height} className={className} ariaLabel={ariaLabel}>
+          <BarChart
+            accessibilityLayer
+            data={data}
+            layout="vertical"
+            margin={margin}
+            barCategoryGap={flushBarCategoryGap(flush, showYAxis)}
+          >
+            {barDefs}
+            {gridEl}
+            {showXAxis ? (
+              <XAxis
+                type="number"
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                tickFormatter={(v) => valueFmt(v)}
+                domain={yDomain}
+              />
+            ) : null}
+            {showYAxis ? (
+              <YAxis
+                type="category"
+                dataKey={xKey}
+                tickLine={false}
+                axisLine={false}
+                tickMargin={8}
+                width={yAxisWidth}
+                minTickGap={16}
+                tick={categoryTick("end")}
+              />
+            ) : (
+              <YAxis type="category" dataKey={xKey} hide width={0} />
+            )}
+            {tooltipEl}
+            {legendEl}
+            {bars}
+          </BarChart>
+        </ChartShell>
+      );
+    }
+
+    return (
+      <ChartShell config={config} height={height} className={className} ariaLabel={ariaLabel}>
+        <BarChart
+          accessibilityLayer
+          data={data}
+          margin={margin}
+          barCategoryGap={flushBarCategoryGap(flush, showXAxis)}
+        >
+          {barDefs}
+          {gridEl}
+          {showXAxis ? (
+            <XAxis
+              dataKey={xKey}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              minTickGap={16}
+              tick={categoryTick("middle")}
+              {...flushCategoryXAxisProps}
+            />
+          ) : (
+            <XAxis dataKey={xKey} hide height={0} />
+          )}
+          {showYAxis ? (
+            <YAxis
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+              width={44}
+              tickFormatter={(v) => valueFmt(v)}
+              domain={yDomain}
+            />
+          ) : (
+            <YAxis hide width={0} domain={yDomain} />
+          )}
+          {tooltipEl}
+          {legendEl}
+          {bars}
+        </BarChart>
+      </ChartShell>
+    );
+  }
+
+  // ---- Line / Area ------------------------------------------------------
+  const lineAreaAxes = (
+    <>
+      {showXAxis && useIndexX ? (
+        <XAxis
+          type="number"
+          dataKey={INDEX_X_KEY}
+          domain={[0, Math.max(0, chartData.length - 1)]}
+          allowDecimals={false}
+          ticks={chartData.map((_, i) => i)}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          tickFormatter={(i) => {
+            const row = chartData[Number(i)] as Record<string, unknown> | undefined;
+            return row ? xFmt(row[xKey], Number(i)) : "";
+          }}
+        />
+      ) : showXAxis ? (
+        <XAxis
+          dataKey={xKey}
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          minTickGap={flush ? 8 : 24}
+          tickFormatter={(v, i) => xFmt(v, i)}
+          {...flushCategoryXAxisProps}
+        />
+      ) : (
+        <XAxis dataKey={chartXKey} hide height={0} />
+      )}
+      {showYAxis ? (
+        <YAxis
+          tickLine={false}
+          axisLine={false}
+          tickMargin={8}
+          width={44}
+          tickFormatter={(v) => valueFmt(v)}
+          domain={yDomain}
+        />
+      ) : (
+        <YAxis hide width={0} domain={yDomain} />
+      )}
+    </>
+  );
+
+  const chartA11y = flush ? {} : { accessibilityLayer: true as const };
+
+  if (variant === "area") {
+    return (
+      <ChartShell
+        config={config}
+        height={height}
+        className={className}
+        ariaLabel={ariaLabel}
+        flush={flush}
+      >
+        <AreaChart {...chartA11y} data={chartData} margin={margin}>
+          <defs>
+            {series.map((s) => (
+              <linearGradient key={s.dataKey} id={`fill-${s.dataKey}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={`var(--color-${s.dataKey})`} stopOpacity={0.3} />
+                <stop offset="95%" stopColor={`var(--color-${s.dataKey})`} stopOpacity={0.04} />
+              </linearGradient>
+            ))}
+          </defs>
+          {gridEl}
+          {lineAreaAxes}
+          {tooltipEl}
+          {legendEl}
+          {series.map((s) => (
+            <Area
+              key={s.dataKey}
+              dataKey={s.dataKey}
+              type={curve}
+              stackId={stacked ? "stack" : undefined}
+              stroke={`var(--color-${s.dataKey})`}
+              strokeWidth={2}
+              fill={`url(#fill-${s.dataKey})`}
+              dot={dots === true ? { r: 3 } : false}
+              activeDot={{ r: 4 }}
+              isAnimationActive
+            />
+          ))}
+        </AreaChart>
+      </ChartShell>
+    );
+  }
+
+  return (
+    <ChartShell
+      config={config}
+      height={height}
+      className={className}
+      ariaLabel={ariaLabel}
+      flush={flush}
+    >
+      <LineChart {...chartA11y} data={chartData} margin={margin}>
+        {gridEl}
+        {lineAreaAxes}
+        {tooltipEl}
+        {legendEl}
+        {series.map((s) => (
+          <Line
+            key={s.dataKey}
+            dataKey={s.dataKey}
+            type={curve}
+            stroke={`var(--color-${s.dataKey})`}
+            strokeWidth={2}
+            dot={dots === true ? { r: 3 } : false}
+            activeDot={{ r: 4 }}
+            isAnimationActive
+          />
+        ))}
+      </LineChart>
+    </ChartShell>
   );
 };
 
 // ---------------------------------------------------------------------------
 
-function renderBars(args: {
-  data: Array<Record<string, unknown>>;
-  series: ChartSeries[];
-  xCount: number;
-  xPos: (i: number) => number;
-  yScale: (v: number) => number;
-  baseY: number;
-  innerW: number;
-  uid: string;
-}): ReactNode {
-  const { data, series, xCount, xPos, yScale, baseY, innerW } = args;
-  const groupWidth = (innerW / xCount) * 0.66;
-  const barWidth = groupWidth / series.length;
-  return series.flatMap((s, si) =>
-    data.map((d, i) => {
-      const color = s.color ?? CHART_PALETTE[si % CHART_PALETTE.length];
-      const y = yScale(toNum(d[s.dataKey]));
-      const x = xPos(i) - groupWidth / 2 + si * barWidth;
-      const top = Math.min(y, baseY);
-      const h = Math.max(1, Math.abs(y - baseY));
-      return (
-        <rect
-          key={`${s.dataKey}-${i}`}
-          x={x}
-          y={top}
-          width={Math.max(1, barWidth - 2)}
-          height={h}
-          rx={3}
-          fill={color}
-        />
-      );
-    }),
-  );
-}
-
-interface TooltipRow {
-  color: string;
-  label: string;
-  value: string;
-}
-
-const ChartTooltip: FC<{
-  x: number;
-  width: number;
-  title: string;
-  rows: TooltipRow[];
-}> = ({ x, width, title, rows }) => {
-  const flip = x > width - 160;
-  return (
-    <div
-      className="pointer-events-none absolute top-2 z-10 min-w-[8rem] rounded-lg border border-border bg-popover/95 px-2.5 py-2 text-popover-foreground shadow-card-elevated backdrop-blur-sm"
-      style={{
-        left: flip ? undefined : Math.min(x + 12, width - 8),
-        right: flip ? Math.max(width - x + 12, 8) : undefined,
-      }}
-    >
-      <div className="mb-1.5 text-[11px] text-muted-foreground">{title}</div>
-      <div className="flex flex-col gap-1">
-        {rows.map((r) => (
-          <div key={r.label} className="flex items-center justify-between gap-4">
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span
-                className="inline-block size-2 rounded-full"
-                style={{ background: r.color }}
-              />
-              {r.label}
-            </span>
-            <span className="text-xs font-medium tabular-nums text-foreground">
-              {r.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const ChartLegend: FC<{ series: ChartSeries[] }> = ({ series }) => (
-  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 pl-10 text-xs text-muted-foreground">
-    {series.map((s, i) => (
-      <span key={s.dataKey} className="inline-flex items-center gap-1.5">
-        <span
-          className="inline-block size-2 rounded-sm"
-          style={{ background: s.color ?? CHART_PALETTE[i % CHART_PALETTE.length] }}
-        />
-        {s.label ?? s.dataKey}
-      </span>
-    ))}
-  </div>
+const ChartShell: FC<{
+  config: ChartConfig;
+  height: number;
+  className?: string;
+  ariaLabel: string;
+  flush?: boolean;
+  children: ComponentProps<typeof ChartContainer>["children"];
+}> = ({ config, height, className, ariaLabel, flush = false, children }) => (
+  <ChartContainer
+    config={config}
+    role="img"
+    aria-label={ariaLabel}
+    className={cn(
+      "aspect-auto w-full",
+      flush &&
+        "justify-start [&_.recharts-responsive-container]:!mx-0 [&_.recharts-responsive-container]:w-full",
+      className,
+    )}
+    style={{ height }}
+  >
+    {children}
+  </ChartContainer>
 );
 
-const ChartEmpty: FC<{ className?: string; height: number }> = ({ className, height }) => (
+const ChartEmpty: FC<{ className?: string; height: number; ariaLabel: string }> = ({
+  className,
+  height,
+  ariaLabel,
+}) => (
   <div
     className={cn(
       "flex w-full items-center justify-center text-xs text-muted-foreground",
       className,
     )}
     style={{ height }}
+    role="img"
+    aria-label={ariaLabel}
   >
     No data yet
   </div>
 );
 
-// ---------------------------------------------------------------------------
+/** Bar corner radius: round the "end" of the bar, square the base. */
+function barCornerRadius(
+  r: number,
+  horizontal: boolean,
+  stacked: boolean,
+): number | [number, number, number, number] {
+  if (stacked) return r;
+  return horizontal ? [0, r, r, 0] : [r, r, 0, 0];
+}
 
 function inferXKey(data: Array<Record<string, unknown>>): string {
   if (data.length === 0) return "x";
@@ -476,15 +565,4 @@ function resolveSeries(
   return Object.keys(data[0])
     .filter((k) => k !== xKey && typeof data[0][k] === "number")
     .map((dataKey) => ({ dataKey }));
-}
-
-/** Choose x-label indices: always first + last, plus evenly spaced by width. */
-function pickXLabels(count: number, innerW: number): number[] {
-  if (count <= 1) return [0];
-  const maxLabels = Math.max(2, Math.min(count, Math.floor(innerW / 64) + 1));
-  if (maxLabels >= count) return Array.from({ length: count }, (_, i) => i);
-  const out = new Set<number>([0, count - 1]);
-  const step = (count - 1) / (maxLabels - 1);
-  for (let i = 1; i < maxLabels - 1; i++) out.add(Math.round(i * step));
-  return [...out].sort((a, b) => a - b);
 }

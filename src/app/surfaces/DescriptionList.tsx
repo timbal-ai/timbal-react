@@ -7,6 +7,9 @@ import { cn } from "../../utils";
 export interface DescriptionItem {
   label: ReactNode;
   value: ReactNode;
+  className?: string;
+  labelClassName?: string;
+  valueClassName?: string;
 }
 
 export interface DescriptionListProps {
@@ -36,13 +39,17 @@ export const DescriptionList: FC<DescriptionListProps> = ({
           stacked
             ? "flex flex-col gap-0.5"
             : "flex items-center justify-between gap-4",
+          item.className,
         )}
       >
-        <dt className="text-sm text-muted-foreground">{item.label}</dt>
+        <dt className={cn("text-sm text-muted-foreground", item.labelClassName)}>
+          {item.label}
+        </dt>
         <dd
           className={cn(
             "text-sm text-foreground",
             !stacked && "text-right tabular-nums",
+            item.valueClassName,
           )}
         >
           {item.value}

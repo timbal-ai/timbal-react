@@ -4,11 +4,13 @@ import { useId, type FC, type ReactNode } from "react";
 
 import { ChartArtifactView } from "../../artifacts/chart-artifact";
 import type { ChartArtifact } from "../../artifacts/types";
+import { APP_DENSITY_CHART_HEIGHT } from "../../design/app-density";
+import { Skeleton } from "../../ui/skeleton";
 import { cn } from "../../utils";
+import { useAppDensity, useAppDensityClass } from "../layout/app-density-context";
 import {
   MetricCardHeader,
   metricCardShellClass,
-  metricChartPlotRegionClass,
 } from "./metrics-shared";
 
 export interface ChartPanelProps {
@@ -18,8 +20,10 @@ export interface ChartPanelProps {
   artifact?: ChartArtifact;
   children?: ReactNode;
   actions?: ReactNode;
-  /** Plot height in px. Default 300 (same as `MetricChartCard`). */
+  /** Plot height in px. Defaults to the active page density (300 default, 220 compact). */
   height?: number;
+  /** Render a skeleton at the plot height while data loads. */
+  loading?: boolean;
   className?: string;
 }
 
@@ -33,18 +37,26 @@ export const ChartPanel: FC<ChartPanelProps> = ({
   artifact,
   children,
   actions,
-  height = 300,
+  height: heightProp,
+  loading = false,
   className,
 }) => {
+  const density = useAppDensity();
+  const height = heightProp ?? APP_DENSITY_CHART_HEIGHT[density];
+  const metricChartPlotRegionClass = useAppDensityClass("metricChartPlotRegion");
+  const chartPanelBodyClass = useAppDensityClass("chartPanelBody");
   const titleId = useId();
   const resolvedTitle = title ?? artifact?.title;
   const hasHeader = Boolean(resolvedTitle || description || actions);
 
-  const body =
+  const body = loading ? (
+    <Skeleton className="w-full rounded-lg" style={{ height }} aria-hidden />
+  ) : (
     children ??
     (artifact ? (
       <ChartArtifactView artifact={artifact} embedded height={height} />
-    ) : null);
+    ) : null)
+  );
 
   return (
     <section
@@ -61,7 +73,7 @@ export const ChartPanel: FC<ChartPanelProps> = ({
       <div
         className={cn(
           "relative min-h-0 w-full",
-          hasHeader ? metricChartPlotRegionClass : "pt-2 pb-3",
+          hasHeader ? metricChartPlotRegionClass : chartPanelBodyClass,
         )}
       >
         {body ?? (

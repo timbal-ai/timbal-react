@@ -102,9 +102,26 @@
   --destructive-fill-active-from: oklch(0.93 0.09 27 / 0.9);
   --destructive-fill-active-to: oklch(0.86 0.13 27 / 0.65);
 
+  /* Solid destructive button (primary-destructive) — filled red CTA. */
+  --destructive-solid-from: oklch(0.62 0.23 27);
+  --destructive-solid-to: oklch(0.555 0.245 27.325);
+  --destructive-solid-hover-from: oklch(0.585 0.24 27);
+  --destructive-solid-hover-to: oklch(0.52 0.25 27.325);
+  --destructive-solid-active-from: oklch(0.535 0.25 27.325);
+  --destructive-solid-active-to: oklch(0.49 0.25 27.325);
+
   /* Ghost button hover/active fills. */
   --ghost-fill-hover: oklch(0.965 0.002 260 / 0.7);
   --ghost-fill-active: oklch(0.91 0.004 260 / 0.7);
+
+  /* Chart series palette — cohesive blue / indigo / cyan family.
+     Override any of these in your host app's :root to rebrand every chart. */
+  --chart-1: oklch(0.50 0.19 264);
+  --chart-2: oklch(0.58 0.14 230);
+  --chart-3: oklch(0.62 0.12 215);
+  --chart-4: oklch(0.54 0.17 278);
+  --chart-5: oklch(0.66 0.11 248);
+  --chart-6: oklch(0.44 0.11 252);
 
   /* Code block surface (markdown). */
   --code-block-bg: oklch(0.98 0 0);
@@ -232,8 +249,24 @@
   --destructive-fill-active-from: oklch(0.6 0.2 27 / 0.20);
   --destructive-fill-active-to: oklch(0.6 0.2 27 / 0.12);
 
+  /* Solid destructive button (primary-destructive) — vivid red on dark. */
+  --destructive-solid-from: oklch(0.66 0.205 25);
+  --destructive-solid-to: oklch(0.6 0.205 25);
+  --destructive-solid-hover-from: oklch(0.7 0.205 25);
+  --destructive-solid-hover-to: oklch(0.64 0.205 25);
+  --destructive-solid-active-from: oklch(0.58 0.205 25);
+  --destructive-solid-active-to: oklch(0.52 0.205 25);
+
   --ghost-fill-hover: oklch(1 0 0 / 0.10);
   --ghost-fill-active: oklch(1 0 0 / 0.15);
+
+  /* Chart series palette (dark) — brighter blues for contrast on dark surfaces. */
+  --chart-1: oklch(0.68 0.17 264);
+  --chart-2: oklch(0.72 0.13 230);
+  --chart-3: oklch(0.76 0.11 215);
+  --chart-4: oklch(0.70 0.15 278);
+  --chart-5: oklch(0.78 0.10 248);
+  --chart-6: oklch(0.62 0.10 252);
 
   --code-block-bg: oklch(0.19 0 0);
   --code-header-bg: oklch(0.22 0 0 / 0.8);
@@ -306,6 +339,13 @@
   --color-bubble-user: var(--bubble-user);
   --color-bubble-user-foreground: var(--bubble-user-foreground);
 
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+
   --color-primary-fill-from: var(--primary-fill-from);
   --color-primary-fill-to: var(--primary-fill-to);
   --color-primary-fill-hover-from: var(--primary-fill-hover-from);
@@ -322,6 +362,13 @@
   --color-destructive-fill-hover-to: var(--destructive-fill-hover-to);
   --color-destructive-fill-active-from: var(--destructive-fill-active-from);
   --color-destructive-fill-active-to: var(--destructive-fill-active-to);
+
+  --color-destructive-solid-from: var(--destructive-solid-from);
+  --color-destructive-solid-to: var(--destructive-solid-to);
+  --color-destructive-solid-hover-from: var(--destructive-solid-hover-from);
+  --color-destructive-solid-hover-to: var(--destructive-solid-hover-to);
+  --color-destructive-solid-active-from: var(--destructive-solid-active-from);
+  --color-destructive-solid-active-to: var(--destructive-solid-active-to);
 
   --color-ghost-fill-hover: var(--ghost-fill-hover);
   --color-ghost-fill-active: var(--ghost-fill-active);
@@ -537,6 +584,18 @@
   background: var(--pill-segmented-track);
 }
 
+@utility shadow-skeuomorphic-solid {
+  box-shadow: 
+    0px 1px 2px 0px rgba(16, 24, 40, 0.1),
+    inset 0px 1px 0px 0px rgba(255, 255, 255, 0.35) !important;
+}
+
+@utility shadow-skeuomorphic-bordered {
+  box-shadow: 
+    0px 1px 2px 0px rgba(16, 24, 40, 0.05),
+    inset 0px 1px 0px 0px rgba(255, 255, 255, 0.4) !important;
+}
+
 /* =============================================================== *
  * Polish — markdown, shiki, katex, scrollbars                     *
  * =============================================================== */
@@ -720,3 +779,24 @@
 .aui-composer-action-wrapper {
   background-color: var(--composer-bg);
 }
+
+/* Custom checkbox pop animation */
+@keyframes checkbox-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  75% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@utility animate-checkbox-pop {
+  animation: checkbox-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+

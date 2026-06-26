@@ -1,11 +1,24 @@
 export { Button } from "./button";
+export type { ButtonColor } from "./button";
+export { UntitledButton, untitledButtonVariants } from "./untitled-button";
+export type {
+  UntitledButtonProps,
+  UntitledButtonColor,
+  UntitledButtonSize,
+} from "./untitled-button";
 export {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
   TooltipProvider,
 } from "./tooltip";
-export { Avatar, AvatarImage, AvatarFallback } from "./avatar";
+export {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  AVATAR_PRIMARY_FALLBACK_CLASS,
+  avatarChartVariantClass,
+} from "./avatar";
 export {
   Dialog,
   DialogClose,
@@ -235,6 +248,16 @@ export {
 } from "./card";
 export { Skeleton } from "./skeleton";
 export {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  ChartStyle,
+  useChart,
+} from "./chart";
+export type { ChartConfig } from "./chart";
+export {
   Table,
   TableHeader,
   TableBody,
@@ -267,6 +290,44 @@ export type {
   PillSegmentedTab,
   PillSegmentedTabsProps,
 } from "./pill-segmented-tabs";
+export { AvatarGroup } from "./avatar-group";
+export type { AvatarGroupProps } from "./avatar-group";
+export { Stepper } from "./stepper";
+export type { StepperProps, StepperStep } from "./stepper";
+export { Timeline } from "./timeline";
+export type { TimelineProps, TimelineItem, TimelineSize } from "./timeline";
+export { Rating } from "./rating";
+export type { RatingProps, RatingTone } from "./rating";
+export { NumberField } from "./number-field";
+export type { NumberFieldProps } from "./number-field";
+export { TagInput } from "./tag-input";
+export type { TagInputProps, TagInputSize } from "./tag-input";
+export { Banner } from "./banner";
+export type {
+  BannerProps,
+  BannerTone,
+  BannerVariant,
+  BannerSize,
+} from "./banner";
+export { CopyButton } from "./copy-button";
+export type { CopyButtonProps } from "./copy-button";
+export { Snippet } from "./snippet";
+export type { SnippetProps, SnippetVariant, SnippetSize } from "./snippet";
+export { CircularProgress } from "./circular-progress";
+export type { CircularProgressProps } from "./circular-progress";
+export { Kanban } from "./kanban";
+export type {
+  KanbanProps,
+  KanbanColumnData,
+  KanbanCardData,
+  KanbanMoveEvent,
+  KanbanLocation,
+  KanbanRenderCardContext,
+  KanbanTone,
+  KanbanDensity,
+  KanbanCardVariant,
+  KanbanDragHandleProps,
+} from "./kanban";
 
 // Control-surface contract — compose these to build custom controls that match
 // the kit (single shared skin; never hand-roll a control surface).

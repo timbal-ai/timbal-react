@@ -1,16 +1,18 @@
 "use client";
 
-import { useId, useState, type FC } from "react";
+import { useId, useState, type FC, type ReactNode } from "react";
 
+import { Skeleton } from "../../ui/skeleton";
+import { cn } from "../../utils";
+import { useAppDensityClass } from "../layout/app-density-context";
 import { MetricTile, type MetricTileProps } from "./MetricTile";
 import {
   MetricCardHeader,
   metricCardShellClass,
   metricTilesGridColsClass,
   metricTilesRowClass,
+  type MetricCardHeaderProps,
 } from "./metrics-shared";
-import type { MetricCardHeaderProps } from "./metrics-shared";
-import { cn } from "../../utils";
 
 export interface MetricRowItem {
   id: string;
@@ -19,6 +21,11 @@ export interface MetricRowItem {
   unit?: MetricTileProps["unit"];
   trend?: MetricTileProps["trend"];
   trendTone?: MetricTileProps["trendTone"];
+  trendVariant?: MetricTileProps["trendVariant"];
+  activeTone?: MetricTileProps["activeTone"];
+  sparklineData?: MetricTileProps["sparklineData"];
+  sparklineConfig?: MetricTileProps["sparklineConfig"];
+  sparkline?: MetricTileProps["sparkline"];
 }
 
 export interface MetricRowProps extends MetricCardHeaderProps {
@@ -29,15 +36,19 @@ export interface MetricRowProps extends MetricCardHeaderProps {
   onMetricChange?: (id: string) => void;
   /** Accessible name for the KPI tile group (when tiles are selectable). */
   metricsAriaLabel?: string;
+  /** Render skeleton tiles while metrics load. Falls back to `metrics.length || 4`. */
+  loading?: boolean;
   className?: string;
 }
 
 /**
  * Platform-style KPI strip in one elevated card — no chart.
  * Use for overview rows; pair with `MetricChartCard` when you need the plot below.
+ * Fully supports background sparklines and rich inline trend metadata.
  */
 export const MetricRow: FC<MetricRowProps> = ({
   title,
+  titleTag,
   description,
   actions,
   metrics,
@@ -45,8 +56,10 @@ export const MetricRow: FC<MetricRowProps> = ({
   defaultActiveMetricId,
   onMetricChange,
   metricsAriaLabel = "Metrics",
+  loading = false,
   className,
 }) => {
+  const metricTileClass = useAppDensityClass("metricTile");
   const titleId = useId();
   const selectable = onMetricChange != null || activeMetricId != null;
   const [internalId, setInternalId] = useState(
@@ -59,6 +72,8 @@ export const MetricRow: FC<MetricRowProps> = ({
     onMetricChange?.(id);
   };
 
+  const hasHeader = Boolean(title || titleTag || description || actions);
+
   return (
     <section
       className={cn(metricCardShellClass, className)}
@@ -66,6 +81,7 @@ export const MetricRow: FC<MetricRowProps> = ({
     >
       <MetricCardHeader
         title={title}
+        titleTag={titleTag}
         titleId={titleId}
         description={description}
         actions={actions}
@@ -73,13 +89,25 @@ export const MetricRow: FC<MetricRowProps> = ({
       <div
         role={selectable ? "group" : undefined}
         aria-label={selectable ? metricsAriaLabel : undefined}
+        aria-busy={loading || undefined}
         className={cn(
           metricTilesRowClass,
-          metricTilesGridColsClass(metrics.length),
-          (title || description || actions) && "mt-3",
+          metricTilesGridColsClass(loading ? metrics.length || 4 : metrics.length),
+          hasHeader && "mt-3.5 border-t border-border/40",
         )}
       >
-        {metrics.map((m, index) => (
+        {loading
+          ? Array.from({ length: metrics.length || 4 }).map((_, index) => (
+              <div
+                key={`skeleton-${index}`}
+                className={cn("flex min-w-0 flex-1 flex-col gap-2", metricTileClass)}
+                aria-hidden
+              >
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-7 w-24" />
+              </div>
+            ))
+          : metrics.map((m, index) => (
           <MetricTile
             key={m.id}
             label={m.label}
@@ -87,6 +115,11 @@ export const MetricRow: FC<MetricRowProps> = ({
             unit={m.unit}
             trend={m.trend}
             trendTone={m.trendTone}
+            trendVariant={m.trendVariant}
+            activeTone={m.activeTone}
+            sparklineData={m.sparklineData}
+            sparklineConfig={m.sparklineConfig}
+            sparkline={m.sparkline}
             active={selectable && m.id === activeId}
             showDivider={index < metrics.length - 1}
             onSelect={

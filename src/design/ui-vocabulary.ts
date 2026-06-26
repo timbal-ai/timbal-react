@@ -215,14 +215,21 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "Card-in-card doubles borders and shadows for no information gain.",
   },
   {
+    id: "no-table-in-card",
+    rule: "Never wrap a DataTable or table inside a Card, SurfaceCard, or ArtifactCard.",
+    why: "The DataTable is already designed to sit flat with its own borders and shadows. Wrapping it inside a card adds redundant borders, margins, and shadows, which looks like slop.",
+    slop: "<Card><DataTable columns={columns} rows={rows} getRowKey={getRowKey} /></Card>",
+    good: "<DataTable columns={columns} rows={rows} getRowKey={getRowKey} />",
+  },
+  {
     id: "no-row-dividers",
     rule: "Don't put a divider between every list row. Use spacing or zebra striping.",
     why: "A rule under every row turns a clean list into a dense ledger.",
   },
   {
     id: "no-data-gradient",
-    rule: "Gradients are reserved for chrome (composer, elevated surface, playground). Never on a data card, tile, or table.",
-    why: "Gradient stat cards are the canonical 'AI dashboard' look.",
+    rule: "Gradients are reserved for chrome (composer, elevated surface, playground) and built-in chart/avatar fills — never on a data card shell, stat tile, or table row background.",
+    why: "Gradient stat cards are the canonical 'AI dashboard' look; SVG bar/pie fills and AvatarFallback variant=\"secondary\" (Action button chrome) are kit-owned exceptions.",
   },
   {
     id: "compose-from-blocks",
@@ -235,5 +242,26 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "Hand-rolled controls drift from the shared control-surface skin and look foreign next to kit controls.",
     slop: `<button className="rounded-lg border border-input bg-transparent px-3 h-9">`,
     good: `<SelectTrigger><SelectValue /></SelectTrigger>`,
+  },
+  {
+    id: "no-title-repetition",
+    rule: "Never repeat the page title/description inside a Section, Card, or Table header.",
+    why: "If the Page already has a title, repeating it in the first child section or table is redundant and wastes vertical space.",
+    slop: `<Page title="Orders"><Section title="Orders"><DataTable ... /></Section></Page>`,
+    good: `<Page title="Orders"><DataTable ... /></Page>`,
+  },
+  {
+    id: "no-chat-wrapping",
+    rule: "Never wrap TimbalChat or AppChatPanel in a Card, Section, or custom bordered/padded container, and never add custom heading/status blocks above it.",
+    why: "The chat component is a full-bleed, full-height surface that handles its own layout, welcome screen, and suggestions. Wrapping it or hand-rolling headers/online badges inside the page content is redundant and wastes layout space.",
+    slop: `<Page title="Assistant"><Card><div className="flex justify-between"><h3>TIBA Concierge</h3><span>Online</span></div><TimbalChat /></Card></Page>`,
+    good: `<Page fill><TimbalChat workforceId="..." welcome={{ heading: "Hola, soy el Concierge de TIBA", subheading: "Pregúntame sobre..." }} /></Page>`,
+  },
+  {
+    id: "no-colored-hover",
+    rule: "Interactive cards and list items must use neutral hover states — never hard-code colored backgrounds or borders on hover.",
+    why: "Colored hover highlights (like hover:bg-primary/5 or hover:bg-emerald-500/5) look dirty and break the neutral chrome aesthetic. Use the kit's clean, neutral hover states, or AlertCard, or TIMBAL_V2_SECONDARY_CHROME hover layers.",
+    slop: `<Card className="hover:bg-emerald-500/10 hover:border-emerald-500/30">`,
+    good: `<AlertCard onClick={handleClick}>`,
   },
 ] as const;

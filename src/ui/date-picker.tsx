@@ -3,7 +3,6 @@ import { CalendarIcon } from "lucide-react";
 
 import { controlClass } from "../design/control-surface";
 import { cn } from "../utils";
-import { Button } from "./button";
 import { Calendar } from "./calendar";
 import {
   Popover,
@@ -66,18 +65,17 @@ function DatePickerButton({
   placeholder = "Pick a date",
   className,
   ...props
-}: React.ComponentProps<typeof Button> & {
+}: React.ComponentProps<"button"> & {
   date?: Date;
   placeholder?: string;
 }) {
   return (
-    <Button
+    <button
       type="button"
-      variant="secondary"
       data-slot="date-picker-button"
       className={cn(
         controlClass(),
-        "justify-start gap-2 px-3 font-normal",
+        "flex w-full items-center justify-start gap-2 text-left font-normal",
         !date && "text-muted-foreground",
         className,
       )}
@@ -85,7 +83,7 @@ function DatePickerButton({
     >
       <CalendarIcon className="size-4 shrink-0 opacity-70" />
       {date ? formatPickerDate(date) : placeholder}
-    </Button>
+    </button>
   );
 }
 

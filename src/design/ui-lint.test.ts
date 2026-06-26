@@ -96,6 +96,25 @@ describe("lintGeneratedUi — hand-rolled controls", () => {
   });
 });
 
+describe("lintGeneratedUi — colored hover style", () => {
+  it("warns when hover is colored", () => {
+    expect(
+      rules(`<div className="hover:bg-primary" />`),
+    ).toEqual(expect.arrayContaining(["no-colored-hover"]));
+
+    expect(
+      rules(`<div className="hover:bg-emerald-500/10" />`),
+    ).toEqual(expect.arrayContaining(["no-colored-hover"]));
+  });
+
+  it("does not warn when hover is neutral", () => {
+    const res = lintGeneratedUi(
+      `<div className="hover:bg-muted hover:text-foreground" />`,
+    );
+    expect(res.findings.some((f) => f.rule === "no-colored-hover")).toBe(false);
+  });
+});
+
 describe("lintGeneratedUi — icon spam", () => {
   it("warns when icon usages exceed the budget", () => {
     const icons = Array.from({ length: 8 }, () => "<BarChart2 />").join("\n");
@@ -106,6 +125,102 @@ describe("lintGeneratedUi — icon spam", () => {
   it("does not warn under the budget", () => {
     const src = `import { Check } from "lucide-react";\n<Check />\n<Check />`;
     expect(rules(src).includes("icon-spam")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — title repetition", () => {
+  it("warns when a Section title repeats the Page title", () => {
+    const src = `
+      <Page title="Orders" description="Manage orders">
+        <Section title="Orders" />
+      </Page>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-title-repetition"]));
+  });
+
+  it("warns when a Section title is very similar to the Page title", () => {
+    const src = `
+      <Page title="Orders" description="Manage orders">
+        <Section title="Orders (ERP)" />
+      </Page>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-title-repetition"]));
+  });
+
+  it("does not warn when titles are completely different", () => {
+    const src = `
+      <Page title="Orders" description="Manage orders">
+        <Section title="Recent Activity" />
+      </Page>
+    `;
+    expect(rules(src).includes("no-title-repetition")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — chat wrapping", () => {
+  it("flags wrapping TimbalChat or AppChatPanel in Cards or Sections", () => {
+    const src = `
+      <Page title="Assistant">
+        <Card>
+          <TimbalChat workforceId="tiba" />
+        </Card>
+      </Page>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-chat-wrapping"]));
+  });
+
+  it("flags custom h1-6 headings in a chat view", () => {
+    const src = `
+      <Page title="Assistant">
+        <h3>TIBA Concierge</h3>
+        <AppChatPanel workforceId="tiba" />
+      </Page>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-chat-wrapping"]));
+  });
+
+  it("does not flag standalone TimbalChat directly in Page", () => {
+    const src = `
+      <Page fill>
+        <TimbalChat workforceId="tiba" />
+      </Page>
+    `;
+    expect(rules(src).includes("no-chat-wrapping")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — table inside card", () => {
+  it("flags wrapping DataTable, table, or Table inside Card, SurfaceCard, or ArtifactCard", () => {
+    const src = `
+      <Page title="Dashboard">
+        <Card>
+          <DataTable columns={columns} rows={rows} getRowKey={getRowKey} />
+        </Card>
+      </Page>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-table-in-card"]));
+  });
+
+  it("flags wrapping table inside SurfaceCard", () => {
+    const src = `
+      <SurfaceCard>
+        <table>
+          <thead><tr><th>Col</th></tr></thead>
+        </table>
+      </SurfaceCard>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-table-in-card"]));
+  });
+
+  it("does not flag DataTable directly in Page or Section", () => {
+    const src = `
+      <Page title="Dashboard">
+        <Section title="Data">
+          <DataTable columns={columns} rows={rows} getRowKey={getRowKey} />
+        </Section>
+      </Page>
+    `;
+    expect(rules(src).includes("no-table-in-card")).toBe(false);
   });
 });
 

@@ -2,7 +2,8 @@
  * Vite plugin for apps that depend on `@timbal-ai/timbal-react` via `file:../timbal-react`.
  *
  * - Skips pre-bundling so `dist/` updates are not stuck in `node_modules/.vite/deps`
- * - Watches the linked package `dist/` and triggers a full reload when it changes
+ * - Aliases package entrypoints to `src/` so gallery apps pick up source edits without rebuilding `dist/`
+ * - Watches `src/` and `dist/` and triggers a full reload when either changes
  *
  * IMPORTANT: this is a no-op for normal npm installs. Excluding the package from
  * `optimizeDeps` only makes sense when it is `file:`-linked (a symlink in
@@ -23,7 +24,7 @@ const TIMBAL_REACT_EXPORTS = [
   "@timbal-ai/timbal-react/app",
 ];
 
-/** Subpath → source entry (used when `dist/*.esm.js` is missing). */
+/** Subpath → source entry (linked `file:` dev always resolves here). */
 const SOURCE_ENTRIES = {
   "@timbal-ai/timbal-react": "src/index.ts",
   "@timbal-ai/timbal-react/chat": "src/chat.ts",
@@ -102,34 +103,37 @@ export function timbalReactLocalDev() {
       distDir = path.join(pkgRoot, "dist");
       const built = distIsBuilt(distDir);
       const srcDir = path.join(pkgRoot, "src");
-      const watchGlob = built
-        ? `${distDir.replace(/\\/g, "/")}/**`
-        : `${srcDir.replace(/\\/g, "/")}/**`;
+      const watchGlobs = [
+        `${srcDir.replace(/\\/g, "/")}/**`,
+        `${distDir.replace(/\\/g, "/")}/**`,
+      ];
 
       if (!built) {
         console.warn(
-          "[timbal-react] dist/ is missing (404 on *.esm.js) — aliasing to src/. " +
-            "Run `bun run build` in timbal-react for production-like dev, or `bun run example:app` from the repo root.",
+          "[timbal-react] dist/ is missing — dev uses src/ only. " +
+            "Run `bun run build` in timbal-react to verify the production bundle.",
         );
       }
 
       /** @type {Record<string, string>} */
       const alias = {};
-      if (!built) {
-        for (const [pkg, rel] of Object.entries(SOURCE_ENTRIES)) {
-          alias[pkg] = path.join(pkgRoot, rel);
-        }
+      for (const [pkg, rel] of Object.entries(SOURCE_ENTRIES)) {
+        alias[pkg] = path.join(pkgRoot, rel);
       }
 
       return {
-        resolve: Object.keys(alias).length ? { alias } : undefined,
+        resolve: { alias },
         optimizeDeps: {
           exclude: TIMBAL_REACT_EXPORTS,
           include: CJS_INTEROP_DEPS,
         },
         server: {
           watch: {
-            ignored: ["**/.git/**", "**/node_modules/**", `!${watchGlob}`],
+            ignored: [
+              "**/.git/**",
+              "**/node_modules/**",
+              ...watchGlobs.map((g) => `!${g}`),
+            ],
           },
         },
       };

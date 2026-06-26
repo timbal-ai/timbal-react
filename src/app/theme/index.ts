@@ -31,5 +31,10 @@ export { THEME_AGENT_INSTRUCTIONS } from "../../design/theme-instructions";
 
 export { TimbalThemeStyle } from "./TimbalThemeStyle";
 export type { TimbalThemeStyleProps } from "./TimbalThemeStyle";
+
+// Internal-only — the visual theme picker is a dev/internal tool and is
+// intentionally NOT re-exported from the package entrypoints (`index.ts`,
+// `app/index.ts`). Themes are configured programmatically (createTimbalTheme /
+// applyThemePreset), not surfaced as an end-user selector in generated apps.
 export { ThemePresetGallery } from "./ThemePresetGallery";
 export type { ThemePresetGalleryProps } from "./ThemePresetGallery";

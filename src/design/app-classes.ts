@@ -10,17 +10,69 @@ import {
   studioTopbarPillHeightClass,
 } from "./classes";
 
-/** App page column — centered within the shell content area (right of the sidebar inset). */
-export const appPageColumnClass = "mx-auto w-full max-w-6xl px-4 md:px-6";
+/**
+ * App page column — centered within the shell content area (right of the
+ * sidebar inset). Wide cap so dashboards use the available width instead of
+ * leaving large side gutters; the cap only kicks in on ultra-wide displays.
+ */
+export const appPageColumnClass = "mx-auto w-full max-w-[100rem] px-4 md:px-6 lg:px-8";
 
 /**
- * Topbar horizontal inset — full content width (no `max-w-6xl`), same side
- * padding as the page column so controls sit closer to the viewport edges.
+ * Page content width ladder. Every option is a centered column with lateral
+ * padding — pick a narrower cap for focused / reading pages instead of always
+ * running full-bleed.
  */
-export const appShellTopbarInsetClass = "w-full px-4 md:px-6";
+export type AppPageWidth =
+  | "full"
+  | "wide"
+  | "default"
+  | "centered"
+  | "narrow"
+  | "prose";
+
+const PAGE_WIDTH_MAXW: Record<AppPageWidth, string> = {
+  full: "max-w-none",
+  wide: "max-w-[100rem]",
+  default: "max-w-7xl",
+  centered: "max-w-5xl",
+  narrow: "max-w-3xl",
+  prose: "max-w-2xl",
+};
+
+/**
+ * Build the page column class for a given width + density. When `width` is
+ * omitted the column falls back to the density default (wide cap on `default`,
+ * full-bleed on `compact`), preserving the historical `appPageColumnClass`
+ * behavior. Lateral padding always tracks density so pages never run edge-to-edge.
+ */
+export function appPageColumn(
+  width?: AppPageWidth,
+  density: "default" | "compact" = "default",
+): string {
+  const lateral =
+    density === "compact" ? "px-3 md:px-4" : "px-4 md:px-6 lg:px-8";
+  const maxW = width
+    ? PAGE_WIDTH_MAXW[width]
+    : density === "compact"
+      ? "max-w-none"
+      : "max-w-[100rem]";
+  return cn("mx-auto w-full", maxW, lateral);
+}
+
+/**
+ * Topbar horizontal inset — aligned with the page column's max-width and
+ * lateral padding so controls line up perfectly with the page content.
+ */
+export const appShellTopbarInsetClass = "mx-auto w-full max-w-[100rem] px-4 md:px-6 lg:px-8";
 
 /** Top breathing room for `AppShell` — matches timbal-platform list pages (`pt-4 md:pt-6`). */
 export const appShellInsetTopClass = "pt-4 md:pt-6";
+
+/**
+ * Bottom breathing room for `AppShell` main content — so the last section /
+ * card never runs flush against the bottom of the scroll area.
+ */
+export const appShellInsetBottomClass = "pb-8 md:pb-10";
 
 /** Global topbar row — same height as studio chrome pills. */
 export const appShellTopbarRowClass = cn(
@@ -28,9 +80,9 @@ export const appShellTopbarRowClass = cn(
   "flex w-full items-center justify-between gap-2",
 );
 
-/** Sticky shell topbar — stays visible while the shell column scrolls. */
+/** Shell topbar region — scrolls with the main column (not pinned). */
 export const appShellTopbarStickyClass = cn(
-  "sticky top-0 z-20 shrink-0 bg-background pb-2",
+  "shrink-0 bg-background pb-2",
   appShellInsetTopClass,
 );
 
@@ -64,11 +116,12 @@ export const appStatValueClass =
 
 export const appStatLabelClass = "text-xs font-normal text-muted-foreground";
 
-/** Filter bar chrome — horizontal controls row. */
-export const appFilterBarClass = cn(
-  "flex flex-wrap items-center gap-2",
-  studioTopbarPillHeightClass,
-);
+/**
+ * Filter bar chrome — horizontal controls row.
+ * Bottom-aligns children so an unlabeled `SearchInput` lines up with the
+ * control in a labeled `Field` + `Select` (labels extend upward).
+ */
+export const appFilterBarClass = "flex flex-wrap items-end gap-2";
 
 /** Search inputs in filter bars — shared control skin (field shape), so a
  *  search field and a dropdown placed side by side match exactly. */

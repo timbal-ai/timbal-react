@@ -70,8 +70,7 @@ Each preset is a **full personality** (color + radius + shadows + font), not jus
 | \`folio\` | Editorial serif (Fraunces), near-sharp corners — content / docs |
 | \`carbon\` | Terminal monospace (JetBrains Mono), green accent — dev / infra |
 
-- To present options visually, render \`<ThemePresetGallery value={id} onSelect={setId} />\` — each swatch previews real components (Button + metric tile) scoped via \`data-timbal-theme\`, so the live app doesn't change until the user picks.
-- On selection, call \`applyThemePreset(id)\` (persists to \`localStorage\` and restores on reload).
+- Pick a preset at build/config time and apply it with \`applyThemePreset(id)\` (persists to \`localStorage\` and restores on reload). Theme selection is a **developer/config** choice — do **not** surface an end-user theme picker in generated apps.
 
 ### Rules
 

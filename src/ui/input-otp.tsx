@@ -2,7 +2,7 @@ import * as React from "react";
 import { MinusIcon } from "lucide-react";
 import { unstable_OneTimePasswordField as OTPField } from "radix-ui";
 
-import { controlClass } from "../design/control-surface";
+import { controlSurfaceClass } from "../design/control-surface";
 import { cn } from "../utils";
 
 function InputOTP({
@@ -35,7 +35,7 @@ function InputOTPGroup({
   return (
     <div
       data-slot="input-otp-group"
-      className={cn("flex items-center gap-2", className)}
+      className={cn("flex items-center", className)}
       {...props}
     />
   );
@@ -49,8 +49,10 @@ function InputOTPSlot({
     <OTPField.Input
       data-slot="input-otp-slot"
       className={cn(
-        controlClass({ size: "sm" }),
-        "size-9 text-center tabular-nums",
+        controlSurfaceClass,
+        "relative size-9 rounded-none text-center text-sm tabular-nums",
+        "-ms-px first:ms-0 first:rounded-s-lg last:rounded-e-lg",
+        "focus-visible:z-10",
         className,
       )}
       {...props}

@@ -20,6 +20,7 @@ export type TimbalV2Variant =
   | "ghost"
   | "informative"
   | "destructive"
+  | "destructive-solid"
   | "link";
 
 export type TimbalV2Size = "xs" | "sm" | "md" | "lg";
@@ -98,6 +99,11 @@ export const TIMBAL_V2_FILL: Record<TimbalV2Variant, string> = {
     "group-hover/tbv2:from-destructive-fill-hover-from group-hover/tbv2:to-destructive-fill-hover-to",
     "group-active/tbv2:from-destructive-fill-active-from group-active/tbv2:to-destructive-fill-active-to",
   ].join(" "),
+  "destructive-solid": [
+    "bg-gradient-to-b from-destructive-solid-from to-destructive-solid-to",
+    "group-hover/tbv2:from-destructive-solid-hover-from group-hover/tbv2:to-destructive-solid-hover-to",
+    "group-active/tbv2:from-destructive-solid-active-from group-active/tbv2:to-destructive-solid-active-to",
+  ].join(" "),
   secondary: [
     TIMBAL_V2_ELEVATED_GRADIENT,
     "group-hover/tbv2:from-secondary-fill-hover-from group-hover/tbv2:to-secondary-fill-hover-to",
@@ -115,6 +121,7 @@ export const TIMBAL_V2_LABEL: Record<TimbalV2Variant, string> = {
   primary: "text-primary-foreground",
   informative: "text-primary-foreground",
   destructive: "text-destructive",
+  "destructive-solid": "text-destructive-foreground",
   secondary: "text-foreground",
   ghost: "text-foreground",
   link: "text-foreground underline decoration-foreground/25 underline-offset-2 group-hover/tbv2:decoration-foreground/45",
@@ -124,6 +131,7 @@ export const TIMBAL_V2_BORDER: Record<TimbalV2Variant, string> = {
   primary: "",
   informative: "border border-foreground/15",
   destructive: "border border-destructive/45",
+  "destructive-solid": "",
   secondary: "border border-border",
   ghost: "",
   link: "",
@@ -133,10 +141,54 @@ export const TIMBAL_V2_SHADOW: Record<TimbalV2Variant, string> = {
   primary: "shadow-card",
   informative: "shadow-card",
   destructive: "shadow-card",
+  "destructive-solid": "shadow-card",
   secondary: "shadow-card",
   ghost: "",
   link: "",
 };
+
+/** Primary chrome without interaction states — matches default `Button` fill + shadow + border. */
+export const TIMBAL_V2_PRIMARY_SURFACE = cn(
+  TIMBAL_V2_PRIMARY_GRADIENT,
+  TIMBAL_V2_SHADOW.primary,
+  TIMBAL_V2_BORDER.primary,
+);
+
+/**
+ * Primary pill shell — same root chrome as `TimbalV2Button` (border, shadow, overflow).
+ * Pair with {@link TIMBAL_V2_PRIMARY_PILL_FILL_LAYER} + {@link TIMBAL_V2_LABEL}.primary.
+ */
+export const TIMBAL_V2_PRIMARY_PILL_ROOT = cn(
+  "relative box-border inline-flex items-center justify-center overflow-hidden rounded-full border-0 bg-transparent p-0 font-normal shadow-none transition duration-200 ease-in-out",
+  TIMBAL_V2_SHADOW.primary,
+  TIMBAL_V2_BORDER.primary,
+);
+
+/** Absolute fill layer for primary pills (avatar, icon button) — rest + hover/active like `TIMBAL_V2_FILL`.primary. */
+export const TIMBAL_V2_PRIMARY_PILL_FILL_LAYER = cn(
+  "pointer-events-none absolute inset-0 transition duration-200 ease-in-out",
+  "bg-gradient-to-b from-primary-fill-from to-primary-fill-to",
+  "group-hover/avatar:from-primary-fill-hover-from group-hover/avatar:to-primary-fill-hover-to",
+  "group-active/avatar:from-primary-fill-active-from group-active/avatar:to-primary-fill-active-to",
+);
+
+/**
+ * Secondary pill shell — same as `Button variant="secondary"` / catalog “Action” buttons.
+ * Pair with {@link TIMBAL_V2_SECONDARY_PILL_FILL_LAYER} + {@link TIMBAL_V2_LABEL}.secondary.
+ */
+export const TIMBAL_V2_SECONDARY_PILL_ROOT = cn(
+  "relative box-border inline-flex items-center justify-center overflow-hidden rounded-full bg-transparent p-0 font-normal shadow-none transition duration-200 ease-in-out",
+  TIMBAL_V2_SHADOW.secondary,
+  TIMBAL_V2_BORDER.secondary,
+);
+
+/** Absolute fill layer for secondary pills — elevated gradient + hover/active like `TIMBAL_V2_FILL`.secondary. */
+export const TIMBAL_V2_SECONDARY_PILL_FILL_LAYER = cn(
+  "pointer-events-none absolute inset-0 transition duration-200 ease-in-out",
+  TIMBAL_V2_ELEVATED_GRADIENT,
+  "group-hover/avatar:from-secondary-fill-hover-from group-hover/avatar:to-secondary-fill-hover-to",
+  "group-active/avatar:from-secondary-fill-active-from group-active/avatar:to-secondary-fill-active-to",
+);
 
 /** Switch track (off) — elevated gradient like cards. */
 export const TIMBAL_V2_SWITCH_TRACK_OFF = cn(

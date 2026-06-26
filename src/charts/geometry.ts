@@ -50,6 +50,100 @@ export function monotoneAreaPath(points: Point[], baseY: number): string {
   return `${line} L ${last.x},${baseY} L ${first.x},${baseY} Z`;
 }
 
+/** Curve interpolation styles, mirroring recharts/shadcn `type`. */
+export type CurveType = "monotone" | "linear" | "step";
+
+/** Straight polyline through the points. */
+export function linearLinePath(points: Point[]): string {
+  if (points.length === 0) return "";
+  let d = `M ${points[0].x},${points[0].y}`;
+  for (let i = 1; i < points.length; i++) d += ` L ${points[i].x},${points[i].y}`;
+  return d;
+}
+
+/** Step (stairs) path — horizontal then vertical between points. */
+export function stepLinePath(points: Point[]): string {
+  if (points.length === 0) return "";
+  let d = `M ${points[0].x},${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    const midX = (points[i - 1].x + points[i].x) / 2;
+    d += ` L ${midX},${points[i - 1].y} L ${midX},${points[i].y} L ${points[i].x},${points[i].y}`;
+  }
+  return d;
+}
+
+/** Dispatch a line path by curve type. */
+export function linePath(points: Point[], curve: CurveType = "monotone"): string {
+  if (curve === "linear") return linearLinePath(points);
+  if (curve === "step") return stepLinePath(points);
+  return monotoneLinePath(points);
+}
+
+/**
+ * Closed area path for any curve type. For stacked areas, pass `lowerPoints`
+ * (the top of the series below, already scaled) so the band closes onto it
+ * instead of a flat baseline.
+ */
+export function areaPath(
+  points: Point[],
+  baseY: number,
+  curve: CurveType = "monotone",
+  lowerPoints?: Point[],
+): string {
+  if (points.length === 0) return "";
+  const top = linePath(points, curve);
+  if (lowerPoints && lowerPoints.length === points.length) {
+    const reversed = [...lowerPoints].reverse();
+    const bottom = linePath(reversed, curve).replace(/^M/, "L");
+    return `${top} ${bottom} Z`;
+  }
+  const last = points[points.length - 1];
+  const first = points[0];
+  return `${top} L ${last.x},${baseY} L ${first.x},${baseY} Z`;
+}
+
+/** A point on a circle. Angle in radians, 0 = 12 o'clock, clockwise. */
+export function polarToCartesian(
+  cx: number,
+  cy: number,
+  radius: number,
+  angle: number,
+): Point {
+  return { x: cx + Math.sin(angle) * radius, y: cy - Math.cos(angle) * radius };
+}
+
+/** SVG path for a pie/donut slice between two angles (radians, clockwise from top). */
+export function arcPath(
+  cx: number,
+  cy: number,
+  radius: number,
+  start: number,
+  end: number,
+  innerRadius = 0,
+): string {
+  const large = end - start > Math.PI ? 1 : 0;
+  const outerStart = polarToCartesian(cx, cy, radius, start);
+  const outerEnd = polarToCartesian(cx, cy, radius, end);
+  if (innerRadius <= 0) {
+    return `M ${cx} ${cy} L ${outerStart.x} ${outerStart.y} A ${radius} ${radius} 0 ${large} 1 ${outerEnd.x} ${outerEnd.y} Z`;
+  }
+  const innerEnd = polarToCartesian(cx, cy, innerRadius, end);
+  const innerStart = polarToCartesian(cx, cy, innerRadius, start);
+  return [
+    `M ${outerStart.x} ${outerStart.y}`,
+    `A ${radius} ${radius} 0 ${large} 1 ${outerEnd.x} ${outerEnd.y}`,
+    `L ${innerEnd.x} ${innerEnd.y}`,
+    `A ${innerRadius} ${innerRadius} 0 ${large} 0 ${innerStart.x} ${innerStart.y}`,
+    "Z",
+  ].join(" ");
+}
+
+/** Closed polygon path through points (radar / area webs). */
+export function polygonPath(points: Point[]): string {
+  if (points.length === 0) return "";
+  return `${linearLinePath(points)} Z`;
+}
+
 function monotoneTangents(points: Point[]): number[] {
   const n = points.length;
   const slopes = new Array<number>(n - 1);

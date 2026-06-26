@@ -1,9 +1,10 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
-import { useCallback, useState, type FC, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type FC, type ReactNode } from "react";
 
 import {
+  appShellInsetBottomClass,
   appShellInsetTopClass,
   appShellTopbarInsetClass,
   appShellTopbarStickyClass,
@@ -19,13 +20,14 @@ import {
 } from "../../layout/shell-inset-context";
 import { cn } from "../../utils";
 import { AppShellChatProvider } from "./app-shell-chat-context";
+import { AppShellNavProvider } from "./app-shell-nav-context";
 
 export interface AppShellProps {
   /** Primary navigation (e.g. StudioSidebar or custom rail). */
   sidebar?: ReactNode;
   /**
    * Global top bar (login, theme, account) — spans the full shell width (not
-   * the page `max-w-6xl` column). Use `<AppShellTopbar start actions />`.
+   * the page `max-w-6xl` column).
    */
   topbar?: ReactNode;
   /** @deprecated Use `topbar`. */
@@ -55,8 +57,22 @@ export interface AppShellProps {
   chatTriggerLabel?: string;
   /** Hide the built-in floating trigger (use your own + `useAppShellChat`). */
   hideChatTrigger?: boolean;
+  /** Controlled mobile-nav drawer open state. */
+  navOpen?: boolean;
+  /** Uncontrolled initial mobile-nav open state. Default: `false`. */
+  defaultNavOpen?: boolean;
+  onNavOpenChange?: (open: boolean) => void;
   className?: string;
   mainClassName?: string;
+  /**
+   * Make the content region a bounded, non-scrolling flex column instead of the
+   * default padded scroll area. Use for full-bleed pages that own their own
+   * scroll — a full-page chat (`TimbalChat` / `Thread`), a canvas, a map, an
+   * editor — so a `h-full` / `flex-1 min-h-0` child fills exactly and a pinned
+   * footer (e.g. the chat composer) stays put instead of riding down on scroll.
+   * Do **not** combine with `h-[calc(100dvh-…)]` guesses on the child.
+   */
+  contentFill?: boolean;
 }
 
 const floatingTriggerClass = cn(
@@ -78,6 +94,7 @@ interface AppShellBodyProps {
   sidebar?: ReactNode;
   topbarContent?: ReactNode;
   mainClassName?: string;
+  contentFill?: boolean;
   insetPaddingPx: number;
   insetExpanded: boolean;
   children: ReactNode;
@@ -92,17 +109,31 @@ const AppShellBody: FC<AppShellBodyProps> = ({
   sidebar,
   topbarContent,
   mainClassName,
+  contentFill = false,
   insetPaddingPx,
   insetExpanded,
   children,
 }) => {
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.innerWidth < 768;
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   const reducedMotion = useReducedMotion();
   const layoutDirection = insetExpanded ? "expand" : "collapse";
   const layoutTransition = studioSidebarWidthTransition(
     !!reducedMotion,
     layoutDirection,
   );
-  const insetPadding = sidebar ? insetPaddingPx : 0;
+  const insetPadding = sidebar && !isMobile ? insetPaddingPx : 0;
 
   return (
     <motion.div
@@ -113,7 +144,10 @@ const AppShellBody: FC<AppShellBodyProps> = ({
     >
       <div
         className={cn(
-          "aui-app-shell-scroll flex min-h-0 flex-1 flex-col overflow-y-auto",
+          "aui-app-shell-scroll flex min-h-0 flex-1 flex-col",
+          // Padded scroll region by default; a full-bleed page (chat / canvas) owns
+          // its own scroll, so clip here and let the bounded `main` fill exactly.
+          contentFill ? "overflow-hidden" : "overflow-y-auto",
           !topbarContent && appShellInsetTopClass,
         )}
       >
@@ -122,7 +156,16 @@ const AppShellBody: FC<AppShellBodyProps> = ({
             <div className={appShellTopbarInsetClass}>{topbarContent}</div>
           </header>
         ) : null}
-        <main className={cn("aui-app-shell-main min-w-0 flex-1", mainClassName)}>
+        <main
+          className={cn(
+            // Bounded flex column by default so `h-full` / `flex-1 min-h-0` children
+            // (full-page chat, canvas) resolve a height without `mainClassName` surgery.
+            "aui-app-shell-main flex min-h-0 min-w-0 flex-1 flex-col",
+            // Bottom breathing room for scrolling content; full-bleed pages skip it.
+            !contentFill && appShellInsetBottomClass,
+            mainClassName,
+          )}
+        >
           {children}
         </main>
       </div>
@@ -147,11 +190,31 @@ export const AppShell: FC<AppShellProps> = ({
   chatCollapsible = true,
   chatTriggerLabel = "Assistant",
   hideChatTrigger = false,
+  navOpen: navOpenProp,
+  defaultNavOpen = false,
+  onNavOpenChange,
   className,
   mainClassName,
+  contentFill = false,
 }) => {
   const topbarContent = topbar ?? header;
   const hasChat = Boolean(chat);
+
+  const [uncontrolledNavOpen, setUncontrolledNavOpen] = useState(defaultNavOpen);
+  const isNavControlled = navOpenProp !== undefined;
+  const navOpen = isNavControlled ? navOpenProp : uncontrolledNavOpen;
+  const setNavOpen = useCallback(
+    (open: boolean) => {
+      if (!isNavControlled) setUncontrolledNavOpen(open);
+      onNavOpenChange?.(open);
+    },
+    [isNavControlled, onNavOpenChange],
+  );
+  const toggleNav = useCallback(() => setNavOpen(!navOpen), [navOpen, setNavOpen]);
+  const navControls = useMemo(
+    () => ({ open: navOpen, setOpen: setNavOpen, toggle: toggleNav }),
+    [navOpen, setNavOpen, toggleNav],
+  );
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultChatOpen);
   const isChatControlled = chatOpenProp !== undefined;
   const chatOpen = isChatControlled ? chatOpenProp : uncontrolledOpen;
@@ -183,6 +246,7 @@ export const AppShell: FC<AppShellProps> = ({
       sidebar={sidebar}
       topbarContent={topbarContent}
       mainClassName={mainClassName}
+      contentFill={contentFill}
       insetPaddingPx={insetPaddingPx}
       insetExpanded={insetExpanded}
     >
@@ -200,6 +264,14 @@ export const AppShell: FC<AppShellProps> = ({
         style={studioChromeShellStyle}
       >
         {sidebar}
+        {sidebar && navOpen ? (
+          <button
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setNavOpen(false)}
+            className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-[2px] md:hidden"
+          />
+        ) : null}
         {shellBody}
       {hasChat && chatOpen ? (
         <div
@@ -228,8 +300,12 @@ export const AppShell: FC<AppShellProps> = ({
     </ShellInsetProvider>
   );
 
+  const withNav = (
+    <AppShellNavProvider value={navControls}>{tree}</AppShellNavProvider>
+  );
+
   if (!hasChat) {
-    return tree;
+    return withNav;
   }
 
   return (
@@ -241,7 +317,7 @@ export const AppShell: FC<AppShellProps> = ({
         collapsible: chatCollapsible,
       }}
     >
-      {tree}
+      {withNav}
     </AppShellChatProvider>
   );
 };

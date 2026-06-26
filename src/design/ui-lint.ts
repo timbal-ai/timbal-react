@@ -101,6 +101,9 @@ const ICON_IMPORT_RE = /from\s+["']lucide-react["']/;
  */
 const RAW_CONTROL_SURFACE_RE = /\bborder-input\b/;
 
+/** Colored hover backgrounds/gradients on interactive elements (e.g. hover:bg-primary). */
+const COLORED_HOVER_RE = /\bhover:(?:bg|from|to|via)-(?:primary|destructive|success|warn|danger|blue|emerald|green|amber|red|indigo|violet|purple|pink|rose|sky|cyan|teal|lime|yellow|orange|fuchsia)\b/;
+
 const RESERVED_GRADIENT_SET = new Set<string>(RESERVED_GRADIENT_TOKENS);
 
 function stripVariants(util: string): string {
@@ -142,8 +145,19 @@ export function lintGeneratedUi(
   let iconUsageCount = 0;
   let dividerRunCount = 0;
 
+  // Extract Page title if present
+  let pageTitle: string | null = null;
+  const pageTitleMatch = source.match(/<Page\s+[^>]*\btitle=(?:"([^"]+)"|\{["']([^"']+)["']\})/);
+  if (pageTitleMatch) {
+    pageTitle = (pageTitleMatch[1] || pageTitleMatch[2]).trim().toLowerCase();
+  }
+
+  const hasChat = /\b(?:TimbalChat|AppChatPanel|Thread)\b/.test(source);
+
   // Names imported from lucide-react, so we count their JSX usages as icons.
   const lucideNames = new Set<string>();
+
+  const openCards: { type: string; line: number }[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -162,6 +176,37 @@ export function lintGeneratedUi(
     }
 
     if (isCommentOrImport(line)) continue;
+
+    // ── table inside card check ─────────────────────────────────────────
+    const cardMatch = line.match(/<(Card|SurfaceCard|ArtifactCard)\b/);
+    if (cardMatch) {
+      const isSelfClosing = /\/>/.test(line) && line.indexOf(cardMatch[0]) < line.indexOf("/>");
+      if (!isSelfClosing) {
+        openCards.push({ type: cardMatch[1], line: lineNo });
+      }
+    }
+
+    const closeMatch = line.match(/<\/(Card|SurfaceCard|ArtifactCard)\b/);
+    if (closeMatch && openCards.length > 0) {
+      const idx = openCards.map((c) => c.type).lastIndexOf(closeMatch[1]);
+      if (idx !== -1) {
+        openCards.splice(idx, 1);
+      }
+    }
+
+    if (openCards.length > 0) {
+      const tableMatch = line.match(/<(DataTable|table|Table)\b/);
+      if (tableMatch) {
+        const parentCard = openCards[openCards.length - 1];
+        findings.push({
+          rule: "no-table-in-card",
+          severity: "error",
+          line: lineNo,
+          message: `Table inside card. Never wrap a <${tableMatch[1]}> or table inside a <${parentCard.type}> (opened on L${parentCard.line}). Place the table directly on the Page or Section instead.`,
+          snippet: line.trim().slice(0, 120),
+        });
+      }
+    }
 
     // ── raw palette colors ──────────────────────────────────────────────
     const rawColors = line.match(RAW_COLOR_RE);
@@ -211,6 +256,18 @@ export function lintGeneratedUi(
         line: lineNo,
         message:
           "Hand-rolled control surface (border-input). Use a kit control — SearchInput, Select, DropdownMenu, FieldInput, FieldSelect — so it matches every other control.",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+
+    // ── colored hover style check ───────────────────────────────────────
+    if (COLORED_HOVER_RE.test(line)) {
+      findings.push({
+        rule: "no-colored-hover",
+        severity: "warn",
+        line: lineNo,
+        message:
+          "Colored hover background/gradient. House style: interactive cards and list items must use neutral hover states — never hard-code colored backgrounds or borders on hover.",
         snippet: line.trim().slice(0, 120),
       });
     }
@@ -277,6 +334,49 @@ export function lintGeneratedUi(
         const usage = new RegExp(`<${name}\\b`, "g");
         const hits = line.match(usage);
         if (hits) iconUsageCount += hits.length;
+      }
+    }
+
+    // ── title repetition ────────────────────────────────────────────────
+    if (pageTitle) {
+      const titleMatch = line.match(/<(Section|ChartPanel|Card|DataTable|SurfaceCard)\s+[^>]*\btitle=(?:"([^"]+)"|\{["']([^"']+)["']\})/);
+      if (titleMatch) {
+        const element = titleMatch[1];
+        const titleVal = (titleMatch[2] || titleMatch[3]).trim().toLowerCase();
+        if (titleVal === pageTitle || titleVal.includes(pageTitle) || pageTitle.includes(titleVal)) {
+          findings.push({
+            rule: "no-title-repetition",
+            severity: "warn",
+            line: lineNo,
+            message: `Title repetition. The <${element}> title "${titleVal}" repeats or is very similar to the <Page> title "${pageTitle}". Drop the title from the child element or use a title-less Section to avoid redundant headings.`,
+            snippet: line.trim().slice(0, 120),
+          });
+        }
+      }
+    }
+
+    // ── chat wrapping / custom header check ──────────────────────────────
+    if (hasChat) {
+      const wrappingMatch = line.match(/<(Card|Section|SurfaceCard|FormSection|SettingsSection)\b/);
+      if (wrappingMatch) {
+        findings.push({
+          rule: "no-chat-wrapping",
+          severity: "error",
+          line: lineNo,
+          message: `Chat component wrapping. Never wrap TimbalChat or AppChatPanel inside a <${wrappingMatch[1]}> or custom bordered container. Let the chat component fill the page or slot directly.`,
+          snippet: line.trim().slice(0, 120),
+        });
+      }
+
+      const headingMatch = line.match(/<(h[1-6])\b/);
+      if (headingMatch) {
+        findings.push({
+          rule: "no-chat-wrapping",
+          severity: "error",
+          line: lineNo,
+          message: `Custom heading in chat view. Do not render custom <${headingMatch[1]}> headings on the chat page. Pass welcome.heading to TimbalChat if you need to customize the welcome title.`,
+          snippet: line.trim().slice(0, 120),
+        });
       }
     }
   }

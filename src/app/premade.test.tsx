@@ -11,6 +11,8 @@ import { SettingsSection } from "./settings/SettingsSection";
 import { DangerZone, DangerZoneAction } from "./settings/DangerZone";
 import { InfoCard } from "./surfaces/InfoCard";
 import { DescriptionList } from "./surfaces/DescriptionList";
+import { AlertCard } from "./surfaces/AlertCard";
+import { CatalogCard } from "./surfaces/CatalogCard";
 import { Sparkline } from "../charts/sparkline";
 
 const series = [
@@ -53,13 +55,15 @@ describe("MetricRow", () => {
     render(
       <MetricRow
         title="Overview"
+        titleTag="Last 24h"
         metrics={[
-          { id: "a", label: "Requests", value: "12k" },
+          { id: "a", label: "Requests", value: "12k", sparklineData: [1, 2, 3, 2, 4], trend: "+12%", trendVariant: "inline", trendTone: "up" },
           { id: "b", label: "Errors", value: "0.2", unit: "%" },
         ]}
       />,
     );
     expect(screen.getByText("Overview")).toBeTruthy();
+    expect(screen.getByText("Last 24h")).toBeTruthy();
     expect(screen.getByText("Requests")).toBeTruthy();
     expect(screen.getByText("Errors")).toBeTruthy();
   });
@@ -138,6 +142,49 @@ describe("settings + surfaces", () => {
     expect(screen.getByText("Heads up")).toBeTruthy();
     expect(screen.getByText("Owner")).toBeTruthy();
     expect(screen.getByText("Ada")).toBeTruthy();
+  });
+
+  it("renders an AlertCard with tags, title, description, and action", () => {
+    render(
+      <AlertCard
+        title="DHL Express — Critical Charging Drop-off Alert"
+        description="DHL Express Logistics has seen a 51% decline in kWh consumption."
+        category="Drop-off Warning"
+        categoryTone="danger"
+        status="At Risk · 48"
+        statusTone="warn"
+        action="Call fleet operations manager immediately."
+        onClick={() => {}}
+      />,
+    );
+    expect(screen.getByText("DHL Express — Critical Charging Drop-off Alert")).toBeTruthy();
+    expect(screen.getByText("DHL Express Logistics has seen a 51% decline in kWh consumption.")).toBeTruthy();
+    expect(screen.getByText("Drop-off Warning")).toBeTruthy();
+    expect(screen.getByText("At Risk · 48")).toBeTruthy();
+    expect(screen.getByText("Call fleet operations manager immediately.")).toBeTruthy();
+  });
+
+  it("renders a CatalogCard with logo, title, tags, and copy footer", () => {
+    render(
+      <CatalogCard
+        title="gemma-4-26b-a4b-it"
+        subtitle="google"
+        badge={<span>Text Generation</span>}
+        description="Gemma 4 is Google's most intelligent family of open models."
+        tags={["Apr 2, 2026", "256,000 max context", "Function calling"]}
+        footerLinks={[{ label: "Terms", href: "https://google.com/terms" }]}
+        copyValue="google/gemma-4-26b-a4b-it"
+      />,
+    );
+    expect(screen.getByText("gemma-4-26b-a4b-it")).toBeTruthy();
+    expect(screen.getByText("google")).toBeTruthy();
+    expect(screen.getByText("Text Generation")).toBeTruthy();
+    expect(screen.getByText("Gemma 4 is Google's most intelligent family of open models.")).toBeTruthy();
+    expect(screen.getByText("Apr 2, 2026")).toBeTruthy();
+    expect(screen.getByText("256,000 max context")).toBeTruthy();
+    expect(screen.getByText("Function calling")).toBeTruthy();
+    expect(screen.getByText("Terms")).toBeTruthy();
+    expect(screen.getByText("Copy ID")).toBeTruthy();
   });
 });
 

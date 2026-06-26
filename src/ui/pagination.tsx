@@ -2,7 +2,7 @@ import * as React from "react";
 import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react";
 
 import { cn } from "../utils";
-import { buttonVariants } from "./button";
+import { Button } from "./button";
 
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
   return (
@@ -42,18 +42,13 @@ function PaginationLink({
   ...props
 }: PaginationLinkProps) {
   return (
-    <a
-      data-slot="pagination-link"
-      aria-current={isActive ? "page" : undefined}
-      className={cn(
-        buttonVariants({
-          variant: isActive ? "outline" : "ghost",
-          size,
-        }),
-        className,
-      )}
-      {...props}
-    />
+    <Button asChild variant={isActive ? "outline" : "ghost"} size={size} className={className}>
+      <a
+        data-slot="pagination-link"
+        aria-current={isActive ? "page" : undefined}
+        {...props}
+      />
+    </Button>
   );
 }
 

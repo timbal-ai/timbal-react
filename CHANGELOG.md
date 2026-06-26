@@ -2,6 +2,99 @@
 
 All notable changes to `@timbal-ai/timbal-react` are documented here.
 
+## [Unreleased]
+
+## [1.5.0] — 2026-06-26
+
+### Added
+
+- **`Kanban` board primitive** (`src/ui/kanban.tsx`) — A fully-featured, highly accessible Kanban board with column customization, drag-and-drop capabilities powered by `@dnd-kit`, and a read-only mode for static board rendering.
+- **App density system** (`src/app/layout/app-density-context.tsx`, `src/design/app-density.ts`) — Context-driven density controls supporting "standard" and "compact" layouts. Compact mode cascades tighter padding, smaller text, and lower default heights to descendant components (pages, charts, tables).
+- **Advanced filtering** (`src/app/data/FilterDropdown.tsx`, `src/app/data/FilterField.tsx`) — `FilterDropdown` is a **data-driven** multi-facet filter popover: pass `fields` describing your actual columns (`multiselect` / `text` / `daterange` / `numeric`) and it adapts to the table's content. State is keyed by field `id`, controlled (`value` + `onChange`) or uncontrolled (`defaultValue`); every control is on the shared control-surface contract. It renders **removable active-filter pills** (with "Clear all") next to the trigger by default (`showActiveChips`). `FilterField` is the labeled single-control wrapper for `FilterBar`.
+- **Site/Marketing primitives** (`src/site/`) — A brand new `./site` subpath export containing five high-quality interactive and marketing-grade components:
+  - **`Magnetic`** — magnetic hover effect that pulls elements toward the cursor.
+  - **`Marquee`** — high-performance, infinite scrolling marquee.
+  - **`Parallax`** — scroll-driven parallax container with custom speed factors.
+  - **`Reveal`** — scroll or entrance fade-in reveal with custom directions and delays.
+  - **`TextReveal`** — character-by-character or word-by-word scroll-reveal animations.
+
+### Agent instructions & exports
+
+- **`SITE_AGENT_INSTRUCTIONS`** — a new codegen prompt (exported from `./site` and the package root) documenting the `/site` motion primitives, their props, reduced-motion/SSR guarantees, and dosing/anti-overuse guidance.
+- **`/site` primitives re-exported from the package root** — `Reveal`, `TextReveal`, `Parallax`, `Marquee`, `Magnetic` (plus the `EASE` / `DURATION` / `SPRING` motion tokens) are now reachable from both `@timbal-ai/timbal-react` and `@timbal-ai/timbal-react/site`, matching `/studio`, `/app`, and `/ui`.
+- **`APP_KIT_AGENT_INSTRUCTIONS` expanded** — documents `FilterDropdown` and surfaces the new dependency-free `/ui` primitives (`Stepper`, `Rating`, `NumberField`, `TagInput`, `AvatarGroup`, `CircularProgress`, `CopyButton`, `Snippet`) so codegen agents discover them.
+
+## [1.4.0] — 2026-06-05
+
+### Added
+
+- **`AppShell contentFill`** — makes the content region a bounded, non-scrolling flex column instead of the default padded scroll area. For full-bleed pages that own their own scroll (a full-page chat, a canvas, an editor, a split master–detail view): a `h-full` / `flex-1 min-h-0` child now fills exactly and a pinned footer (the chat composer) stays put instead of riding down on scroll. No `mainClassName` surgery and no `h-[calc(100dvh-…)]` guesses required.
+- **`Page fill`** — makes a `Page` a `min-h-0 flex-1` flex column (pair with `AppShell contentFill` for full-height content). Give the fill child `min-h-0 flex-1`.
+- **Headerless `Page`** — `Page.title` (and `PageHeader.title`) is now optional. Omit it to render a page with no `<h1>` header row (and no header padding), instead of dropping `Page` entirely to lose a heading.
+- **New layout recipes** (`examples/app-kit/src/recipes/`): **full-page chat** (`contentFill` + headerless `fill` + `TimbalChat`), **split view** (master–detail two-pane), and **bento dashboard** (asymmetric `SurfaceCard`/`ChartPanel`/`StatTile` grid) — surfaced in the Blocks gallery and `APP_KIT_AGENT_INSTRUCTIONS` as distinct layout archetypes so generated UIs vary beyond the single sidebar+topbar+MetricRow+table shape.
+
+### Changed
+
+- **`AppShell` `main` is now a bounded flex column by default** (`flex min-h-0 flex-col`, keeping `pb-8 md:pb-10`). Previously the content `main` was content-sized, so every full-height child had to pass `mainClassName="flex min-h-0 flex-col"` to undo a layout deficiency; `h-full` / `flex-1` children now resolve a height out of the box. Scrolling `Page` content is unaffected (the outer scroll region still scrolls).
+- **`APP_KIT_AGENT_INSTRUCTIONS`** documents a **Layout archetypes** menu (sidebar dashboard, focused, bento overview, split master–detail, full-page chat/canvas, copilot overlay, section-switcher) and the full-height contract (`contentFill` / `fill` / headerless `Page`), steering codegen away from shipping the same layout every time and away from `h-[calc(100dvh-…)]` / `min-h-[…]` sizing hacks.
+
+### Fixed
+
+- **`FieldSwitch` / `FieldSelect` id collision** — these derived their input id from `id ?? name ?? "switch"`, so multiple unlabeled instances all rendered `id="switch"` and toggling one flipped the others (and labels mis-associated). They now fall back to a `useId()`-generated id, so every instance is unique by default. `FieldInput` / `FieldTextarea` get the same `useId()` fallback (fixes silent label/control mis-association when no `name` is set).
+
+## [1.3.0] — 2026-06-04
+
+### Added
+
+- **Ten new `/ui` primitives** — all dependency-free, styled with the design tokens and (where applicable) the control-surface contract:
+  - **`AvatarGroup`** — overlapping avatar stack with an optional `+N` overflow chip (`max`, `spacing`).
+  - **`Stepper`** — ordered step indicator for wizards/onboarding; horizontal or vertical, with complete/active/upcoming states.
+  - **`Timeline`** — vertical event rail with per-item `title` / `description` / `meta` and tones (activity logs, audit history).
+  - **`Rating`** — star rating, interactive (keyboard + hover preview) or `readOnly`; controlled or uncontrolled.
+  - **`NumberField`** — numeric input with −/+ steppers on the shared control surface; clamps to `min`/`max`, steps by `step`.
+  - **`TagInput`** — chips/token input on the control surface; commits on Enter/comma, removes on Backspace, optional `dedupe`/`max`.
+  - **`Banner`** — page-level announcement bar with tones, optional icon/actions, and a dismiss button (use `Alert` for in-flow messages).
+  - **`CopyButton`** — click-to-copy with a transient check confirmation; icon-only or with a label.
+  - **`Snippet`** — single-line code/command on the elevated surface with a built-in copy button.
+  - **`CircularProgress`** — lightweight SVG progress ring, determinate (with optional center label) or indeterminate.
+
+### Fixed
+
+- **`Calendar` rebuilt for `react-day-picker` v10** — the previous build mixed v8-era `flex` classes onto v10's table-based grid, which broke alignment and left nav/day buttons unstyled (`buttonVariants` carries layout only in this package). The calendar now uses v10's native table layout with the correct class keys, roomy `size-10` cells, spaced rows, a clear weekday header, and on-token selected / range / today states. Fixes both the inline `Calendar` and the `DatePicker` popover.
+
+## [1.2.0] — 2026-06-03
+
+### Changed
+
+- **App-kit charts now run on [recharts](https://recharts.org)** (native shadcn chart layer). `LineAreaChart`, `PieChart`, `RadialChart`, and `RadarChart` keep the same public props but render via recharts under the shadcn `ChartContainer` / `ChartTooltipContent` / `ChartLegendContent` chrome — so tooltips, hover states, and animation match shadcn exactly across every chart kind. Series colors still flow from the theme `--chart-1..6` tokens.
+- **Flush dashboard charts are tooltip-first** — `ChartPanel`, `MetricChartCard`, and cartesian `ChartArtifact` views use `layout="flush"` with **axes hidden by default**; category labels and formatted values appear in shadcn tooltips on hover. Fixes clipped axis ticks and edge-cropped bars/lines in card shells.
+- **`LineAreaChart` margins and scales** — symmetric plot inset when axes are off; `no-gap` / zero bar gap only when category axes are explicitly shown; horizontal bars use band category scale (no misaligned Y ticks).
+- **Linked Vite dev** — `timbalReactLocalDev()` always aliases `file:../timbal-react` installs to `src/` so gallery apps pick up source edits without rebuilding `dist/` first.
+- Polish: in-card legends no longer clip outside the card; line/area charts use a thin crosshair cursor; tooltips animate in; radial/radar charts have hover tooltips.
+
+### Added
+
+- **shadcn chart primitives exported from `/ui`**: `ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, `ChartLegend`, `ChartLegendContent`, `ChartStyle`, `useChart`, and the `ChartConfig` type.
+- **`ChartArtifact.showAxes`** — opt-in axis ticks on flush cartesian charts (default off).
+- **`resolveChartMargin`**, **`resolveTooltipCategory`**, and related helpers exported from the charts entry for tests and custom wrappers.
+
+### Dependencies
+
+- Adds **`recharts`** as a dependency and **`react-is`** as a peer dependency (`react-is` must match your React version).
+
+## [1.1.0] — 2026-06-03
+
+### Added
+
+- **`DataTable` scales to real datasets** — three additive props (all backward-compatible):
+  - **`pageSize`** — built-in client-side pagination with a compact footer pager (row range + prev/next). Controlled via `pageIndex` / `onPageChange`, or uncontrolled with `defaultPageIndex`; out-of-range pages snap back after filtering.
+  - **`selectable`** + **`selectedKeys`** / **`defaultSelectedKeys`** / **`onSelectionChange`** — a leading checkbox column with header select-all (indeterminate state) for bulk actions (acknowledge/resolve/export). Toggling a checkbox never triggers `onRowClick`.
+  - **`loading`** (+ **`loadingRows`**) — shaped skeleton rows that preserve the header/columns so the table doesn't jump when data arrives.
+- **Loading states across the data kit** — `MetricRow`, `MetricChartCard`, and `ChartPanel` accept **`loading`**, rendering skeleton tiles / plot-height skeletons. Every async dashboard gets a consistent pending state without re-inventing one.
+- **`useLiveQuery` / `useInterval`** (root + `/app`) — poll an async source on an interval for live dashboards (alerts, metrics, logs). Handles loading vs. background `refreshing`, drops stale/post-unmount responses, pauses while the tab is hidden + refetches on focus, and exposes `lastUpdated` + a manual `refetch`. Pairs with `authFetch`.
+- **`AppShell` owns the mobile nav** — `AppShell` manages the drawer open-state (`navOpen` / `defaultNavOpen` / `onNavOpenChange`), renders the mobile backdrop automatically, and provides **`useAppShellNav()`** + **`AppShellSidebarTrigger`** (an `md:hidden` hamburger). Wiring a responsive `StudioSidebar` drops from ~30 lines of `isMobile`/resize/backdrop boilerplate to passing `mobileOpen={nav.open}` / `onMobileOpenChange={nav.setOpen}`.
+- **`StatusBadge` `tone="danger"`** — a destructive/red tone for critical severity, so error/critical states aren't forced onto the brand `primary` tone.
+
 ## [1.0.0] — 2026-06-02
 
 First stable release. The `@timbal-ai/timbal-react/ui` primitive layer, the control-surface contract, and the app-kit are now a settled public surface.

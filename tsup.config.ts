@@ -9,6 +9,7 @@ export default defineConfig({
     "src/studio.ts",
     "src/ui.ts",
     "src/app.ts",
+    "src/site.ts",
   ],
   format: ["esm", "cjs"],
   dts: true,
@@ -19,8 +20,13 @@ export default defineConfig({
     "react",
     "react/jsx-runtime",
     "react-dom",
+    "react-is",
+    "recharts",
     "@assistant-ui/react",
     "@timbal-ai/timbal-sdk",
+    "@dnd-kit/core",
+    "@dnd-kit/sortable",
+    "@dnd-kit/utilities",
   ],
   outExtension({ format }) {
     return {

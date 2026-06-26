@@ -1,6 +1,6 @@
 "use client";
 
-import type { FC, ReactNode, SelectHTMLAttributes } from "react";
+import { useId, type FC, type ReactNode, type SelectHTMLAttributes } from "react";
 import { ChevronDownIcon } from "lucide-react";
 
 import { appInputClass } from "../../design/app-classes";
@@ -32,7 +32,8 @@ export const FieldSelect: FC<FieldSelectProps> = ({
   id,
   ...props
 }) => {
-  const selectId = id ?? props.name;
+  const autoId = useId();
+  const selectId = id ?? props.name ?? autoId;
   return (
     <Field
       label={label}

@@ -3,12 +3,14 @@
 import { useId, useState, type FC, type ReactNode } from "react";
 
 import { LineAreaChart, type ChartVariant } from "../../charts/line-area-chart";
+import { APP_DENSITY_CHART_HEIGHT } from "../../design/app-density";
+import { Skeleton } from "../../ui/skeleton";
 import { cn } from "../../utils";
+import { useAppDensity, useAppDensityClass } from "../layout/app-density-context";
 import { MetricTile, type MetricTileProps } from "./MetricTile";
 import {
   MetricCardHeader,
   metricCardShellClass,
-  metricChartRegionClass,
   metricTilesGridColsClass,
   metricTilesRowClass,
 } from "./metrics-shared";
@@ -20,6 +22,11 @@ export interface MetricChartMetric {
   unit?: ReactNode;
   trend?: ReactNode;
   trendTone?: MetricTileProps["trendTone"];
+  trendVariant?: MetricTileProps["trendVariant"];
+  activeTone?: MetricTileProps["activeTone"];
+  sparklineData?: MetricTileProps["sparklineData"];
+  sparklineConfig?: MetricTileProps["sparklineConfig"];
+  sparkline?: MetricTileProps["sparkline"];
   /** Time-series for this metric, shown in the chart when selected. */
   data?: Array<Record<string, unknown>>;
   /** Value field within `data`. Default "value". */
@@ -30,6 +37,7 @@ export interface MetricChartMetric {
 
 export interface MetricChartCardProps {
   title?: ReactNode;
+  titleTag?: ReactNode;
   description?: ReactNode;
   /** Trailing header control (e.g. a "See detail" link/button). */
   actions?: ReactNode;
@@ -49,15 +57,19 @@ export interface MetricChartCardProps {
   emptyLabel?: ReactNode;
   /** Accessible name for the selectable KPI tile group. */
   metricsAriaLabel?: string;
+  /** Render skeleton tiles + chart while data loads. */
+  loading?: boolean;
   className?: string;
 }
 
 /**
  * Analytics card: selectable KPI row over a flush area chart —
  * timbal-platform `MetricsRowCard` / Studio analytics pattern.
+ * Fully supports background sparklines and rich inline trend metadata.
  */
 export const MetricChartCard: FC<MetricChartCardProps> = ({
   title,
+  titleTag,
   description,
   actions,
   metrics,
@@ -66,13 +78,18 @@ export const MetricChartCard: FC<MetricChartCardProps> = ({
   onMetricChange,
   xKey = "date",
   variant = "area",
-  height = 300,
+  height: heightProp,
   formatX,
   formatValue,
   emptyLabel = "No data yet",
   metricsAriaLabel = "Metrics",
+  loading = false,
   className,
 }) => {
+  const density = useAppDensity();
+  const height = heightProp ?? APP_DENSITY_CHART_HEIGHT[density];
+  const metricChartRegionClass = useAppDensityClass("metricChartRegion");
+  const metricTileClass = useAppDensityClass("metricTile");
   const titleId = useId();
   const [internalId, setInternalId] = useState(
     defaultActiveMetricId ?? metrics[0]?.id,
@@ -85,7 +102,7 @@ export const MetricChartCard: FC<MetricChartCardProps> = ({
     onMetricChange?.(id);
   };
 
-  const hasHeader = Boolean(title || description || actions);
+  const hasHeader = Boolean(title || titleTag || description || actions);
 
   const chartAriaLabel =
     typeof active?.label === "string"
@@ -99,37 +116,61 @@ export const MetricChartCard: FC<MetricChartCardProps> = ({
     >
       <MetricCardHeader
         title={title}
-        titleId={titleId}
+        titleTag={titleTag}
         description={description}
         actions={actions}
+        titleId={titleId}
       />
 
       <div
         role="group"
         aria-label={metricsAriaLabel}
+        aria-busy={loading || undefined}
         className={cn(
           metricTilesRowClass,
-          metricTilesGridColsClass(metrics.length),
-          hasHeader && "mt-3",
+          metricTilesGridColsClass(loading ? metrics.length || 4 : metrics.length),
+          hasHeader && "mt-3.5 border-t border-border/40",
         )}
       >
-        {metrics.map((m, index) => (
-          <MetricTile
-            key={m.id}
-            label={m.label}
-            value={m.value}
-            unit={m.unit}
-            trend={m.trend}
-            trendTone={m.trendTone}
-            active={m.id === active?.id}
-            showDivider={index < metrics.length - 1}
-            onSelect={() => select(m.id)}
-          />
-        ))}
+        {loading
+          ? Array.from({ length: metrics.length || 4 }).map((_, index) => (
+              <div
+                key={`skeleton-${index}`}
+                className={cn("flex min-w-0 flex-1 flex-col gap-2", metricTileClass)}
+                aria-hidden
+              >
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-7 w-24" />
+              </div>
+            ))
+          : metrics.map((m, index) => (
+              <MetricTile
+                key={m.id}
+                label={m.label}
+                value={m.value}
+                unit={m.unit}
+                trend={m.trend}
+                trendTone={m.trendTone}
+                trendVariant={m.trendVariant}
+                activeTone={m.activeTone}
+                sparklineData={m.sparklineData}
+                sparklineConfig={m.sparklineConfig}
+                sparkline={m.sparkline}
+                active={m.id === active?.id}
+                showDivider={index < metrics.length - 1}
+                onSelect={() => select(m.id)}
+              />
+            ))}
       </div>
 
       <div className={metricChartRegionClass} aria-live="polite" aria-atomic="true">
-        {active?.data && active.data.length > 0 ? (
+        {loading ? (
+          <Skeleton
+            className="w-full rounded-lg"
+            style={{ height }}
+            aria-hidden
+          />
+        ) : active?.data && active.data.length > 0 ? (
           <LineAreaChart
             key={active.id}
             data={active.data}

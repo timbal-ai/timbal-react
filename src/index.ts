@@ -116,15 +116,17 @@ export type { StudioWelcomeProps } from "./studio/sidebar/welcome";
 
 export {
   AppShell,
-  AppShellTopbar,
   AppShellChatTrigger,
   useAppShellChat,
+  useAppShellNav,
+  AppShellSidebarTrigger,
   AppCopilotProvider,
   useAppCopilotContext,
   AppChatPanel,
   Page,
   PageHeader,
   Section,
+  Stack,
   SurfaceCard,
   StatTile,
   EmptyState,
@@ -140,14 +142,23 @@ export {
   SearchInput,
   FormSection,
   FilterBar,
+  FilterField,
+  FilterDropdown,
   DataTable,
   ChartPanel,
   MetricTile,
   MetricRow,
   MetricChartCard,
   LineAreaChart,
+  PieChart,
+  RadialChart,
+  RadarChart,
   Sparkline,
   CHART_PALETTE,
+  resolveChartMargin,
+  resolveTooltipCategory,
+  flushBarCategoryGap,
+  flushLineAreaEdgeToEdge,
   InfoCard,
   StatusDot,
   DescriptionList,
@@ -188,21 +199,29 @@ export {
   getStoredThemePreset,
   THEME_AGENT_INSTRUCTIONS,
   TimbalThemeStyle,
-  ThemePresetGallery,
 } from "./app/index";
 export type {
   AppShellProps,
-  AppShellTopbarProps,
   AppShellChatTriggerProps,
   AppShellChatControls,
+  AppShellNavControls,
+  AppShellSidebarTriggerProps,
   AppCopilotProviderProps,
   AppCopilotContextValue,
   AppChatPanelProps,
   PageProps,
+  AppPageWidth,
   PageHeaderProps,
   SectionProps,
+  StackProps,
+  StackGap,
+  StackAlign,
+  StackJustify,
   SurfaceCardProps,
+  SurfaceCardVariant,
+  SurfaceCardTone,
   StatTileProps,
+  StatTileTone,
   EmptyStateProps,
   StatusBadgeProps,
   StatusBadgeTone,
@@ -220,6 +239,18 @@ export type {
   SearchInputProps,
   FormSectionProps,
   FilterBarProps,
+  FilterFieldProps,
+  FilterDropdownProps,
+  FilterFieldDef,
+  FilterFieldType,
+  FilterSelectOption,
+  FilterDatePreset,
+  FilterNumericOperatorOption,
+  FilterValue,
+  FilterValues,
+  FilterDateRangeValue,
+  FilterNumericValue,
+  NumericOperator,
   DataTableProps,
   DataTableColumn,
   DataTableSort,
@@ -233,6 +264,10 @@ export type {
   LineAreaChartProps,
   ChartSeries,
   ChartVariant,
+  ChartTooltipIndicator,
+  PieChartProps,
+  RadialChartProps,
+  RadarChartProps,
   SparklineProps,
   InfoCardProps,
   InfoCardTone,
@@ -264,7 +299,6 @@ export type {
   TimbalThemePreset,
   TimbalThemePresetId,
   TimbalThemeStyleProps,
-  ThemePresetGalleryProps,
   SemanticColorToken,
   HouseRule,
   LintFinding,
@@ -281,6 +315,11 @@ export type {
   UseWorkforcesOptions,
   UseWorkforcesResult,
 } from "./hooks/use-workforces";
+export { useLiveQuery, useInterval } from "./hooks/use-live-query";
+export type {
+  UseLiveQueryOptions,
+  UseLiveQueryResult,
+} from "./hooks/use-live-query";
 
 // ── Artifacts ────────────────────────────────────────────────────────────────
 
@@ -320,6 +359,7 @@ export type {
   TimbalArtifact,
   AnyArtifact,
   ChartArtifact,
+  ChartSeriesConfig,
   QuestionArtifact,
   QuestionOption,
   HtmlArtifact,
@@ -373,13 +413,26 @@ export {
 // ── UI primitives (Radix-based) ──────────────────────────────────────────────
 
 export { Button } from "./ui/button";
+export type { ButtonColor } from "./ui/button";
+export { UntitledButton, untitledButtonVariants } from "./ui/untitled-button";
+export type {
+  UntitledButtonProps,
+  UntitledButtonColor,
+  UntitledButtonSize,
+} from "./ui/untitled-button";
 export {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
   TooltipProvider,
 } from "./ui/tooltip";
-export { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
+export {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  AVATAR_PRIMARY_FALLBACK_CLASS,
+  avatarChartVariantClass,
+} from "./ui/avatar";
 export {
   Dialog,
   DialogClose,
@@ -640,6 +693,44 @@ export type {
   PillSegmentedTab,
   PillSegmentedTabsProps,
 } from "./ui/pill-segmented-tabs";
+export { AvatarGroup } from "./ui/avatar-group";
+export type { AvatarGroupProps } from "./ui/avatar-group";
+export { Stepper } from "./ui/stepper";
+export type { StepperProps, StepperStep } from "./ui/stepper";
+export { Timeline } from "./ui/timeline";
+export type { TimelineProps, TimelineItem, TimelineSize } from "./ui/timeline";
+export { Rating } from "./ui/rating";
+export type { RatingProps, RatingTone } from "./ui/rating";
+export { NumberField } from "./ui/number-field";
+export type { NumberFieldProps } from "./ui/number-field";
+export { TagInput } from "./ui/tag-input";
+export type { TagInputProps, TagInputSize } from "./ui/tag-input";
+export { Banner } from "./ui/banner";
+export type {
+  BannerProps,
+  BannerTone,
+  BannerVariant,
+  BannerSize,
+} from "./ui/banner";
+export { CopyButton } from "./ui/copy-button";
+export type { CopyButtonProps } from "./ui/copy-button";
+export { Snippet } from "./ui/snippet";
+export type { SnippetProps, SnippetVariant, SnippetSize } from "./ui/snippet";
+export { CircularProgress } from "./ui/circular-progress";
+export type { CircularProgressProps } from "./ui/circular-progress";
+export { Kanban } from "./ui/kanban";
+export type {
+  KanbanProps,
+  KanbanColumnData,
+  KanbanCardData,
+  KanbanMoveEvent,
+  KanbanLocation,
+  KanbanRenderCardContext,
+  KanbanTone,
+  KanbanDensity,
+  KanbanCardVariant,
+  KanbanDragHandleProps,
+} from "./ui/kanban";
 export { TooltipIconButton } from "./chat/tooltip-icon-button";
 export type { TooltipIconButtonProps } from "./chat/tooltip-icon-button";
 
@@ -658,6 +749,21 @@ export type {
   ControlShape,
   ControlClassOptions,
 } from "./design/control-surface";
+
+// ── Site (expressive motion & interaction primitives) ────────────────────────
+
+export { Reveal } from "./site/Reveal";
+export type { RevealProps, RevealVariant } from "./site/Reveal";
+export { TextReveal } from "./site/TextReveal";
+export type { TextRevealProps } from "./site/TextReveal";
+export { Parallax } from "./site/Parallax";
+export type { ParallaxProps } from "./site/Parallax";
+export { Marquee } from "./site/Marquee";
+export type { MarqueeProps } from "./site/Marquee";
+export { Magnetic } from "./site/Magnetic";
+export type { MagneticProps } from "./site/Magnetic";
+export { EASE, DURATION, SPRING } from "./site/easing";
+export { SITE_AGENT_INSTRUCTIONS } from "./site/agent-instructions";
 
 // ── Utils ────────────────────────────────────────────────────────────────────
 

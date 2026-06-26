@@ -28,10 +28,31 @@ describe("APP_KIT_AGENT_INSTRUCTIONS", () => {
     expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("examples/app-kit/recipes");
     expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("MetricRow");
     expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("MetricChartCard");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain('density="compact"');
     expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("ConnectionRowList");
     expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("IntegrationCard");
     expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("Accessibility");
     expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("ariaLabel");
+  });
+
+  it("documents layout archetypes and the full-height contract", () => {
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("Layout archetypes");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("contentFill");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("Split master–detail");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("Bento overview");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("headerless");
+    // Steers away from the guessed-chrome-height anti-pattern.
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("100dvh");
+  });
+
+  it("documents the API gotchas that cause codegen retry loops", () => {
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("API gotchas");
+    // Hallucinated props observed in builder sessions (TS2322/TS2741/TS2305).
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("require `label`");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("WorkforceSelector");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("Banner");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("Timeline");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("@timbal-ai/timbal-react/ui");
   });
 });
 
@@ -44,6 +65,55 @@ describe("app kit", () => {
     );
     expect(screen.getByRole("heading", { name: "Dashboard" })).toBeTruthy();
     expect(screen.getByText("Overview")).toBeTruthy();
+  });
+
+  it("renders a headerless Page with no heading", () => {
+    const { container } = render(
+      <Page>
+        <p>Just content</p>
+      </Page>,
+    );
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(container.querySelector(".aui-app-page-header")).toBeNull();
+    expect(screen.getByText("Just content")).toBeTruthy();
+  });
+
+  it("makes a fill Page a bounded flex column", () => {
+    const { container } = render(
+      <Page fill>
+        <div>Chat</div>
+      </Page>,
+    );
+    const page = container.querySelector(".aui-app-page");
+    expect(page?.className).toContain("flex-1");
+    expect(page?.className).toContain("min-h-0");
+  });
+
+  it("clips the content region and drops bottom padding when contentFill is set", () => {
+    const { container } = render(
+      <AppShell contentFill>
+        <div>Full bleed</div>
+      </AppShell>,
+    );
+    const scroll = container.querySelector(".aui-app-shell-scroll");
+    const main = container.querySelector(".aui-app-shell-main");
+    expect(scroll?.className).toContain("overflow-hidden");
+    expect(scroll?.className).not.toContain("overflow-y-auto");
+    expect(main?.className).toContain("flex-col");
+    expect(main?.className).not.toContain("pb-8");
+  });
+
+  it("keeps the default content region scrollable as a flex column", () => {
+    const { container } = render(
+      <AppShell>
+        <div>Scrolling page</div>
+      </AppShell>,
+    );
+    const scroll = container.querySelector(".aui-app-shell-scroll");
+    const main = container.querySelector(".aui-app-shell-main");
+    expect(scroll?.className).toContain("overflow-y-auto");
+    expect(main?.className).toContain("flex-col");
+    expect(main?.className).toContain("pb-8");
   });
 
   it("renders StatTile", () => {
@@ -147,3 +217,4 @@ describe("shell inset channel", () => {
     expect(screen.getByTestId("reporter").textContent).toBe("bound");
   });
 });
+

@@ -3,7 +3,7 @@ import { AlertDialog as AlertDialogPrimitive } from "radix-ui";
 
 import { TIMBAL_V2_MODAL_SURFACE } from "../design/button-tokens";
 import { cn } from "../utils";
-import { buttonVariants } from "./button";
+import { Button } from "./button";
 
 function AlertDialog({
   ...props
@@ -117,10 +117,13 @@ function AlertDialogAction({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Action>) {
   return (
-    <AlertDialogPrimitive.Action
-      className={cn(buttonVariants(), className)}
-      {...props}
-    />
+    <Button asChild>
+      <AlertDialogPrimitive.Action
+        data-slot="alert-dialog-action"
+        className={className}
+        {...props}
+      />
+    </Button>
   );
 }
 
@@ -129,10 +132,13 @@ function AlertDialogCancel({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Cancel>) {
   return (
-    <AlertDialogPrimitive.Cancel
-      className={cn(buttonVariants({ variant: "outline" }), className)}
-      {...props}
-    />
+    <Button asChild variant="outline">
+      <AlertDialogPrimitive.Cancel
+        data-slot="alert-dialog-cancel"
+        className={className}
+        {...props}
+      />
+    </Button>
   );
 }
 
