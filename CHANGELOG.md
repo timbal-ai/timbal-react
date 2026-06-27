@@ -4,6 +4,31 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+## [1.6.1] — 2026-06-27
+
+### Fixed
+
+- **recharts charts no longer white-screen under React 19** — recharts 3.6+ stores React elements inside a Redux-Toolkit/`immer` store, and `immer` **11.0.0** froze React 19's Fiber internals, so chart routes crashed with `Cannot assign to read only property 'lanes'`. The crash was always a transitive-dependency mismatch (a stale lockfile pinning `immer@11.0.0`), not a problem with the chart components — `LineAreaChart`, `PieChart`, `RadialChart`, and `RadarChart` are unchanged. The package now forces `immer` to `>=11.0.1` via `overrides`/`resolutions`, deduping to a single safe copy.
+
+### Changed
+
+- **recharts pinned to an exact tested version (`3.8.1`)** so the recharts/Redux-Toolkit/`immer` matrix the package validates against can't float into an untested 3.x range.
+- **`APP_KIT_AGENT_INSTRUCTIONS` charts section** now tells codegen agents that the React 19 chart crash is a dependency override (`"overrides": { "immer": ">=11.0.1" }`), **not** a code change — and to keep using the chart components instead of hand-rolling SVG/CSS charts as a workaround.
+
+### Tooling
+
+- **`check:deps` preflight guard** (`scripts/check-immer.mjs`, wired into CI) fails the build if any installed `immer` falls in the broken `[11.0.0, 11.0.1)` window, turning a silent runtime white-screen into a loud, actionable error. Example apps (`examples/app-kit`, `examples/mock-ui`) carry the same `immer` override.
+
+## [1.6.0] — 2026-06-26
+
+### Changed
+
+- **Condensed layout density across all UI primitives** — heights, paddings, and gaps were stepped down one notch library-wide for a tighter, more data-dense default. Driven from the shared tokens (`CONTROL_SIZE` h-10→h-9 / h-9→h-8 in `src/design/control-surface.ts`, `TOPBAR_HEIGHT_PX` 48→44 and `PILL_HEIGHT_PX` 40→36 in `src/design/tokens.ts`, `TIMBAL_V2_SIZE_HEIGHT`/`SIZE_ICON`/`SIZE_LABEL_PX` in `src/design/button-tokens.ts`, segmented-control paddings in `src/design/pill-segmented-classes.ts`) and applied consistently to `Button`, `UntitledButton`, `Card`, `Table`, `Alert`, `Dialog`, `Sheet`, `Popover`, `Accordion`, `Select`, `DropdownMenu`, `Menubar`, `Command`, `TagInput`, `Toolbar`, `Toast`, `Avatar`, `Calendar`, `Textarea`, `CopyButton`, `Snippet`, `InputOTP`, and `Breadcrumb`. Non-breaking: all component APIs and size variant names are unchanged.
+
+### Fixed
+
+- **Badges no longer stretch inside flex-column layouts** — `StatusBadge` (`src/app/surfaces/StatusBadge.tsx`) and the artifact `badge` node (`src/artifacts/ui/nodes.tsx`) now carry `w-fit shrink-0`, so a badge placed in a vertical flex container (e.g. a `Kanban` card) hugs its label instead of expanding to the full column width.
+
 ## [1.5.0] — 2026-06-26
 
 ### Added

@@ -68,7 +68,7 @@ The content region is a **padded scroll area** by default — great for stacked 
 - Give the filling child **\`min-h-0 flex-1\`** (or \`h-full\`) so its own scroll/footer resolves — e.g. \`<TimbalChat className="min-h-0 flex-1" />\`, or a two-pane row where each pane is \`min-h-0 overflow-y-auto\`.
 
 \`\`\`tsx
-<AppShell contentFill topbar={<div className="flex justify-end p-4"><ModeToggle /></div>}>
+<AppShell contentFill>                          {/* no global topbar / theme switch */}
   <Page fill>                                  {/* headerless: omit title */}
     <TimbalChat workforceId="…" className="min-h-0 flex-1" />
   </Page>
@@ -171,6 +171,8 @@ The cause of slop is dropping **below** the curated block layer into raw primiti
 #### Charts & metrics
 
 Charts run on **recharts** with shadcn \`ChartContainer\` / \`ChartTooltipContent\` chrome (see \`src/ui/chart.tsx\`). Series colors default to \`--chart-1..6\`; override those CSS tokens to rebrand every chart.
+
+> **React 19 requirement — do not hand-roll SVG charts to work around this.** recharts under React 19 crashes (\`Cannot assign to read only property 'lanes'\`, blank route) when \`immer\` resolves to **11.0.0**. The fix is a dependency override in the app's \`package.json\` — \`"overrides": { "immer": ">=11.0.1" }\` (Yarn: \`"resolutions"\`) — **not** a code change. Always keep using \`LineAreaChart\` / \`PieChart\` / \`ChartPanel\`; never replace them with raw SVG/CSS charts.
 
 | Component | Use for |
 |-----------|---------|

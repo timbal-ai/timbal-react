@@ -40,6 +40,14 @@ npm install react react-dom react-is @assistant-ui/react @timbal-ai/timbal-sdk
 ```
 
 > The app-kit charts are built on [recharts](https://recharts.org) (installed automatically). `react-is` is a recharts peer and **must match your React version** — install it explicitly if your package manager doesn't hoist peers.
+>
+> **Required for React 19:** pin `immer` to ≥ 11.0.1 in your app. recharts stores React elements in a Redux-Toolkit/immer store, and immer **11.0.0** freezes React 19's Fiber internals — charts crash with `Cannot assign to read only property 'lanes'` (a blank route). Add an override so a stale lockfile can't reintroduce it:
+>
+> ```json
+> { "overrides": { "immer": ">=11.0.1" } }
+> ```
+>
+> Yarn uses `"resolutions"`. Fresh installs already resolve a safe immer; the override just makes it durable.
 
 ### Tailwind setup
 
