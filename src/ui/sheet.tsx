@@ -160,12 +160,17 @@ function SheetDescription({
   className,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Description>) {
+  // Render as a <div> (not Radix's default <p>) so block-level children — a
+  // StatusBadge, a row of pills, an icon + text — are valid HTML and don't
+  // trigger a "<div> cannot appear as a descendant of <p>" hydration error.
   return (
-    <SheetPrimitive.Description
-      data-slot="sheet-description"
-      className={cn("text-sm text-muted-foreground", className)}
-      {...props}
-    />
+    <SheetPrimitive.Description asChild>
+      <div
+        data-slot="sheet-description"
+        className={cn("text-sm text-muted-foreground", className)}
+        {...props}
+      />
+    </SheetPrimitive.Description>
   );
 }
 

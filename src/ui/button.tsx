@@ -138,6 +138,23 @@ export interface ButtonProps
   asChild?: boolean;
 }
 
+/**
+ * The default button — use this for actions across app-kit dashboards and
+ * forms. Supports `variant` ("default" | "outline" | "secondary" | "ghost" |
+ * "link" | "destructive" …), `iconLeading`/`iconTrailing`, `isLoading`, and
+ * `asChild` (render as a link).
+ *
+ * Prefer `Button` over the specialized variants: `TimbalV2Button` is the
+ * pill/gradient button used by chat & studio chrome, and `UntitledButton` is a
+ * lower-level skin — reach for those only when matching that specific chrome.
+ *
+ * @example
+ * ```tsx
+ * <Button onClick={save}>Save</Button>
+ * <Button variant="outline" iconLeading={<Plus className="size-4" />}>Add</Button>
+ * <Button asChild><a href="/docs">Docs</a></Button>
+ * ```
+ */
 export function Button({
   className,
   variant,

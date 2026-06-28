@@ -12,6 +12,7 @@ import type { WorkforceItem } from "@timbal-ai/timbal-sdk";
 import { motion, useReducedMotion } from "motion/react";
 
 import { cn } from "../../utils";
+import { useOptionalShellNav } from "../../layout/shell-nav-context";
 import { studioSidebarPanelClass } from "../../design/classes";
 import {
   DOM_IDS,
@@ -320,14 +321,32 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
     return () => window.removeEventListener("resize", onResize);
   }, [mobileBreakpointPx]);
 
+  // When rendered inside an `AppShell` (and not explicitly controlled), the
+  // drawer syncs to the shell's mobile-nav controls — so `AppShell`'s built-in
+  // hamburger opens this sidebar with zero wiring and no topbar required.
+  const shellNav = useOptionalShellNav();
+  const isControlled = mobileOpenProp !== undefined;
+  const usingShellNav = !isControlled && shellNav !== null;
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
-  const mobileOpen = mobileOpenProp ?? internalMobileOpen;
+  const mobileOpen = isControlled
+    ? mobileOpenProp
+    : usingShellNav
+      ? shellNav.open
+      : internalMobileOpen;
   const setMobileOpen = useCallback(
     (next: boolean) => {
-      if (mobileOpenProp === undefined) setInternalMobileOpen(next);
+      if (isControlled) {
+        onMobileOpenChangeProp?.(next);
+        return;
+      }
+      if (usingShellNav) {
+        shellNav.setOpen(next);
+      } else {
+        setInternalMobileOpen(next);
+      }
       onMobileOpenChangeProp?.(next);
     },
-    [mobileOpenProp, onMobileOpenChangeProp],
+    [isControlled, usingShellNav, shellNav, onMobileOpenChangeProp],
   );
 
   // Selecting a workforce closes the mobile drawer — otherwise it stays stuck

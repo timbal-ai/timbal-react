@@ -198,6 +198,13 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     good: `<span className="text-primary bg-muted">`,
   },
   {
+    id: "chart-token-color",
+    rule: "Pass chart and theme color tokens directly (var(--chart-1)) — never wrap them in hsl(), rgb(), or oklch().",
+    why: "The --chart-N and theme tokens are already full OKLCH colors. Wrapping them in hsl()/rgb() is invalid CSS, so the chart renders empty/uncolored — and the build still passes, so it's a silent runtime bug.",
+    slop: `<Cell fill="hsl(var(--chart-1))" />`,
+    good: `<Cell fill="var(--chart-1)" />`,
+  },
+  {
     id: "no-decorative-icons",
     rule: "Icons must earn their place (action, nav, or status). Never add an icon beside a label that already says the thing.",
     why: "An icon on every tile/card is the #1 tell of generated slop.",

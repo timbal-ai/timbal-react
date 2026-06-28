@@ -97,12 +97,16 @@ function DialogDescription({
   className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  // Render as a <div> (not Radix's default <p>) so block-level children are
+  // valid HTML and don't trigger a "<div> in <p>" hydration error.
   return (
-    <DialogPrimitive.Description
-      data-slot="dialog-description"
-      className={cn("text-sm text-muted-foreground", className)}
-      {...props}
-    />
+    <DialogPrimitive.Description asChild>
+      <div
+        data-slot="dialog-description"
+        className={cn("text-sm text-muted-foreground", className)}
+        {...props}
+      />
+    </DialogPrimitive.Description>
   );
 }
 

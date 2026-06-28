@@ -18,6 +18,7 @@ import { CHART_PALETTE, type ChartTooltipIndicator } from "./line-area-chart";
 import { toNum } from "./geometry";
 
 export interface PieChartProps {
+  /** One row per slice. */
   data: Array<Record<string, unknown>>;
   /** Category / label key. Inferred from the first non-numeric field if omitted. */
   nameKey?: string;
@@ -25,7 +26,11 @@ export interface PieChartProps {
   dataKey?: string;
   /** Donut hole radius as a fraction of the outer radius (0 = full pie). Default 0. */
   innerRadius?: number;
-  /** Per-slice colors. Defaults to the theme palette. */
+  /**
+   * Per-slice colors. Defaults to the theme `--chart-N` palette (recommended).
+   * If you override, pass tokens directly (`["var(--chart-1)", "var(--chart-2)"]`)
+   * — never `"hsl(var(--chart-1))"` (the tokens are already OKLCH).
+   */
   colors?: string[];
   /** Plot height in px. Default 260. */
   height?: number;
@@ -49,6 +54,23 @@ export interface PieChartProps {
  * Pie / donut chart on recharts. Pass `innerRadius` (0–1 fraction) for a donut
  * and `centerValue` / `centerLabel` to fill the hole with a KPI. Slice colors
  * come from the theme `--chart-N` palette (or `colors`).
+ *
+ * @example
+ * ```tsx
+ * // Donut with a total in the hole:
+ * <PieChart
+ *   data={[
+ *     { browser: "Chrome", visitors: 275 },
+ *     { browser: "Safari", visitors: 200 },
+ *     { browser: "Firefox", visitors: 187 },
+ *   ]}
+ *   nameKey="browser"
+ *   dataKey="visitors"
+ *   innerRadius={0.6}
+ *   centerValue="662"
+ *   centerLabel="Visitors"
+ * />
+ * ```
  */
 export const PieChart: FC<PieChartProps> = ({
   data,

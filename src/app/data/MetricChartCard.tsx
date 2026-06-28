@@ -63,9 +63,13 @@ export interface MetricChartCardProps {
 }
 
 /**
- * Analytics card: selectable KPI row over a flush area chart —
- * timbal-platform `MetricsRowCard` / Studio analytics pattern.
- * Fully supports background sparklines and rich inline trend metadata.
+ * Analytics card: a selectable KPI row over a flush area chart — clicking a
+ * metric tile swaps the plotted series (the timbal-platform `MetricsRowCard` /
+ * Studio analytics pattern). Supports background sparklines and rich inline
+ * trend metadata.
+ *
+ * If you only need a single chart in a titled card (no selectable KPI row), use
+ * `ChartPanel` instead.
  */
 export const MetricChartCard: FC<MetricChartCardProps> = ({
   title,

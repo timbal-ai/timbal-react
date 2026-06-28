@@ -15,6 +15,10 @@ const dotClass: Record<StatusDotTone, string> = {
 };
 
 export interface StatusDotProps {
+  /**
+   * Presence/liveness tone. One of `online | busy | offline | error | neutral`.
+   * (Different vocabulary from `StatusBadge`, which uses `success | warn | …`.)
+   */
   tone?: StatusDotTone;
   /** Optional label rendered to the right of the dot. */
   label?: ReactNode;
@@ -23,7 +27,17 @@ export interface StatusDotProps {
   className?: string;
 }
 
-/** Tiny status indicator dot, optionally labeled and pulsing. */
+/**
+ * Tiny presence/liveness indicator dot, optionally labeled and pulsing — agent
+ * online, service up/down. For a labeled state pill (Paid / Pending / Failed)
+ * use `StatusBadge` instead.
+ *
+ * @example
+ * ```tsx
+ * <StatusDot tone="online" label="Online" pulse />
+ * <StatusDot tone="offline" label="Offline" />
+ * ```
+ */
 export const StatusDot: FC<StatusDotProps> = ({
   tone = "neutral",
   label,

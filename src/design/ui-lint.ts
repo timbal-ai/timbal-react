@@ -68,6 +68,17 @@ const RAW_COLOR_RE = new RegExp(
 const COLOR_LITERAL_RE =
   /#[0-9a-fA-F]{3,8}\b|\b(?:oklch|rgba?|hsla?)\s*\(/g;
 
+/**
+ * A CSS color function wrapping a CSS variable — `hsl(var(--chart-1))`,
+ * `rgb(var(--primary))`, etc. The design tokens are already full OKLCH colors,
+ * so wrapping them in `hsl()` / `rgb()` produces **invalid CSS** and a silently
+ * empty / uncolored result (e.g. a blank chart). tsc and the build never catch
+ * it — the value is a string. The fix is to pass the token directly:
+ * `var(--chart-1)`.
+ */
+const COLOR_FN_WRAPPING_VAR_RE =
+  /\b(?:hsl|hsla|rgb|rgba|oklch|oklab|lab|lch|hwb|color)\s*\(\s*var\(\s*--/i;
+
 /** Inline color via the style prop: style={{ color: ... }} / backgroundColor. */
 const INLINE_STYLE_COLOR_RE =
   /style=\{\{[^}]*\b(?:color|background|backgroundColor|borderColor|fill|stroke)\b/;
@@ -122,6 +133,20 @@ function stripVariants(util: string): string {
   return util.replace(/^(?:[a-z-]+:)*/, "");
 }
 
+/** Short, safe description of a mis-typed argument for error messages. */
+function describeArg(value: unknown): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "an array";
+  const t = typeof value;
+  if (t === "object") {
+    const keys = Object.keys(value as object).slice(0, 4);
+    return keys.length
+      ? `an object with keys { ${keys.join(", ")} }`
+      : "an object";
+  }
+  return `a ${t}`;
+}
+
 function isCommentOrImport(line: string): boolean {
   const t = line.trim();
   return (
@@ -146,6 +171,13 @@ export function lintGeneratedUi(
   source: string,
   options: LintOptions = {},
 ): LintResult {
+  if (typeof source !== "string") {
+    throw new TypeError(
+      `lintGeneratedUi(source, options?) expects the generated code as a string, but received ${describeArg(source)}. ` +
+        "Pass the raw .tsx source — lintGeneratedUi(code) — not an object like { filename, source } and not a previous LintResult.",
+    );
+  }
+
   const maxIcons = options.maxIconsPerView ?? SLOP_BUDGETS.maxIconsPerView;
   const maxRowDividers = options.maxRowDividers ?? SLOP_BUDGETS.maxRowDividers;
 
@@ -245,8 +277,25 @@ export function lintGeneratedUi(
       }
     }
 
+    // ── color function wrapping a token (the silent empty-chart bug) ────
+    // Higher precision than `color-literal`: it tells the agent the exact
+    // reason (`--chart-N`/theme tokens are already OKLCH) and the exact fix.
+    const wrapsTokenInColorFn = COLOR_FN_WRAPPING_VAR_RE.test(line);
+    if (wrapsTokenInColorFn) {
+      findings.push({
+        rule: "chart-token-color-fn",
+        severity: "error",
+        line: lineNo,
+        message:
+          "Color function wrapping a token (e.g. hsl(var(--chart-1))). The --chart-N and theme tokens are already OKLCH colors — wrapping them in hsl()/rgb() is invalid CSS and renders an empty/uncolored chart (the build still passes). Pass the token directly: var(--chart-1), or let the app-kit charts use --chart-N automatically.",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+
     // ── hex / oklch / rgb literals (skip the gradient-token allowlist) ──
-    const literals = line.match(COLOR_LITERAL_RE);
+    // Suppressed when the line already triggered the more specific
+    // `chart-token-color-fn` rule so the agent gets one clear message.
+    const literals = wrapsTokenInColorFn ? null : line.match(COLOR_LITERAL_RE);
     if (literals) {
       findings.push({
         rule: "color-literal",
@@ -445,6 +494,12 @@ export function lintGeneratedUi(
  * Empty string when there are no findings.
  */
 export function formatLintReport(findings: LintFinding[]): string {
+  if (!Array.isArray(findings)) {
+    throw new TypeError(
+      `formatLintReport(findings) expects the findings array, but received ${describeArg(findings)}. ` +
+        "Pass result.findings — formatLintReport(lintGeneratedUi(code).findings) — not the whole LintResult.",
+    );
+  }
   if (findings.length === 0) return "";
   const lines = findings
     .slice()

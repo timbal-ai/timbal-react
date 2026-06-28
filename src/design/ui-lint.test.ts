@@ -54,6 +54,62 @@ describe("lintGeneratedUi — literals & inline styles", () => {
   });
 });
 
+describe("lintGeneratedUi — chart token color", () => {
+  it("errors when a theme token is wrapped in a color function", () => {
+    const res = lintGeneratedUi(`<Cell fill="hsl(var(--chart-1))" />`);
+    expect(res.ok).toBe(false);
+    expect(res.findings.map((f) => f.rule)).toEqual(
+      expect.arrayContaining(["chart-token-color-fn"]),
+    );
+  });
+
+  it("flags rgb()/oklch() wrapping of tokens too", () => {
+    expect(rules(`const c = "rgb(var(--primary))";`)).toEqual(
+      expect.arrayContaining(["chart-token-color-fn"]),
+    );
+    expect(rules(`const c = "oklch(var(--chart-2))";`)).toEqual(
+      expect.arrayContaining(["chart-token-color-fn"]),
+    );
+  });
+
+  it("does not also emit the generic color-literal for the same line", () => {
+    const found = rules(`<Cell fill="hsl(var(--chart-1))" />`);
+    expect(found.includes("chart-token-color-fn")).toBe(true);
+    expect(found.includes("color-literal")).toBe(false);
+  });
+
+  it("accepts a token passed directly", () => {
+    const res = lintGeneratedUi(`<Cell fill="var(--chart-1)" />`);
+    expect(res.findings.some((f) => f.rule === "chart-token-color-fn")).toBe(false);
+    expect(res.findings.some((f) => f.rule === "color-literal")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — input guards", () => {
+  it("throws a TypeError with the correct signature when given a non-string", () => {
+    // The classic misuse: passing { filename, source } instead of the string.
+    expect(() =>
+      // @ts-expect-error — intentionally wrong call shape
+      lintGeneratedUi({ filename: "x.tsx", source: "<div/>" }),
+    ).toThrow(TypeError);
+    try {
+      // @ts-expect-error — intentionally wrong call shape
+      lintGeneratedUi({ filename: "x.tsx", source: "<div/>" });
+    } catch (err) {
+      expect((err as Error).message).toContain("expects the generated code as a string");
+      expect((err as Error).message).toContain("{ filename, source }");
+    }
+  });
+
+  it("formatLintReport throws when handed the whole result instead of findings", () => {
+    const result = lintGeneratedUi(`<div className="text-blue-600" />`);
+    expect(() =>
+      // @ts-expect-error — intentionally wrong call shape
+      formatLintReport(result),
+    ).toThrow(TypeError);
+  });
+});
+
 describe("lintGeneratedUi — house style", () => {
   it("warns on bold giant values", () => {
     expect(
@@ -301,6 +357,7 @@ describe("HOUSE_RULES lint coverage", () => {
   // This guards against a new rule being added without wiring up the gate.
   const LINT_COVERAGE: Record<string, string[]> = {
     "semantic-color": ["raw-color", "color-literal", "inline-style-color"],
+    "chart-token-color": ["chart-token-color-fn"],
     "no-decorative-icons": ["icon-spam"],
     "neutral-trend": ["neutral-trend"],
     "values-normal-weight": ["bold-metric"],

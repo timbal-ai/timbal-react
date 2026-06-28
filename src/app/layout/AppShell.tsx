@@ -1,5 +1,6 @@
 "use client";
 
+import { MenuIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState, type FC, type ReactNode } from "react";
 
@@ -62,6 +63,20 @@ export interface AppShellProps {
   /** Uncontrolled initial mobile-nav open state. Default: `false`. */
   defaultNavOpen?: boolean;
   onNavOpenChange?: (open: boolean) => void;
+  /**
+   * How the mobile hamburger that opens the `sidebar` drawer is provided.
+   * - `"auto"` (default): the shell renders a floating hamburger (top-left,
+   *   `md:hidden`) whenever there's a `sidebar` but no `topbar` — so a sidebar
+   *   dashboard works on mobile with **no topbar and no wiring**.
+   * - `"topbar"`: you place `<AppShellSidebarTrigger />` in the `topbar`
+   *   yourself; the shell renders no floating hamburger.
+   * - `"none"`: the shell renders no hamburger (you provide your own via
+   *   `useAppShellNav()`).
+   *
+   * When a `topbar` is present, `"auto"` behaves like `"topbar"` (the topbar is
+   * assumed to host the trigger) to avoid a duplicate control.
+   */
+  mobileSidebarTrigger?: "auto" | "topbar" | "none";
   className?: string;
   mainClassName?: string;
   /**
@@ -80,6 +95,17 @@ const floatingTriggerClass = cn(
   "bg-primary text-primary-foreground transition-colors hover:bg-primary/90",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
   "bottom-6 right-6 max-sm:bottom-4 max-sm:right-4",
+);
+
+// Floating mobile nav hamburger — only shown when the shell owns the trigger
+// (sidebar present, no topbar). Sits below the backdrop (z-40) and drawer
+// (z-60) so it's covered while the drawer is open, and hidden on `md+` where
+// the sidebar is persistent.
+const floatingNavTriggerClass = cn(
+  "aui-app-shell-nav-trigger-fixed fixed left-4 top-4 z-30 inline-flex size-10 items-center justify-center rounded-xl md:hidden",
+  "border border-border/60 bg-card/85 text-foreground shadow-card-elevated backdrop-blur-xl supports-backdrop-filter:bg-card/75",
+  "transition-colors hover:bg-card",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
 );
 
 const floatingPanelClass = cn(
@@ -193,12 +219,21 @@ export const AppShell: FC<AppShellProps> = ({
   navOpen: navOpenProp,
   defaultNavOpen = false,
   onNavOpenChange,
+  mobileSidebarTrigger = "auto",
   className,
   mainClassName,
   contentFill = false,
 }) => {
   const topbarContent = topbar ?? header;
   const hasChat = Boolean(chat);
+  // A floating hamburger is only needed when the shell itself must surface the
+  // mobile nav control — i.e. there's a sidebar, no topbar to host a trigger,
+  // and the caller hasn't opted out. `md:hidden` keeps it phone-only.
+  const showFloatingNavTrigger =
+    Boolean(sidebar) &&
+    mobileSidebarTrigger !== "none" &&
+    !(mobileSidebarTrigger === "topbar") &&
+    !topbarContent;
 
   const [uncontrolledNavOpen, setUncontrolledNavOpen] = useState(defaultNavOpen);
   const isNavControlled = navOpenProp !== undefined;
@@ -264,6 +299,17 @@ export const AppShell: FC<AppShellProps> = ({
         style={studioChromeShellStyle}
       >
         {sidebar}
+        {showFloatingNavTrigger && !navOpen ? (
+          <button
+            type="button"
+            aria-label="Open navigation"
+            aria-expanded={false}
+            onClick={() => setNavOpen(true)}
+            className={floatingNavTriggerClass}
+          >
+            <MenuIcon className="size-5" aria-hidden />
+          </button>
+        ) : null}
         {sidebar && navOpen ? (
           <button
             type="button"

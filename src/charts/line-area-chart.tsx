@@ -61,9 +61,17 @@ export const CHART_PALETTE = [
 ] as const;
 
 export interface ChartSeries {
+  /** Key in each data row holding this series' numeric value. */
   dataKey: string;
+  /** Legend / tooltip label. Defaults to `dataKey`. */
   label?: string;
-  /** CSS color (token or literal). Defaults to the palette by index. */
+  /**
+   * CSS color for the series. Defaults to the `--chart-N` palette by index, so
+   * you usually omit it. If you set it, pass a token **directly** —
+   * `"var(--chart-3)"` or `"var(--destructive)"` — never `"hsl(var(--chart-3))"`:
+   * the tokens are already OKLCH colors, so wrapping them in `hsl()/rgb()` is
+   * invalid CSS and renders an empty chart.
+   */
   color?: string;
 }
 
@@ -132,6 +140,36 @@ export interface LineAreaChartProps {
  * and bar charts (vertical or horizontal), with stacking, curve interpolation,
  * dots, grid control, and the shared `ChartTooltipContent` / `ChartLegendContent`
  * chrome. Series colors flow from the theme `--chart-N` tokens via `ChartConfig`.
+ *
+ * Pass `data` as an array of rows and (optionally) `series` to pick which keys
+ * to plot — both `xKey` and `series` are inferred from the data when omitted.
+ * Colors come from the `--chart-N` tokens automatically; don't hand-author them.
+ *
+ * @example
+ * ```tsx
+ * // Stacked area, colors inferred from the theme:
+ * <LineAreaChart
+ *   data={[
+ *     { month: "Jan", desktop: 186, mobile: 80 },
+ *     { month: "Feb", desktop: 305, mobile: 200 },
+ *   ]}
+ *   xKey="month"
+ *   series={["desktop", "mobile"]}
+ *   variant="area"
+ *   stacked
+ * />
+ * ```
+ * @example
+ * ```tsx
+ * // Horizontal bar with a custom token color on one series:
+ * <LineAreaChart
+ *   data={rows}
+ *   xKey="team"
+ *   series={[{ dataKey: "wins", color: "var(--chart-2)" }]}
+ *   variant="bar"
+ *   orientation="horizontal"
+ * />
+ * ```
  */
 export const LineAreaChart: FC<LineAreaChartProps> = ({
   data = [],

@@ -4,6 +4,30 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+## [1.7.0] — 2026-06-28
+
+Hardening release: make UI generation bulletproof for codegen agents by letting
+the package speak for itself (types, defaults, JSDoc-with-examples, fail-loud
+guardrails) instead of leaning on prose instructions.
+
+### Added
+
+- **`AppShell` auto mobile-nav hamburger (no topbar required)** — when an `AppShell` has a `sidebar` but no `topbar`, it now renders its own floating hamburger (`md:hidden`, top-left) that opens the sidebar drawer. New `mobileSidebarTrigger?: "auto" | "topbar" | "none"` (default `"auto"`). A sidebar dashboard now works on mobile with **no topbar and no wiring** — detaching the long-standing "inject a topbar just for the mobile menu" coupling.
+- **`StudioSidebar` auto-syncs to the shell** — inside `AppShell`, the drawer reads the shell's mobile-nav controls automatically when `mobileOpen` isn't passed (via a neutral `src/layout/shell-nav-context.tsx` channel, mirroring the inset channel). No more manual `mobileOpen` / `onMobileOpenChange` / `StudioSidebarBackdrop` plumbing.
+- **Chart-color lint rule (`chart-token-color-fn`, error)** — flags wrapping an OKLCH token in a color function (`hsl(var(--chart-1))`, `rgb(var(--primary))`, …), the silent "empty chart that still builds" bug. New `chart-token-color` entry in `HOUSE_RULES`.
+- **JSDoc `@example` on the hot prop surface** — `LineAreaChart`, `PieChart`, `RadialChart`, `RadarChart`, `DataTable`, `StatusBadge`, `StatusDot`, `MetricRow`, `Button`, `ChartPanel`/`MetricChartCard`, `FieldSelect` now carry copyable examples + disambiguation in their `.d.ts`, killing the "grep `dist/*.d.ts` to reverse-engineer props" loop.
+- **New recipes** — `sidebar-dashboard` (canonical no-topbar sidebar dashboard) and `chat-with-drawer` (chat-first + right-side Sheet drawer with a bounded scroll region) in `examples/app-kit`, registered in the blocks catalog.
+
+### Fixed
+
+- **`SheetDescription` / `DialogDescription` no longer cause hydration errors** — they render as a `<div>` (via `asChild`) instead of Radix's default `<p>`, so block-level children (badges, pill rows) are valid HTML.
+- **`lintGeneratedUi` / `formatLintReport` fail loud on misuse** — passing a non-string source (e.g. `{ filename, source }`) or the whole `LintResult` to `formatLintReport` now throws a `TypeError` whose message states the correct signature, instead of silently mis-running.
+
+### Tooling
+
+- Anti-drift test (`src/anti-drift.test.ts`) asserts the `/app`, `/ui`, `/studio` export surface the examples/blueprint depend on (and that `Tabs` / `AppShellTopbar` are NOT exported), so API drift fails a test instead of surfacing as a codegen error.
+- `docs/agent-environment.md` captures the environmental gotchas (`bun x tsc -b` not `npx`, preview vs EFS `node_modules` paths, stale `*.tsbuildinfo`) once, out of the prompt strings.
+
 ## [1.6.1] — 2026-06-27
 
 ### Fixed

@@ -194,6 +194,60 @@ describe("app kit", () => {
     expect(screen.getByTestId("rail")).toBeTruthy();
     expect(screen.getByText("Dashboard body")).toBeTruthy();
   });
+
+  it("auto-renders a mobile nav hamburger when there's a sidebar and no topbar", () => {
+    render(
+      <AppShell sidebar={<nav data-testid="rail">Rail</nav>}>
+        <p>Body</p>
+      </AppShell>,
+    );
+    const trigger = screen.getByRole("button", { name: "Open navigation" });
+    expect(trigger).toBeTruthy();
+    // Phone-only; the persistent sidebar covers md+.
+    expect(trigger.className).toContain("md:hidden");
+  });
+
+  it("opens the mobile nav and swaps to a backdrop on trigger click", () => {
+    render(
+      <AppShell sidebar={<nav data-testid="rail">Rail</nav>}>
+        <p>Body</p>
+      </AppShell>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open navigation" }));
+    // Hamburger is replaced by the close-backdrop while open.
+    expect(screen.queryByRole("button", { name: "Open navigation" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Close navigation" })).toBeTruthy();
+  });
+
+  it("does not auto-render the hamburger when a topbar is present", () => {
+    render(
+      <AppShell
+        sidebar={<nav data-testid="rail">Rail</nav>}
+        topbar={<div>Top</div>}
+      >
+        <p>Body</p>
+      </AppShell>,
+    );
+    expect(screen.queryByRole("button", { name: "Open navigation" })).toBeNull();
+  });
+
+  it("omits the hamburger when there's no sidebar", () => {
+    render(
+      <AppShell>
+        <p>Body</p>
+      </AppShell>,
+    );
+    expect(screen.queryByRole("button", { name: "Open navigation" })).toBeNull();
+  });
+
+  it("suppresses the auto hamburger when mobileSidebarTrigger is none", () => {
+    render(
+      <AppShell sidebar={<nav data-testid="rail">Rail</nav>} mobileSidebarTrigger="none">
+        <p>Body</p>
+      </AppShell>,
+    );
+    expect(screen.queryByRole("button", { name: "Open navigation" })).toBeNull();
+  });
 });
 
 describe("shell inset channel", () => {
