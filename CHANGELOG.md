@@ -6,29 +6,46 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [1.8.0] — 2026-06-28
 
-Sidebar + anti-slop hardening: close the gap that let a codegen agent ship a
-hand-rolled neon "SOC" dashboard (custom nav rail, a topbar it was told not to
-add, glow shadows, hand-painted dark tokens, UPPERCASE chrome). The package now
-makes the canonical path the *only* easy path and rejects the slop with the lint
-gate instead of relying on prose the agent skipped.
+Conversation history for app runs, a glass copilot shell, and sidebar + anti-slop
+hardening. Host apps can list past threads, reopen one in `<Thread>`, and continue
+it; `AppChatPanel` / `AppShell` ship an Apple-style liquid-glass copilot with a
+built-in history menu. Sidebar icons and four new lint gates close the gap that let
+codegen agents ship hand-rolled neon dashboards.
 
 ### Added
 
-- **`StudioSidebar` nav items take an optional `icon`** — items are now `{ id, name, icon? }` (new exported `StudioSidebarItem` type). The icon renders inline when expanded and as the rail glyph when collapsed (falling back to the initial). This removes the only real reason agents hand-rolled a custom sidebar: "I need per-item icons." `StudioSidebar` is now a first-class app route-nav sidebar, not just an agent picker. Fully backward compatible — existing `WorkforceItem[]` callers are unchanged.
-- **Four hard-error lint rules** (`lintGeneratedUi`), each mirrored in `HOUSE_RULES` so the prompt teaches what the gate enforces:
-  - `no-glow` — neon/glow shadows (`shadow-[0_0_…]`, `drop-shadow-[0_0_…]`), the canonical "cyberpunk AI dashboard" tell. Offset drop shadows and `shadow-card` are unaffected.
-  - `no-custom-shell-chrome` — a hand-rolled topbar (`AppShellSidebarTrigger` is unnecessary — `AppShell` renders the mobile menu itself) or a hand-rolled `<nav>`/`<aside>` rail (`flex-col` + fixed rail width). Use `AppShell sidebar={<StudioSidebar … />}`.
-  - `no-uppercase-heading` — `uppercase` on `<h1>`–`<h3>` or large text. Small `text-xs uppercase tracking-wide` eyebrows are intentionally allowed.
-  - `theme-via-generator` — `forcedTheme` or hand-authored theme token values (`--background: oklch(…)`, `--sidebar-bg: #…`). Brand via `createTimbalTheme({ brand })` instead.
+- **Conversation history (app runs)** — data layer + hooks to list thread roots and hydrate a full conversation from stored run traces:
+  - `listRuns`, `getRun`, `orderRunsForThread`, `isRootRun`, `runParentId` (`src/runtime/conversations.ts`)
+  - `runTraceToMessages`, `conversationRunsToMessages`, `normalizeContentToText` (`src/runtime/trace-to-messages.ts`) — rebuild text, thinking, tool calls (with results), and attachments per turn
+  - `useConversations` — paginated thread-root list scoped to a `workforceId`
+  - `useConversation` — fetch every turn in a thread, hydrate traces, return `<Thread>`-ready `ChatMessage[]` (with `truncated` when over `maxTurns`)
+  - `useTimbalRuntime().loadMessages(messages)` — replace runtime messages to reopen a stored thread; the last assistant `runId` becomes the parent for the next send
+  - Exported from the package root and `./chat`; README documents the host `{baseUrl}/runs` proxy requirement
+- **`AppChatPanel` conversation menu** — lists past threads for the panel's `workforceId`, reopens one by hydrating its traces into the live runtime, and starts a fresh thread via `clear`. Glass-styled composer (attachment chips, collapsible suggestions, send/cancel controls) tuned for the dark copilot panel.
+- **Liquid-glass copilot shell (`AppShell`)** — floating panel uses a vibrancy gradient + backdrop blur; expand/collapse via `chatExpanded` / `defaultChatExpanded` / `onChatExpandedChange` and `useAppShellChat().setExpanded`. Launcher trigger is a `liquid-glass-react` pill with an animated `SiriWave` glyph (no MessageSquare icon).
+- **`StudioSidebar` nav items take an optional `icon`** — items are now `{ id, name, icon? }` (new exported `StudioSidebarItem` type). The icon renders inline when expanded and as the rail glyph when collapsed (falling back to the initial). Fully backward compatible — existing `WorkforceItem[]` callers are unchanged.
+- **Five hard-error lint rules** (`lintGeneratedUi`), each mirrored in `HOUSE_RULES`:
+  - `no-glow` — neon/glow shadows (`shadow-[0_0_…]`, `drop-shadow-[0_0_…]`). Offset drop shadows and `shadow-card` are unaffected.
+  - `no-custom-shell-chrome` — a hand-rolled topbar (`AppShellSidebarTrigger` is unnecessary) or a hand-rolled `<nav>`/`<aside>` rail. Use `AppShell sidebar={<StudioSidebar … />}`.
+  - `no-uppercase-heading` — `uppercase` on `<h1>`–`<h3>` or large text. Small `text-xs uppercase tracking-wide` eyebrows are allowed.
+  - `theme-via-generator` — `forcedTheme` or hand-authored theme token values. Brand via `createTimbalTheme({ brand })` instead.
+  - `no-chat-wrapping` — `TimbalChat` / `AppChatPanel` wrapped in `Card`, `Section`, or custom bordered containers (or redundant heading/status chrome above the chat).
 
 ### Changed
 
-- **`APP_KIT_AGENT_INSTRUCTIONS` rewired around the shell** — new **Shell & navigation** section: sidebar = `StudioSidebar` with `{ id, name, icon? }` items + a copyable example; **no topbar by default** (AppShell renders the mobile menu); never hand-roll a rail or topbar. The "Sidebar dashboard" archetype, the Layout-chrome rule, the new Theme rule, and the `AppShell`/`StudioSidebar` menu entries all state this explicitly and name the linting rule that enforces it.
-- **Recipes + reference model the pattern** — `sidebar-dashboard` recipe, the `operations-dashboard` reference, and the blueprint `AppKitDemo` now pass icon nav items (and a `brand`), demonstrating route nav with icons and zero topbar.
+- **`APP_KIT_AGENT_INSTRUCTIONS` rewired around the shell** — new **Shell & navigation** section; documents the no-topbar default, `StudioSidebar` icon nav, and the chat-wrapping rule.
+- **Recipes + reference model the pattern** — `sidebar-dashboard` recipe, the `operations-dashboard` reference, and the blueprint `AppKitDemo` now pass icon nav items (and a `brand`).
+- **`StudioSidebar` user menu** — profile dropdown restyled to match the glass history menu pattern.
+- **README** — simplified `AppShell` + `StudioSidebar` mobile-nav example (no manual `useAppShellNav` wiring); new **Conversation history** section with hook examples and lower-level API table.
+
+### Dependencies
+
+- **`liquid-glass-react`** — used for the copilot launcher pill (`AppShell`).
 
 ### Tooling
 
-- Anti-drift test asserts `StudioSidebarItem` accepts `{ id, name, icon }` at the type level, so the icon slot can't silently regress.
+- `trace-to-messages.test.ts` — turn + thread reconstruction from sample traces.
+- Anti-drift test asserts `StudioSidebarItem` accepts `{ id, name, icon }` at the type level.
 
 ## [1.7.0] — 2026-06-28
 
