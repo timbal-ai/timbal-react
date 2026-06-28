@@ -1,6 +1,6 @@
 {
   "name": "@timbal-ai/timbal-react",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "React components and runtime for building Timbal chat and studio apps",
   "type": "module",
   "main": "dist/index.cjs",
@@ -90,6 +90,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "katex": "^0.16.28",
+    "liquid-glass-react": "^1.1.1",
     "lucide-react": "^0.574.0",
     "motion": "^12.23.24",
     "radix-ui": "^1.4.3",

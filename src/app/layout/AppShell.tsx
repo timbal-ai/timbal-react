@@ -1,8 +1,8 @@
 "use client";
 
 import { MenuIcon } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState, type FC, type ReactNode } from "react";
+import { motion, useReducedMotion, AnimatePresence } from "motion/react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type FC, type ReactNode } from "react";
 
 import {
   appShellInsetBottomClass,
@@ -20,8 +20,11 @@ import {
   type ShellInsetReporter,
 } from "../../layout/shell-inset-context";
 import { cn } from "../../utils";
+import LiquidGlass from "liquid-glass-react";
+
 import { AppShellChatProvider } from "./app-shell-chat-context";
 import { AppShellNavProvider } from "./app-shell-nav-context";
+import { SiriWave } from "../../../components/ui/siri-wave";
 
 export interface AppShellProps {
   /** Primary navigation (e.g. StudioSidebar or custom rail). */
@@ -52,6 +55,11 @@ export interface AppShellProps {
   /** Uncontrolled initial open state. Default: `false`. */
   defaultChatOpen?: boolean;
   onChatOpenChange?: (open: boolean) => void;
+  /** Controlled expanded state for the floating panel. */
+  chatExpanded?: boolean;
+  /** Uncontrolled initial expanded state. Default: `false`. */
+  defaultChatExpanded?: boolean;
+  onChatExpandedChange?: (expanded: boolean) => void;
   /** Show floating open/close control. Default: `true`. */
   chatCollapsible?: boolean;
   /** Label on the floating open trigger. Default: `Assistant`. */
@@ -90,11 +98,30 @@ export interface AppShellProps {
   contentFill?: boolean;
 }
 
-const floatingTriggerClass = cn(
-  "aui-app-shell-chat-trigger-fixed fixed z-50 rounded-full px-5 py-2.5 text-sm font-medium shadow-card-elevated",
-  "bg-primary text-primary-foreground transition-colors hover:bg-primary/90",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-  "bottom-6 right-6 max-sm:bottom-4 max-sm:right-4",
+// Apple-style "liquid glass" surface: heavy blur + saturation for vibrancy,
+// a darker top fading to a more translucent (glassy) bottom, a soft color pool
+// rising from the bottom, plus an inset top highlight so the rim reads as glass.
+const SIRI_GLASS_STYLE: CSSProperties = {
+  backgroundImage:
+    "linear-gradient(to bottom, rgba(18,18,22,0.92) 0%, rgba(20,20,26,0.74) 55%, rgba(46,46,58,0.42) 100%), radial-gradient(120% 80% at 50% 120%, rgba(168,85,247,0.20) 0%, rgba(59,130,246,0.12) 45%, transparent 75%)",
+  backdropFilter: "blur(44px) saturate(180%)",
+  WebkitBackdropFilter: "blur(44px) saturate(180%)",
+  boxShadow:
+    "0 30px 120px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.14), inset 0 0 0 1px rgba(255,255,255,0.08)",
+  // Neutralize the light theme tokens inside the panel so child surfaces
+  // (thread footer `bg-card`, composer `bg-composer-bg`) read as glass, not white.
+  ["--card" as string]: "transparent",
+  ["--background" as string]: "transparent",
+  ["--composer-bg" as string]: "transparent",
+  transformOrigin: "100% 100%",
+};
+
+const SIRI_PANEL_BASE = cn(
+  "aui-app-shell-chat-float dark fixed z-50 flex flex-col overflow-hidden",
+  "bottom-6 right-6 max-sm:bottom-3 max-sm:right-3",
+  // width/height/radius transition between collapsed and expanded — CSS handles
+  // rem↔calc interpolation on computed lengths (no Framer `auto` breakage).
+  "transition-[width,height,border-radius] duration-[450ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
 );
 
 // Floating mobile nav hamburger — only shown when the shell owns the trigger
@@ -213,6 +240,9 @@ export const AppShell: FC<AppShellProps> = ({
   chatOpen: chatOpenProp,
   defaultChatOpen = false,
   onChatOpenChange,
+  chatExpanded: chatExpandedProp,
+  defaultChatExpanded = false,
+  onChatExpandedChange,
   chatCollapsible = true,
   chatTriggerLabel = "Assistant",
   hideChatTrigger = false,
@@ -268,6 +298,20 @@ export const AppShell: FC<AppShellProps> = ({
     setChatOpen(!chatOpen);
   }, [chatOpen, setChatOpen]);
 
+  const [uncontrolledExpanded, setUncontrolledExpanded] = useState(defaultChatExpanded);
+  const isChatExpandedControlled = chatExpandedProp !== undefined;
+  const chatExpanded = isChatExpandedControlled ? chatExpandedProp : uncontrolledExpanded;
+
+  const setChatExpanded = useCallback(
+    (expanded: boolean) => {
+      if (!isChatExpandedControlled) {
+        setUncontrolledExpanded(expanded);
+      }
+      onChatExpandedChange?.(expanded);
+    },
+    [isChatExpandedControlled, onChatExpandedChange],
+  );
+
   const [insetPaddingPx, setInsetPaddingPx] = useState(
     sidebar ? SIDEBAR_INSET_PX_EXPANDED : 0,
   );
@@ -319,28 +363,57 @@ export const AppShell: FC<AppShellProps> = ({
           />
         ) : null}
         {shellBody}
-      {hasChat && chatOpen ? (
-        <div
-          className={floatingPanelClass}
-          style={{
-            ["--app-shell-chat-width" as string]: chatWidth,
-            ...(chatHeight ? { height: chatHeight } : undefined),
-          }}
-          role="dialog"
-          aria-label={typeof chatTriggerLabel === "string" ? chatTriggerLabel : "Assistant"}
-        >
-          {chat}
-        </div>
-      ) : null}
+      <AnimatePresence>
+        {hasChat && chatOpen ? (
+          <motion.div
+            className={cn(
+              SIRI_PANEL_BASE,
+              chatExpanded
+                ? "w-[calc(100vw-3rem)] h-[calc(100vh-3rem)] max-sm:w-[calc(100vw-1.5rem)] max-sm:h-[calc(100vh-1.5rem)] rounded-[32px]"
+                : "w-[30rem] h-[40rem] max-w-[calc(100vw-3rem)] max-h-[calc(100vh-3rem)] max-sm:w-[calc(100vw-1.5rem)] max-sm:h-[calc(100vh-1.5rem)] rounded-[28px]",
+            )}
+            style={SIRI_GLASS_STYLE}
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.4 }}
+            transition={{ duration: 0.42, ease: [0.32, 0.72, 0, 1] }}
+            role="dialog"
+            aria-label={typeof chatTriggerLabel === "string" ? chatTriggerLabel : "Assistant"}
+          >
+            {chat}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       {hasChat && chatCollapsible && !chatOpen && !hideChatTrigger ? (
-        <button
-          type="button"
-          className={floatingTriggerClass}
+        <LiquidGlass
           onClick={() => setChatOpen(true)}
-          aria-expanded={false}
+          cornerRadius={999}
+          padding="6px 20px 6px 6px"
+          blurAmount={0.08}
+          displacementScale={64}
+          saturation={140}
+          aberrationIntensity={2}
+          elasticity={0.3}
+          className="aui-app-shell-chat-trigger-fixed z-50 cursor-pointer"
+          style={{
+            position: "fixed",
+            // The library centers on its top/left anchor (translate -50%,-50%),
+            // so anchor at the pill's center near the bottom-right corner.
+            top: "calc(100dvh - 1.5rem - 26px)",
+            left: "calc(100dvw - 1.5rem - 78px)",
+          }}
         >
-          {chatTriggerLabel}
-        </button>
+          <div className="flex items-center gap-2 text-sm font-medium text-black">
+            <SiriWave
+              variant="wave"
+              size={40}
+              renderScale={1.5}
+              className="rounded-full shrink-0 bg-transparent"
+              style={{ width: 40, height: 40, background: "transparent" }}
+            />
+            <span>{chatTriggerLabel}</span>
+          </div>
+        </LiquidGlass>
       ) : null}
       </div>
     </ShellInsetProvider>
@@ -361,6 +434,8 @@ export const AppShell: FC<AppShellProps> = ({
         setOpen: setChatOpen,
         toggle: toggleChat,
         collapsible: chatCollapsible,
+        expanded: chatExpanded,
+        setExpanded: setChatExpanded,
       }}
     >
       {withNav}

@@ -8,10 +8,10 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { WorkforceItem } from "@timbal-ai/timbal-sdk";
 import { motion, useReducedMotion } from "motion/react";
 
 import { cn } from "../../utils";
+import type { StudioSidebarItem } from "./sidebar-workforce";
 import { useOptionalShellNav } from "../../layout/shell-nav-context";
 import { studioSidebarPanelClass } from "../../design/classes";
 import {
@@ -57,7 +57,7 @@ function writePersistedCollapsed(key: string | null, collapsed: boolean): void {
 }
 
 export interface StudioSidebarPanelProps {
-  workforces: WorkforceItem[];
+  workforces: StudioSidebarItem[];
   selectedId: string;
   onSelect: (id: string) => void;
   collapsed: boolean;
@@ -219,10 +219,37 @@ export const StudioSidebarPanel: FC<StudioSidebarPanelProps> = ({
 
 export interface StudioSidebarProps {
   /**
-   * Workforces to display. When omitted, the sidebar fetches them via the
-   * shared `useWorkforces()` hook.
+   * Nav entries to display. Each is a `WorkforceItem` (`{ id, name }` is
+   * enough) plus an **optional `icon`** for route-style navigation
+   * (Dashboard / Inbox / Settings). When omitted entirely, the sidebar
+   * fetches workforces via the shared `useWorkforces()` hook.
+   *
+   * This is the canonical app sidebar — pass it to `AppShell.sidebar`. Do
+   * **not** hand-roll a custom `<nav>` rail; pass `icon` here instead.
+   *
+   * @example
+   * ```tsx
+   * import { LayoutDashboard, Inbox, Boxes } from "lucide-react";
+   *
+   * <AppShell
+   *   sidebar={
+   *     <StudioSidebar
+   *       brand={<span className="text-sm font-semibold">SOC</span>}
+   *       workforces={[
+   *         { id: "dashboard", name: "Dashboard", icon: <LayoutDashboard /> },
+   *         { id: "inbox", name: "Alert inbox", icon: <Inbox /> },
+   *         { id: "assets", name: "Asset inventory", icon: <Boxes /> },
+   *       ]}
+   *       selectedId={view}
+   *       onSelect={setView}
+   *     />
+   *   }
+   * >
+   *   …
+   * </AppShell>
+   * ```
    */
-  workforces?: WorkforceItem[];
+  workforces?: StudioSidebarItem[];
   selectedId?: string;
   onSelect?: (id: string) => void;
   /** Initial collapse state when no persisted value exists. Default: false. */

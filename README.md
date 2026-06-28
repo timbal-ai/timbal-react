@@ -351,31 +351,26 @@ function MyShell() {
 To inset a main column that follows the sidebar as it collapses, use `AppShell`, which wires the tracking automatically:
 
 ```tsx
-import { AppShell, StudioSidebar, useAppShellNav } from "@timbal-ai/timbal-react";
-
-// Rendered inside AppShell, so it can read the shell's mobile-nav controls and
-// wire the drawer. The sidebar already closes itself on selection (mobile).
-function Sidebar({ agent, onSelect }: { agent: string; onSelect: (id: string) => void }) {
-  const nav = useAppShellNav();
-  return (
-    <StudioSidebar
-      selectedId={agent}
-      onSelect={onSelect}
-      mobileOpen={nav.open}
-      onMobileOpenChange={nav.setOpen}
-    />
-  );
-}
+import { AppShell, StudioSidebar } from "@timbal-ai/timbal-react";
 
 function MyShell() {
   const [agent, setAgent] = useState("agent-a");
   return (
-    <AppShell sidebar={<Sidebar agent={agent} onSelect={setAgent} />}>
+    <AppShell
+      // StudioSidebar is rendered through AppShell's `sidebar` prop, so it's a
+      // descendant of the shell and auto-syncs to the mobile-nav drawer — no
+      // mobileOpen / useAppShellNav wiring. AppShell renders the mobile
+      // hamburger itself (when there's a sidebar and no topbar). The sidebar
+      // also closes itself on selection (mobile).
+      sidebar={<StudioSidebar selectedId={agent} onSelect={setAgent} />}
+    >
       {/* main content insets + animates with the sidebar */}
     </AppShell>
   );
 }
 ```
+
+> Do **not** call `useAppShellNav()` in the component that *renders* `<AppShell>` and feed its `open`/`setOpen` into `StudioSidebar`'s `mobileOpen` — that hook reads the shell context, so outside the shell it returns a no-op (`open` stuck `false`) and pins the drawer shut. Let `StudioSidebar` auto-sync instead (above). `useAppShellNav()` is only for a **custom** trigger rendered *inside* `AppShell`.
 
 For a fully custom shell, drive your own offset from `StudioSidebar`'s `onInsetChange` callback, which fires with the live inset width (px) whenever the collapse state changes.
 
@@ -448,6 +443,90 @@ function ChatWithPicker() {
 ```
 
 `useWorkforces` accepts `baseUrl`, `fetch`, and `pickInitial` (custom resolver for the default selection). It returns `selected`, `error`, and `refresh()` as well.
+
+---
+
+## Conversation history (app runs)
+
+Timbal stores one **run** per conversation *turn*. Runs that share a `group_id` form a thread; the thread root is the run with no parent (`group_id === id`). The package ships a data layer to list past conversations, reopen one in `<Thread>`, and continue it.
+
+> **Host requirement.** These hooks read `{baseUrl}/runs` and `{baseUrl}/runs/{id}` (default `baseUrl` `/api`). Your host proxy must map them to the platform runs surface (`GET /orgs/{org}/projects/{project}/runs`), injecting org/project + auth — the same proxy that already serves `{baseUrl}/workforce`. Override the segment with the `runsPath` option if your proxy mounts it elsewhere.
+
+### List conversations
+
+`useConversations` lists thread roots (`roots=true`) for a workforce, with offset pagination:
+
+```tsx
+import { useConversations } from "@timbal-ai/timbal-react";
+
+function ConversationList({ workforceId, onPick }) {
+  const { conversations, isLoading, hasMore, loadMore } = useConversations({
+    workforceId,
+  });
+
+  if (isLoading) return <div>Loading…</div>;
+
+  return (
+    <ul>
+      {conversations.map((c) => (
+        <li key={c.id}>
+          <button onClick={() => onPick(String(c.id))}>
+            {new Date(c.created_at ?? "").toLocaleString()}
+          </button>
+        </li>
+      ))}
+      {hasMore && <button onClick={loadMore}>Load more</button>}
+    </ul>
+  );
+}
+```
+
+Root rows are ordered by thread creation time and **don't** carry aggregates (turn count, last message, cost) — fetch the trace (`useConversation` / `getRun`) when you need a title or preview.
+
+### Open a conversation and continue it
+
+`useConversation` fetches every turn in a thread, hydrates each turn's trace, and reconstructs `<Thread>`-ready `ChatMessage[]` (text, thinking, tool calls with results, attachments). Load them into a live runtime with `useTimbalRuntime().loadMessages(...)`; the last assistant `runId` becomes the parent so the next send continues the same thread:
+
+```tsx
+import { useEffect } from "react";
+import {
+  TimbalRuntimeProvider,
+  Thread,
+  useTimbalRuntime,
+  useConversation,
+} from "@timbal-ai/timbal-react";
+
+function ConversationLoader({ workforceId, conversationId }) {
+  const { messages, isLoading } = useConversation({ workforceId, conversationId });
+  const { loadMessages } = useTimbalRuntime();
+
+  useEffect(() => {
+    if (!isLoading) loadMessages(messages);
+  }, [isLoading, messages, loadMessages]);
+
+  return null;
+}
+
+function ChatPage({ workforceId, conversationId }) {
+  return (
+    <TimbalRuntimeProvider workforceId={workforceId}>
+      <ConversationLoader workforceId={workforceId} conversationId={conversationId} />
+      <Thread />
+    </TimbalRuntimeProvider>
+  );
+}
+```
+
+### Lower-level building blocks
+
+| Export | Purpose |
+|--------|---------|
+| `listRuns(params)` | Raw runs list (`roots`, `groupId`, `workforceId`, `pageToken`, …) → `{ runs, next_page_token }` |
+| `getRun({ runId })` | One `RunDetail` including its span `trace` |
+| `orderRunsForThread(runs)` | Sort runs into thread order (parent-first, else chronological) |
+| `runTraceToMessages(trace, { runId })` | One turn's trace → `[user, assistant]` messages |
+| `conversationRunsToMessages(runs, detailByRunId)` | Whole thread → ordered `ChatMessage[]` |
+| `TimbalStreamApi.loadMessages(messages)` | Replace runtime messages (hydrate a stored thread) |
 
 ---
 
@@ -945,7 +1024,9 @@ if (res.ok) {
 |---|---|
 | `useWorkforces` | Fetch `{baseUrl}/workforce` and track selection |
 | `useTimbalStream` | Low-level SSE chat state without `<Thread>` |
-| `useTimbalRuntime` | Access runtime context inside custom providers |
+| `useTimbalRuntime` | Access runtime context inside custom providers (incl. `loadMessages`) |
+| `useConversations` | List past conversations (thread roots) for a workforce |
+| `useConversation` | Load one thread's turns + reconstruct `ChatMessage[]` from traces |
 | `useResolvedSuggestions` | Resolve static/async `SuggestionsSource` to an array |
 | `useOptionalSession` | Same as `useSession` but returns `null` when no `SessionProvider` is mounted |
 

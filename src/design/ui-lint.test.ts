@@ -351,6 +351,117 @@ describe("lintGeneratedUi — neutral trend", () => {
   });
 });
 
+describe("lintGeneratedUi — glow shadows", () => {
+  it("errors on a neon glow box-shadow", () => {
+    const res = lintGeneratedUi(
+      `<span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />`,
+    );
+    expect(res.ok).toBe(false);
+    expect(res.findings.map((f) => f.rule)).toEqual(
+      expect.arrayContaining(["no-glow"]),
+    );
+  });
+
+  it("errors on drop-shadow glow with px offsets", () => {
+    expect(rules(`<div className="drop-shadow-[0px_0px_20px_var(--ring)]" />`)).toEqual(
+      expect.arrayContaining(["no-glow"]),
+    );
+  });
+
+  it("does not flag the kit elevation shadows", () => {
+    const res = lintGeneratedUi(
+      `<div className="shadow-card hover:shadow-card-elevated" />`,
+    );
+    expect(res.findings.some((f) => f.rule === "no-glow")).toBe(false);
+  });
+
+  it("does not flag an offset drop shadow (not a 0 0 halo)", () => {
+    const res = lintGeneratedUi(`<div className="shadow-[0_2px_8px_var(--ring)]" />`);
+    expect(res.findings.some((f) => f.rule === "no-glow")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — custom shell chrome", () => {
+  it("errors when a custom topbar uses AppShellSidebarTrigger", () => {
+    const src = `
+      <div className="flex h-12 items-center border-b px-4">
+        <AppShellSidebarTrigger className="lg:hidden" />
+      </div>
+    `;
+    expect(rules(src)).toEqual(
+      expect.arrayContaining(["no-custom-shell-chrome"]),
+    );
+  });
+
+  it("errors on a hand-rolled full-height nav rail", () => {
+    const src = `<nav className="flex h-full w-64 flex-col gap-1 p-3">{links}</nav>`;
+    expect(rules(src)).toEqual(
+      expect.arrayContaining(["no-custom-shell-chrome"]),
+    );
+  });
+
+  it("errors on a hand-rolled aside sidebar pinned inset-y-0", () => {
+    const src = `<aside className="fixed inset-y-0 left-0 flex w-60 flex-col">{nav}</aside>`;
+    expect(rules(src)).toEqual(
+      expect.arrayContaining(["no-custom-shell-chrome"]),
+    );
+  });
+
+  it("does not flag using StudioSidebar in AppShell.sidebar", () => {
+    const src = `<AppShell sidebar={<StudioSidebar workforces={items} selectedId={v} onSelect={set} />}>{main}</AppShell>`;
+    expect(rules(src).includes("no-custom-shell-chrome")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — uppercase display text", () => {
+  it("errors on an UPPERCASE heading element", () => {
+    expect(rules(`<h2 className="text-xl uppercase">Critical</h2>`)).toEqual(
+      expect.arrayContaining(["no-uppercase-heading"]),
+    );
+  });
+
+  it("errors on uppercase applied to large text", () => {
+    expect(
+      rules(`<span className="text-2xl font-normal uppercase">Elevated</span>`),
+    ).toEqual(expect.arrayContaining(["no-uppercase-heading"]));
+  });
+
+  it("does not flag a small uppercase eyebrow label", () => {
+    const res = lintGeneratedUi(
+      `<span className="text-xs uppercase tracking-wide text-muted-foreground">Threat level</span>`,
+    );
+    expect(res.findings.some((f) => f.rule === "no-uppercase-heading")).toBe(
+      false,
+    );
+  });
+});
+
+describe("lintGeneratedUi — theme bypass", () => {
+  it("errors on forcedTheme", () => {
+    expect(rules(`<TimbalThemeStyle forcedTheme="dark" />`)).toEqual(
+      expect.arrayContaining(["theme-via-generator"]),
+    );
+  });
+
+  it("errors on a hand-authored theme token", () => {
+    expect(rules(`  --background: oklch(0.09 0.025 248);`)).toEqual(
+      expect.arrayContaining(["theme-via-generator"]),
+    );
+    expect(rules(`  --sidebar-bg: #060d1a;`)).toEqual(
+      expect.arrayContaining(["theme-via-generator"]),
+    );
+  });
+
+  it("does not flag using createTimbalTheme/applyTimbalTheme", () => {
+    const res = lintGeneratedUi(
+      `applyTimbalTheme(createTimbalTheme({ brand: "var(--brand)" }));`,
+    );
+    expect(res.findings.some((f) => f.rule === "theme-via-generator")).toBe(
+      false,
+    );
+  });
+});
+
 describe("HOUSE_RULES lint coverage", () => {
   // Every HouseRule must make an explicit coverage decision: either a
   // deterministic linter rule maps to it, or it is annotated prompt-only.
@@ -369,6 +480,10 @@ describe("HOUSE_RULES lint coverage", () => {
     "no-title-repetition": ["no-title-repetition"],
     "no-chat-wrapping": ["no-chat-wrapping"],
     "no-colored-hover": ["no-colored-hover"],
+    "no-glow": ["no-glow"],
+    "no-custom-shell-chrome": ["no-custom-shell-chrome"],
+    "no-uppercase-heading": ["no-uppercase-heading"],
+    "theme-via-generator": ["theme-via-generator"],
   };
 
   it("covers every HOUSE_RULES id with a lint check or a prompt-only annotation", () => {

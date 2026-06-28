@@ -116,6 +116,51 @@ const RAW_CONTROL_SURFACE_RE = /\bborder-input\b/;
 const COLORED_HOVER_RE = /\bhover:(?:bg|from|to|via)-(?:primary|destructive|success|warn|danger|blue|emerald|green|amber|red|indigo|violet|purple|pink|rose|sky|cyan|teal|lime|yellow|orange|fuchsia)\b/;
 
 /**
+ * Neon / glow shadow: an arbitrary `shadow-[…]` (or `drop-shadow-[…]`) whose
+ * offsets are `0 0` (a halo around the element, not a drop shadow) — the
+ * canonical "cyberpunk" tell. Matches `shadow-[0_0_20px_…]`,
+ * `drop-shadow-[0px_0px_6px_…]`, etc. The kit's elevation is `shadow-card`.
+ */
+const GLOW_SHADOW_RE = /\b(?:drop-)?shadow-\[0(?:px)?_0(?:px)?_/;
+
+/**
+ * Hand-rolled top bar: the mobile menu trigger is rendered automatically by
+ * `AppShell`, so any explicit `AppShellSidebarTrigger` in generated code means
+ * the agent built a custom topbar (the thing we never want).
+ */
+const APP_SHELL_TRIGGER_RE = /\bAppShellSidebarTrigger\b/;
+
+/**
+ * Hand-rolled sidebar rail signature: a `<nav>` / `<aside>` element, laid out
+ * as a vertical column (`flex-col`), at a fixed rail width (`w-48`…`w-80`).
+ * Checked as three order-independent signals on one line to stay high-precision
+ * (a generic `<aside>` won't carry all three). Use `StudioSidebar` instead.
+ */
+const NAV_RAIL_TAG_RE = /<(?:nav|aside)\b/;
+const NAV_RAIL_COLUMN_RE = /\bflex-col\b/;
+const NAV_RAIL_WIDTH_RE = /\bw-(?:48|52|56|60|64|72|80)\b/;
+
+/**
+ * UPPERCASE display text: the `uppercase` utility applied to a heading
+ * (`<h1>`–`<h3>`) or to large text (`text-lg`+). A tiny `text-xs uppercase`
+ * eyebrow is intentionally NOT matched (that's a legitimate label style).
+ */
+const UPPERCASE_HEADING_RE =
+  /(<h[1-3]\b[^>]*\bclassName=[^>]*\buppercase\b)|(\buppercase\b[^"'`]*\btext-(?:lg|xl|2xl|3xl|4xl|5xl|6xl)\b)|(\btext-(?:lg|xl|2xl|3xl|4xl|5xl|6xl)\b[^"'`]*\buppercase\b)/;
+
+/** Forcing a theme (forcedTheme="dark") — bypasses the theme generator. */
+const FORCED_THEME_RE = /\bforcedTheme\b/;
+
+/**
+ * Hand-authored theme color variable: a CSS custom property the theme
+ * generator owns, assigned a literal color. `--background: oklch(…)`,
+ * `--sidebar-bg: #060d1a`, `--primary: hsl(…)`. Catches the "call
+ * createTimbalTheme then punch through with hand-written tokens" anti-pattern.
+ */
+const HAND_AUTHORED_TOKEN_RE =
+  /--(?:background|foreground|card|card-foreground|popover|popover-foreground|primary|primary-foreground|secondary|secondary-foreground|muted|muted-foreground|accent|accent-foreground|destructive|destructive-foreground|border|input|ring|sidebar[a-z-]*|chart-\d)\s*:\s*(?:oklch|hsla?|rgba?|#[0-9a-fA-F]{3,8})/i;
+
+/**
  * Trend/delta context: a directional icon, a `trend`/`delta`/`change` prop, or
  * a signed percentage literal like `+8%` / `-3.2%`.
  */
@@ -339,6 +384,78 @@ export function lintGeneratedUi(
         line: lineNo,
         message:
           "Colored hover background/gradient. House style: interactive cards and list items must use neutral hover states — never hard-code colored backgrounds or borders on hover.",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+
+    // ── glow / neon shadow ──────────────────────────────────────────────
+    if (GLOW_SHADOW_RE.test(line)) {
+      findings.push({
+        rule: "no-glow",
+        severity: "error",
+        line: lineNo,
+        message:
+          "Glow / neon shadow. shadow-[0_0_…] / drop-shadow-[0_0_…] halos are the canonical 'cyberpunk AI dashboard' tell. Use the kit elevation (shadow-card / shadow-card-elevated) — a 'glowing' brief is not permission to break the elevation system.",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+
+    // ── hand-rolled topbar / sidebar rail ───────────────────────────────
+    if (APP_SHELL_TRIGGER_RE.test(line)) {
+      findings.push({
+        rule: "no-custom-shell-chrome",
+        severity: "error",
+        line: lineNo,
+        message:
+          "Custom topbar. AppShell renders the mobile menu button itself — you do not need AppShellSidebarTrigger or a top bar. Default to no global topbar; put global actions in Page.actions or the sidebar.",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+    if (
+      NAV_RAIL_TAG_RE.test(line) &&
+      NAV_RAIL_COLUMN_RE.test(line) &&
+      NAV_RAIL_WIDTH_RE.test(line)
+    ) {
+      findings.push({
+        rule: "no-custom-shell-chrome",
+        severity: "error",
+        line: lineNo,
+        message:
+          "Hand-rolled sidebar rail. Don't build a custom <nav>/<aside> navigation column — use AppShell sidebar={<StudioSidebar workforces={items} selectedId={…} onSelect={…} />}. StudioSidebar nav items take an optional `icon`, so icon nav is no reason to go custom.",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+
+    // ── UPPERCASE display text ──────────────────────────────────────────
+    if (UPPERCASE_HEADING_RE.test(line)) {
+      findings.push({
+        rule: "no-uppercase-heading",
+        severity: "error",
+        line: lineNo,
+        message:
+          "UPPERCASE heading / display text. All-caps display text reads as shouty template chrome — use sentence case. Convey severity with StatusBadge/StatusDot tone, not screaming labels. (A small text-xs uppercase tracking-wide eyebrow is fine.)",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+
+    // ── theme bypass (forcedTheme / hand-authored tokens) ───────────────
+    if (FORCED_THEME_RE.test(line)) {
+      findings.push({
+        rule: "theme-via-generator",
+        severity: "error",
+        line: lineNo,
+        message:
+          "forcedTheme bypasses the theme generator. Don't pin a theme — brand with createTimbalTheme({ brand }) + applyTimbalTheme (or a preset) so light/dark and rebranding keep working.",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+    if (HAND_AUTHORED_TOKEN_RE.test(line)) {
+      findings.push({
+        rule: "theme-via-generator",
+        severity: "error",
+        line: lineNo,
+        message:
+          "Hand-authored theme token. A theme color variable (--background, --primary, --sidebar-bg, …) is assigned a literal color — that punches through the theme generator. Generate the theme with createTimbalTheme({ brand }) instead of hand-writing OKLCH/hex token values.",
         snippet: line.trim().slice(0, 120),
       });
     }

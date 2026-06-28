@@ -152,6 +152,13 @@ export interface TimbalStreamApi {
   reload: (messageId?: string | null) => Promise<void>;
   cancel: () => void;
   clear: () => void;
+  /**
+   * Replace the current message list — e.g. to hydrate a stored conversation
+   * loaded via `conversationRunsToMessages`. Aborts any in-flight stream. The
+   * last assistant message's `runId` becomes the parent for the next `send`,
+   * so continuing a loaded thread "just works".
+   */
+  loadMessages: (messages: ChatMessage[]) => void;
 }
 
 /**
@@ -370,9 +377,16 @@ export function useTimbalStream({
     setMessages([]);
   }, []);
 
+  const loadMessages = useCallback<TimbalStreamApi["loadMessages"]>((next) => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setIsRunning(false);
+    setMessages(next);
+  }, []);
+
   return useMemo(
-    () => ({ messages, isRunning, send, reload, cancel, clear }),
-    [messages, isRunning, send, reload, cancel, clear],
+    () => ({ messages, isRunning, send, reload, cancel, clear, loadMessages }),
+    [messages, isRunning, send, reload, cancel, clear, loadMessages],
   );
 }
 

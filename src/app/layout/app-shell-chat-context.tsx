@@ -7,6 +7,8 @@ export interface AppShellChatControls {
   setOpen: (open: boolean) => void;
   toggle: () => void;
   collapsible: boolean;
+  expanded?: boolean;
+  setExpanded?: (expanded: boolean) => void;
 }
 
 const AppShellChatContext = createContext<AppShellChatControls | null>(null);

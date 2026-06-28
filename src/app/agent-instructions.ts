@@ -49,8 +49,8 @@ The most common failure is shipping the **same** layout every time: sidebar + to
 
 | Archetype | When | Compose |
 |-----------|------|---------|
-| **Sidebar dashboard** | Multi-section product (CRM, billing, ops) with nav | \`StudioSidebar\` in \`AppShell.sidebar\` + \`Page\` → \`Section\` |
-| **Focused / no-chrome** | A single tool or one-screen utility | \`AppShell\` (no sidebar) + \`Page width="narrow"\` / \`"prose"\` (optionally with a custom topbar) for a centered focused column |
+| **Sidebar dashboard** | Multi-section product (CRM, billing, ops) with nav | \`StudioSidebar\` in \`AppShell.sidebar\` (items: \`{ id, name, icon? }\` + \`selectedId\` + \`onSelect\`) + \`Page\` → \`Section\`. **No topbar** — AppShell renders the mobile menu itself. |
+| **Focused / no-chrome** | A single tool or one-screen utility | \`AppShell\` (no sidebar) + \`Page width="narrow"\` / \`"prose"\` for a centered focused column |
 | **Bento overview** | Home / at-a-glance dashboards | \`Page\` + an **asymmetric grid** of \`SurfaceCard\` / \`ChartPanel\` / \`StatTile\` spanning different widths (not a uniform row + table) |
 | **Split master–detail** | Inbox, triage queue, record browser, log explorer | \`AppShell contentFill\` + \`Page fill\` + a two-column flex row, each pane \`min-h-0 overflow-y-auto\` |
 | **Full-page chat / canvas** | Chat-first app, editor, map, single full-bleed surface | \`AppShell contentFill\` + headerless \`Page fill\` + a \`min-h-0 flex-1\` child (e.g. \`TimbalChat\`) |
@@ -58,6 +58,39 @@ The most common failure is shipping the **same** layout every time: sidebar + to
 | **Section-switcher** | One page, several views | \`SubNav\` / \`PillSegmentedTabs\` (\`trackVariant="flush"\`) switching panels with state/router |
 
 Mix them: vary the grid columns, density, header placement (\`Page\` actions vs. a global topbar), and whether there's a sidebar at all. Two dashboards for two domains should not look identical.
+
+### Shell & navigation (don't hand-roll this)
+
+The sidebar and the mobile menu are **solved** — use them, don't rebuild them.
+
+- **Sidebar = \`StudioSidebar\`.** It's the canonical app nav. Pass \`workforces\` (nav items), \`selectedId\`, and \`onSelect\`. Each item is \`{ id, name, icon? }\` — **icons are a built-in optional slot**, so wanting a per-item icon is **never** a reason to build a custom rail. Pass a \`brand\` node for the product name/logo.
+- **No topbar by default.** \`AppShell\` renders its own floating mobile menu button when a sidebar is present — you do **not** need a top bar or \`AppShellSidebarTrigger\` to open the drawer. Put global actions in \`Page.actions\` or the sidebar. Add \`AppShell topbar={…}\` **only** when the user explicitly asks for a persistent global bar — never just to hold a mobile menu, a status banner, or a theme toggle (status → dashboard content via \`StatusBadge\`/\`MetricRow\`; theme is configured by the developer, not an end-user switch).
+- **Never** hand-roll a \`<nav>\`/\`<aside>\` rail or a custom \`<div className="h-12 border-b">\` topbar. The linter rejects both (\`no-custom-shell-chrome\`).
+
+\`\`\`tsx
+import { LayoutDashboard, Inbox, Boxes, ScrollText } from "lucide-react";
+import { StudioSidebar } from "@timbal-ai/timbal-react/studio";
+
+<AppShell
+  sidebar={
+    <StudioSidebar
+      brand={<span className="text-sm font-semibold">SOC Dashboard</span>}
+      workforces={[
+        { id: "dashboard", name: "Dashboard", icon: <LayoutDashboard /> },
+        { id: "inbox", name: "Alert inbox", icon: <Inbox /> },
+        { id: "assets", name: "Asset inventory", icon: <Boxes /> },
+        { id: "logs", name: "Log stream", icon: <ScrollText /> },
+      ]}
+      selectedId={view}
+      onSelect={setView}
+    />
+  }
+>
+  <Page title="Dashboard" description="Real-time security operations overview">
+    {/* threat level lives here as content (MetricRow / StatusBadge), NOT in a topbar */}
+  </Page>
+</AppShell>
+\`\`\`
 
 ### Full-height pages (chat, canvas, split views)
 
@@ -107,7 +140,8 @@ Theming helpers (import from the package root or \`/app\`): \`createTimbalTheme\
 | **Chat panel** | \`AppChatPanel\` only; \`Thread\` uses \`variant="panel"\` internally. Dismiss with **X**; trigger is a **text-only** pill (e.g. "Assistant") — **no** MessageSquare or chat icons on the shell trigger. |
 | **Context** | Do not show raw JSON context in the panel header; keep context in \`AppCopilotProvider\` only. |
 | **Theming** | Use semantic Tailwind tokens (\`bg-background\`, \`text-foreground\`, \`border-border\`, \`bg-elevated-from\`, etc.) from the host app's \`styles.css\`. To rebrand, **never hand-author OKLCH** — call \`createTimbalTheme({ brand })\` + \`themeToCss\`/\`applyTimbalTheme\`, or apply a catalog preset (\`TIMBAL_THEME_PRESETS\` / \`applyThemePreset\`). Apply the theme **programmatically** — do **not** add an end-user theme selector to generated apps. See \`THEME_AGENT_INSTRUCTIONS\`. |
-| **Layout chrome** | \`Page\` → \`Section\` for main content hierarchy. Default to **no global topbar** — put account/theme/global actions in the \`Page\` \`actions\` slot (or the sidebar). Add a topbar only when a full-width global bar is explicitly requested. |
+| **Layout chrome** | \`Page\` → \`Section\` for main content hierarchy. **No global topbar by default** — \`AppShell\` renders the mobile menu button itself, so never add a topbar (or \`AppShellSidebarTrigger\`) just to open the sidebar. Put account/theme/global actions in the \`Page\` \`actions\` slot or the sidebar. Add \`topbar\` only when a full-width global bar is **explicitly requested**. Never hand-roll a \`<nav>\`/\`<aside>\` rail or a custom topbar \`<div>\` — use \`StudioSidebar\` (linted: \`no-custom-shell-chrome\`). |
+| **Theme** | Apply the brand once with \`createTimbalTheme({ brand })\` + \`applyTimbalTheme\`. **Never** hand-author token values (\`.dark { --background: oklch(…) }\`, \`--sidebar-bg\`, \`--primary\`) or pass \`forcedTheme\` — that punches through the generator and breaks dark mode/rebranding (linted: \`theme-via-generator\`). A "cyberpunk/glowing" brief means *pick a brand color*, not *hand-paint tokens and add neon glows*. |
 | **Spacing / gaps** | \`Page\` **auto-stacks its direct children with a vertical gap** — drop blocks straight in (e.g. \`Page\` → \`FilterBar\` + \`DataTable\`, or \`MetricRow\` + \`ChartPanel\`) and they breathe; do **not** wrap every block in an extra \`<div>\` (that collapses the gap). For ad-hoc clusters inside a card/row use \`Stack\` (\`gap\`, \`direction\`) instead of bare flex with no gap. Grids still need their own \`gap-*\`. |
 | **Width** | \`Page\` defaults to a wide centered column. For focused / reading / form pages pass \`width\` (\`default\`, \`centered\`, \`narrow\`, \`prose\`) instead of always running full-bleed — not everything needs the full width. \`width="full"\` opts into edge-to-edge. For full-height pages that should stay centered use \`fill\` + \`fillPadded\`. |
 | **Density** | Set \`density="compact"\` on \`Page\` for tighter dashboards (full-width column, smaller section gaps, card padding, metric tiles, default chart height 220). Default is \`"default"\` (platform spacing). Wrap custom layouts with \`AppDensityProvider\` when not using \`Page\`. Per-section override: \`Section density="compact"\`. Do **not** hand-tune five layers of \`className\` padding when density covers the need. |
@@ -143,7 +177,8 @@ The cause of slop is dropping **below** the curated block layer into raw primiti
 
 | Component | Use for |
 |-----------|---------|
-| \`AppShell\` | Shell: optional \`sidebar\`, \`topbar\`, main \`children\`, optional floating \`chat\`. Props: \`chatTriggerLabel\`, \`chatCollapsible\`, \`chatWidth\`, \`chatHeight\`, controlled \`chatOpen\`, **\`contentFill\`** (bounded non-scrolling content region for full-bleed pages — chat/canvas/split view). |
+| \`AppShell\` | Shell: optional \`sidebar\` (use \`StudioSidebar\`), main \`children\`, optional floating \`chat\`. Renders its **own** floating mobile menu button when \`sidebar\` is set — no topbar needed. \`topbar\` is **opt-in** (explicit global-bar requests only). Props: \`chatTriggerLabel\`, \`chatCollapsible\`, \`chatWidth\`, \`chatHeight\`, controlled \`chatOpen\`, **\`contentFill\`** (bounded non-scrolling content region for full-bleed pages — chat/canvas/split view). |
+| \`StudioSidebar\` | Canonical app nav (import from \`/studio\`). \`workforces\`: \`{ id, name, icon? }[]\`, \`selectedId\`, \`onSelect\`, \`brand\`. Optional per-item \`icon\` (lucide) for route nav — so you never hand-roll a rail. Collapsible + mobile drawer + shell sync are automatic. |
 | \`AppCopilotProvider\` | React context for copilot-aware tools (page, filters, selection, etc.). |
 | \`AppChatPanel\` | Floating thread: \`workforceId\`, \`welcome\`, \`debug\`. |
 | \`useAppShellChat\` | Custom open/close trigger when \`hideChatTrigger\` on shell. |

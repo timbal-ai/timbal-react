@@ -4,6 +4,32 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-06-28
+
+Sidebar + anti-slop hardening: close the gap that let a codegen agent ship a
+hand-rolled neon "SOC" dashboard (custom nav rail, a topbar it was told not to
+add, glow shadows, hand-painted dark tokens, UPPERCASE chrome). The package now
+makes the canonical path the *only* easy path and rejects the slop with the lint
+gate instead of relying on prose the agent skipped.
+
+### Added
+
+- **`StudioSidebar` nav items take an optional `icon`** — items are now `{ id, name, icon? }` (new exported `StudioSidebarItem` type). The icon renders inline when expanded and as the rail glyph when collapsed (falling back to the initial). This removes the only real reason agents hand-rolled a custom sidebar: "I need per-item icons." `StudioSidebar` is now a first-class app route-nav sidebar, not just an agent picker. Fully backward compatible — existing `WorkforceItem[]` callers are unchanged.
+- **Four hard-error lint rules** (`lintGeneratedUi`), each mirrored in `HOUSE_RULES` so the prompt teaches what the gate enforces:
+  - `no-glow` — neon/glow shadows (`shadow-[0_0_…]`, `drop-shadow-[0_0_…]`), the canonical "cyberpunk AI dashboard" tell. Offset drop shadows and `shadow-card` are unaffected.
+  - `no-custom-shell-chrome` — a hand-rolled topbar (`AppShellSidebarTrigger` is unnecessary — `AppShell` renders the mobile menu itself) or a hand-rolled `<nav>`/`<aside>` rail (`flex-col` + fixed rail width). Use `AppShell sidebar={<StudioSidebar … />}`.
+  - `no-uppercase-heading` — `uppercase` on `<h1>`–`<h3>` or large text. Small `text-xs uppercase tracking-wide` eyebrows are intentionally allowed.
+  - `theme-via-generator` — `forcedTheme` or hand-authored theme token values (`--background: oklch(…)`, `--sidebar-bg: #…`). Brand via `createTimbalTheme({ brand })` instead.
+
+### Changed
+
+- **`APP_KIT_AGENT_INSTRUCTIONS` rewired around the shell** — new **Shell & navigation** section: sidebar = `StudioSidebar` with `{ id, name, icon? }` items + a copyable example; **no topbar by default** (AppShell renders the mobile menu); never hand-roll a rail or topbar. The "Sidebar dashboard" archetype, the Layout-chrome rule, the new Theme rule, and the `AppShell`/`StudioSidebar` menu entries all state this explicitly and name the linting rule that enforces it.
+- **Recipes + reference model the pattern** — `sidebar-dashboard` recipe, the `operations-dashboard` reference, and the blueprint `AppKitDemo` now pass icon nav items (and a `brand`), demonstrating route nav with icons and zero topbar.
+
+### Tooling
+
+- Anti-drift test asserts `StudioSidebarItem` accepts `{ id, name, icon }` at the type level, so the icon slot can't silently regress.
+
 ## [1.7.0] — 2026-06-28
 
 Hardening release: make UI generation bulletproof for codegen agents by letting

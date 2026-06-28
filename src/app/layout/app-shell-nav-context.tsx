@@ -19,20 +19,30 @@ const NAV_NOOP: AppShellNavControls = {
 };
 
 /**
- * Read the `AppShell`-owned mobile nav controls. Use to wire a custom hamburger
- * or a sidebar that doesn't auto-detect the shell.
+ * Read the `AppShell`-owned mobile nav controls — only to wire a **custom**
+ * hamburger/trigger that is itself rendered **inside** `AppShell`.
  *
- * Note: inside `AppShell`, `StudioSidebar` already syncs to these controls
- * automatically (no `mobileOpen` wiring needed), and `AppShell` renders the
- * mobile hamburger itself when there's no topbar — so most apps never call this.
+ * Most apps never need this: inside `AppShell`, `StudioSidebar` already syncs to
+ * these controls automatically (no `mobileOpen` wiring), and `AppShell` renders
+ * the mobile hamburger itself when there's no topbar.
+ *
+ * ⚠️ **Footgun:** this reads React context, so when called **outside** an
+ * `AppShell` it returns a silent no-op (`open` permanently `false`). Calling it
+ * in the component that *renders* `<AppShell>` and then passing
+ * `mobileOpen={nav.open}` / `onMobileOpenChange={nav.setOpen}` into
+ * `StudioSidebar` forces the drawer into controlled mode pinned shut — the
+ * backdrop toggles but the drawer never slides in. Don't wire the sidebar's
+ * `mobileOpen` from here; let `StudioSidebar` (as `AppShell`'s `sidebar`)
+ * auto-sync instead.
  *
  * @example
  * ```tsx
- * const nav = useAppShellNav();
- * <button onClick={nav.toggle}>Menu</button>
+ * // A custom trigger, rendered INSIDE AppShell (e.g. in a topbar slot):
+ * function MenuButton() {
+ *   const nav = useAppShellNav();
+ *   return <button onClick={nav.toggle}>Menu</button>;
+ * }
  * ```
- *
- * Returns a no-op fallback when used outside `AppShell`, so it's always safe to call.
  */
 export function useAppShellNav(): AppShellNavControls {
   return useOptionalShellNav() ?? NAV_NOOP;

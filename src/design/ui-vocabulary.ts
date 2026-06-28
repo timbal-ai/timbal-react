@@ -284,4 +284,32 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     slop: `<Card className="hover:bg-emerald-500/10 hover:border-emerald-500/30">`,
     good: `<AlertCard onClick={handleClick}>`,
   },
+  {
+    id: "no-glow",
+    rule: "Never use glow / neon box-shadows (shadow-[0_0_…], drop-shadow-[0_0_…]). Use the kit elevation (shadow-card / shadow-card-elevated).",
+    why: "Glowing shadows are the #1 'cyberpunk AI dashboard' tell. The design system conveys depth with subtle elevation, not neon halos — a brief asking for a 'glowing' look is not permission to break the elevation system.",
+    slop: `<div className="shadow-[0_0_20px_rgba(34,211,238,0.4)]">`,
+    good: `<div className="shadow-card">`,
+  },
+  {
+    id: "no-custom-shell-chrome",
+    rule: "Never hand-roll a sidebar rail or a topbar. Use AppShell with sidebar={<StudioSidebar … />}; AppShell renders the mobile menu button itself — no topbar and no AppShellSidebarTrigger needed.",
+    why: "A hand-built <nav>/<aside> rail or a custom top bar drifts from the shell chrome (spacing, motion, mobile drawer, tokens) and is exactly the slop that ships. StudioSidebar takes { id, name, icon? } items + onSelect — route nav with icons is its job. Put global actions in Page.actions, not a topbar.",
+    slop: `<div className="h-12 border-b"><AppShellSidebarTrigger /> … </div>`,
+    good: `<AppShell sidebar={<StudioSidebar workforces={navItems} selectedId={view} onSelect={setView} />}>`,
+  },
+  {
+    id: "no-uppercase-heading",
+    rule: "Don't UPPERCASE headings or display text (no `uppercase` on h1–h3 or large text). Use sentence case.",
+    why: "All-caps display text (\"CRITICAL\", \"THREAT LEVEL: ELEVATED\") reads as shouty template chrome. The kit uses sentence case; status meaning comes from StatusBadge/StatusDot tone, not screaming labels. (A small `text-xs uppercase tracking-wide` eyebrow is fine — this targets large/heading text.)",
+    slop: `<h2 className="text-2xl uppercase">Critical</h2>`,
+    good: `<StatusBadge tone="danger">Critical</StatusBadge>`,
+  },
+  {
+    id: "theme-via-generator",
+    rule: "Never hand-author theme color variables (.dark { --background: oklch(…) }, --sidebar-bg, --primary) or force a theme (forcedTheme). Brand with createTimbalTheme({ brand }) + applyTimbalTheme, or a preset.",
+    why: "Hand-written CSS custom-property colors and forcedTheme punch straight through the theme generator — the exact anti-pattern that makes one app look off-system. The generator owns light + dark; overriding tokens by hand breaks dark mode and rebranding.",
+    slop: `.dark { --background: oklch(0.09 0.025 248); --sidebar-bg: #060d1a; }`,
+    good: `applyTimbalTheme(createTimbalTheme({ brand: "#22d3ee" }))`,
+  },
 ] as const;

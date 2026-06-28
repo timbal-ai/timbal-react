@@ -16,6 +16,8 @@ import * as Studio from "./studio/index";
 import type { DataTableProps } from "./app/data/DataTable";
 import type { AppShellProps } from "./app/layout/AppShell";
 import type { LineAreaChartProps, PieChartProps } from "./charts/index";
+import type { StudioSidebarItem } from "./studio/index";
+import type { ReactNode } from "react";
 
 function expectExports(mod: Record<string, unknown>, names: string[]) {
   const missing = names.filter((n) => mod[n] === undefined);
@@ -85,6 +87,14 @@ describe("anti-drift: /studio entrypoint", () => {
   it("does not export an AppShellTopbar (use AppShell topbar={…})", () => {
     expect((App as Record<string, unknown>).AppShellTopbar).toBeUndefined();
     expect((Studio as Record<string, unknown>).AppShellTopbar).toBeUndefined();
+  });
+
+  it("StudioSidebar nav items accept an optional `icon` (route nav — no custom rail)", () => {
+    // Compile-time guarantee: { id, name, icon } is a valid item, so an agent
+    // never needs to hand-roll a <nav> rail just to get per-item icons.
+    const icon: ReactNode = null;
+    const item: StudioSidebarItem = { id: "dashboard", name: "Dashboard", icon };
+    expect(item.id).toBe("dashboard");
   });
 });
 
