@@ -1,7 +1,6 @@
 "use client";
 
 import { type FC } from "react";
-import type { WorkforceItem } from "@timbal-ai/timbal-sdk";
 
 import { cn } from "../../utils";
 import {
@@ -12,13 +11,15 @@ import {
 import { StudioSidebarEntryMotion } from "./sidebar-entry-motion";
 import { StudioSidebarTooltip } from "./sidebar-tooltip";
 import {
+  type StudioSidebarItem,
+  workforceItemIcon,
   workforceItemId,
   workforceItemInitial,
   workforceItemLabel,
 } from "./sidebar-workforce";
 
 interface StudioSidebarNavProps {
-  workforces: WorkforceItem[];
+  workforces: StudioSidebarItem[];
   selectedId: string;
   onSelect: (id: string) => void;
   iconOnlyLayout: boolean;
@@ -49,6 +50,7 @@ export const StudioSidebarNav: FC<StudioSidebarNavProps> = ({
         const id = workforceItemId(w);
         const isActive = id === selectedId;
         const label = workforceItemLabel(w);
+        const icon = workforceItemIcon(w);
 
         return (
           <StudioSidebarEntryMotion
@@ -69,11 +71,30 @@ export const StudioSidebarNav: FC<StudioSidebarNavProps> = ({
                 )}
               >
                 {iconOnlyLayout ? (
-                  <span className="text-xs font-semibold leading-none">
-                    {workforceItemInitial(w)}
-                  </span>
+                  icon ? (
+                    <span
+                      className="inline-flex items-center justify-center [&>svg]:size-4"
+                      aria-hidden
+                    >
+                      {icon}
+                    </span>
+                  ) : (
+                    <span className="text-xs font-semibold leading-none">
+                      {workforceItemInitial(w)}
+                    </span>
+                  )
                 ) : (
-                  <span className="min-w-0 truncate">{label}</span>
+                  <>
+                    {icon ? (
+                      <span
+                        className="inline-flex shrink-0 items-center justify-center [&>svg]:size-4"
+                        aria-hidden
+                      >
+                        {icon}
+                      </span>
+                    ) : null}
+                    <span className="min-w-0 truncate">{label}</span>
+                  </>
                 )}
               </button>
             </StudioSidebarTooltip>

@@ -5,6 +5,7 @@ export type { TimbalStudioShellProps } from "./shell/studio-shell";
 
 export { StudioSidebar } from "./sidebar/sidebar";
 export type { StudioSidebarProps } from "./sidebar/sidebar";
+export type { StudioSidebarItem } from "./sidebar/sidebar-workforce";
 export { StudioSidebarBackdrop } from "./sidebar/sidebar-backdrop";
 export { TimbalMark } from "./sidebar/timbal-mark";
 export type { TimbalMarkProps } from "./sidebar/timbal-mark";

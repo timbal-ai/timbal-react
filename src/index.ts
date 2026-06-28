@@ -26,6 +26,34 @@ export type {
 export type { ThinkingContentPart } from "./runtime/types";
 export { parseSSELine } from "@timbal-ai/timbal-sdk";
 
+// ── Conversation history (app runs) ──────────────────────────────────────────
+export {
+  listRuns,
+  getRun,
+  orderRunsForThread,
+  isRootRun,
+  runParentId,
+} from "./runtime/conversations";
+export type {
+  ListRunsParams,
+  ListRunsResult,
+  GetRunParams,
+  RunPreview,
+  RunDetail,
+  RunUser,
+  RunWorkforce,
+  RunStatus,
+  RunSortBy,
+  RunSortOrder,
+  TraceSpan,
+} from "./runtime/conversations";
+export {
+  runTraceToMessages,
+  conversationRunsToMessages,
+  normalizeContentToText,
+} from "./runtime/trace-to-messages";
+export type { RunTraceToMessagesOptions } from "./runtime/trace-to-messages";
+
 // ── Attachments ──────────────────────────────────────────────────────────────
 
 export type { AttachmentAdapter } from "@assistant-ui/react";
@@ -320,6 +348,16 @@ export type {
   UseLiveQueryOptions,
   UseLiveQueryResult,
 } from "./hooks/use-live-query";
+export { useConversations } from "./hooks/use-conversations";
+export type {
+  UseConversationsOptions,
+  UseConversationsResult,
+} from "./hooks/use-conversations";
+export { useConversation } from "./hooks/use-conversation";
+export type {
+  UseConversationOptions,
+  UseConversationResult,
+} from "./hooks/use-conversation";
 
 // ── Artifacts ────────────────────────────────────────────────────────────────
 

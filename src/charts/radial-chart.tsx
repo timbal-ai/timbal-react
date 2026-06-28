@@ -30,7 +30,10 @@ export interface RadialChartProps {
   dataKey?: string;
   /** Value that maps to a full ring. Default: the data max (so the largest fills). */
   maxValue?: number;
-  /** Per-arc colors. Defaults to the theme palette. */
+  /**
+   * Per-arc colors. Defaults to the theme `--chart-N` palette (recommended).
+   * Override with tokens directly (`["var(--chart-1)"]`) — never `"hsl(var(--chart-1))"`.
+   */
   colors?: string[];
   height?: number;
   /** Thickness of each ring in px. Default 16. */
@@ -49,6 +52,19 @@ export interface RadialChartProps {
  * Radial (progress ring) chart on recharts — one concentric ring per data
  * point, each filled proportional to its value against `maxValue`. Pass
  * `centerValue` / `centerLabel` to fill the middle. Theme-driven colors.
+ *
+ * @example
+ * ```tsx
+ * // Single progress ring (e.g. a gauge) — colors from the theme:
+ * <RadialChart
+ *   data={[{ label: "Uptime", value: 92 }]}
+ *   nameKey="label"
+ *   dataKey="value"
+ *   maxValue={100}
+ *   centerValue="92%"
+ *   centerLabel="Uptime"
+ * />
+ * ```
  */
 export const RadialChart: FC<RadialChartProps> = ({
   data,

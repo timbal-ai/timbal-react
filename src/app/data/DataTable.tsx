@@ -75,8 +75,11 @@ export interface DataTableColumn<T> {
 }
 
 export interface DataTableProps<T> {
+  /** Column definitions. Each has an `id`, a `header`, and a `cell(row)` renderer. */
   columns: DataTableColumn<T>[];
+  /** The data array. Note: the prop is `rows` (not `data`). */
   rows: T[];
+  /** Stable key per row (required) — e.g. `(row) => row.id`. Drives selection + React keys. */
   getRowKey: (row: T) => string;
   emptyTitle?: ReactNode;
   emptyDescription?: ReactNode;
@@ -171,6 +174,22 @@ function SortIndicator({
   return <ArrowUpIcon className={iconClass} aria-hidden />;
 }
 
+/**
+ * Sortable, optionally selectable + paginated data table. Place it **directly**
+ * on a `Page` / `Section` — never inside a `Card` (it owns its own chrome).
+ *
+ * The data prop is `rows` (not `data`), and `getRowKey` is required.
+ *
+ * @example
+ * ```tsx
+ * type Order = { id: string; customer: string; status: string };
+ * const columns: DataTableColumn<Order>[] = [
+ *   { id: "customer", header: "Customer", cell: (r) => r.customer, sortable: true, sortValue: (r) => r.customer },
+ *   { id: "status", header: "Status", cell: (r) => <StatusBadge tone={r.status === "Paid" ? "success" : "warn"}>{r.status}</StatusBadge> },
+ * ];
+ * <DataTable columns={columns} rows={orders} getRowKey={(r) => r.id} defaultSort={{ columnId: "customer", direction: "asc" }} />
+ * ```
+ */
 export function DataTable<T>({
   columns,
   rows,

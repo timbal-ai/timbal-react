@@ -28,8 +28,20 @@ export interface ChartPanelProps {
 }
 
 /**
- * Chart shell matching `MetricChartCard` — title row with side padding, flush
- * plot edge-to-edge with only top inset on the chart region.
+ * A titled card wrapping a single chart — pass a built-in `artifact` or your
+ * own chart as `children`. Use this when you just need "a chart in a card."
+ *
+ * Choosing between the two chart cards:
+ * - `ChartPanel` — one chart in a titled shell. The simple, common case.
+ * - `MetricChartCard` — a selectable KPI row **above** a chart, where clicking a
+ *   metric swaps the series. Use only when you need that interaction.
+ *
+ * @example
+ * ```tsx
+ * <ChartPanel title="Revenue" description="Last 6 months">
+ *   <LineAreaChart data={rows} xKey="month" series={["revenue"]} />
+ * </ChartPanel>
+ * ```
  */
 export const ChartPanel: FC<ChartPanelProps> = ({
   title,

@@ -22,6 +22,23 @@ const selectClass = cn(
   "appearance-none pr-9",
 );
 
+/**
+ * A labeled form select — a native `<select>` wrapped in a `Field` (label,
+ * hint, error), styled to match the kit's inputs. Children are plain `<option>`
+ * elements. Use this in forms.
+ *
+ * For a rich, searchable/custom-rendered dropdown (Radix), compose `Select` +
+ * `SelectTrigger` / `SelectContent` / `SelectItem` from `@timbal-ai/timbal-react/ui`
+ * instead.
+ *
+ * @example
+ * ```tsx
+ * <FieldSelect label="Environment" defaultValue="prod">
+ *   <option value="prod">Production</option>
+ *   <option value="staging">Staging</option>
+ * </FieldSelect>
+ * ```
+ */
 export const FieldSelect: FC<FieldSelectProps> = ({
   label,
   hint,

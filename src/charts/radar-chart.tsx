@@ -40,7 +40,20 @@ export interface RadarChartProps {
 /**
  * Radar (spider) chart on recharts — one axis per data point, one polygon per
  * series. Theme-driven colors. Good for comparing a handful of metrics across
- * two or three entities.
+ * two or three entities. Needs at least 3 data rows (axes).
+ *
+ * @example
+ * ```tsx
+ * <RadarChart
+ *   data={[
+ *     { metric: "Speed", a: 120, b: 90 },
+ *     { metric: "Power", a: 98, b: 130 },
+ *     { metric: "Range", a: 86, b: 70 },
+ *   ]}
+ *   nameKey="metric"
+ *   series={["a", "b"]}
+ * />
+ * ```
  */
 export const RadarChart: FC<RadarChartProps> = ({
   data,

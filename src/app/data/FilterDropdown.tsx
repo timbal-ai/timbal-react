@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "../../ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "../../ui/popover";
+import { appSearchInputClass } from "../../design/app-classes";
 import { controlClass } from "../../design/control-surface";
 import { SearchInput } from "../forms/SearchInput";
 
@@ -252,14 +253,16 @@ export function FilterDropdown({
     <div className={cn("flex flex-wrap items-center gap-2", className)}>
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-dashed font-medium text-muted-foreground hover:text-foreground"
-            iconLeading={<ListFilterIcon className="size-4" />}
+          <button
+            type="button"
+            className={cn(
+              appSearchInputClass,
+              "cursor-pointer border-dashed font-medium text-muted-foreground hover:text-foreground",
+            )}
           >
+            <ListFilterIcon className="size-4 shrink-0" aria-hidden />
             {label}
-          </Button>
+          </button>
         </PopoverTrigger>
         <PopoverContent
           variant="list"

@@ -131,7 +131,9 @@ export const StudioSidebarHeader: FC<StudioSidebarHeaderProps> = ({
   if (isMobile) {
     return (
       <header className={cn(sidebarHeaderClass, "justify-between gap-2 pr-2")}>
-        {brand}
+        <div className="flex min-w-0 flex-1 items-center pl-2.5">
+          {brand}
+        </div>
         <SidebarToggleButton
           ariaLabel="Close menu"
           expanded={mobileOpen}
@@ -162,7 +164,9 @@ export const StudioSidebarHeader: FC<StudioSidebarHeaderProps> = ({
 
   return (
     <header className={cn(sidebarHeaderClass, "justify-between gap-1 pr-2")}>
-      {brand}
+      <div className="flex min-w-0 flex-1 items-center pl-2.5">
+        {brand}
+      </div>
       <SidebarToggleButton
         ariaLabel="Collapse sidebar"
         expanded

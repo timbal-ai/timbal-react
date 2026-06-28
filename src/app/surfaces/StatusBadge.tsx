@@ -32,12 +32,27 @@ export type StatusBadgeTone = keyof typeof statusBadgeToneClass;
 
 export interface StatusBadgeProps {
   children: ReactNode;
+  /**
+   * Tone tint. One of `default | primary | success | warn | danger | muted`.
+   * (Different vocabulary from `StatusDot`, which uses `online | busy | …`.)
+   */
   tone?: StatusBadgeTone;
   /** Render a small leading status dot in the tone color. */
   dot?: boolean;
   className?: string;
 }
 
+/**
+ * A labeled status **pill** (soft tint + ring) for a record's state — order
+ * status, plan tier, health. For a tiny presence/liveness indicator (online /
+ * busy / offline) use `StatusDot` instead.
+ *
+ * @example
+ * ```tsx
+ * <StatusBadge tone="success">Paid</StatusBadge>
+ * <StatusBadge tone="warn" dot>Pending</StatusBadge>
+ * ```
+ */
 export const StatusBadge: FC<StatusBadgeProps> = ({
   children,
   tone = "default",

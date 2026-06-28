@@ -8,10 +8,11 @@ import {
   useMemo,
   useState,
 } from "react";
-import type { WorkforceItem } from "@timbal-ai/timbal-sdk";
 import { motion, useReducedMotion } from "motion/react";
 
 import { cn } from "../../utils";
+import type { StudioSidebarItem } from "./sidebar-workforce";
+import { useOptionalShellNav } from "../../layout/shell-nav-context";
 import { studioSidebarPanelClass } from "../../design/classes";
 import {
   DOM_IDS,
@@ -56,7 +57,7 @@ function writePersistedCollapsed(key: string | null, collapsed: boolean): void {
 }
 
 export interface StudioSidebarPanelProps {
-  workforces: WorkforceItem[];
+  workforces: StudioSidebarItem[];
   selectedId: string;
   onSelect: (id: string) => void;
   collapsed: boolean;
@@ -218,10 +219,37 @@ export const StudioSidebarPanel: FC<StudioSidebarPanelProps> = ({
 
 export interface StudioSidebarProps {
   /**
-   * Workforces to display. When omitted, the sidebar fetches them via the
-   * shared `useWorkforces()` hook.
+   * Nav entries to display. Each is a `WorkforceItem` (`{ id, name }` is
+   * enough) plus an **optional `icon`** for route-style navigation
+   * (Dashboard / Inbox / Settings). When omitted entirely, the sidebar
+   * fetches workforces via the shared `useWorkforces()` hook.
+   *
+   * This is the canonical app sidebar — pass it to `AppShell.sidebar`. Do
+   * **not** hand-roll a custom `<nav>` rail; pass `icon` here instead.
+   *
+   * @example
+   * ```tsx
+   * import { LayoutDashboard, Inbox, Boxes } from "lucide-react";
+   *
+   * <AppShell
+   *   sidebar={
+   *     <StudioSidebar
+   *       brand={<span className="text-sm font-semibold">SOC</span>}
+   *       workforces={[
+   *         { id: "dashboard", name: "Dashboard", icon: <LayoutDashboard /> },
+   *         { id: "inbox", name: "Alert inbox", icon: <Inbox /> },
+   *         { id: "assets", name: "Asset inventory", icon: <Boxes /> },
+   *       ]}
+   *       selectedId={view}
+   *       onSelect={setView}
+   *     />
+   *   }
+   * >
+   *   …
+   * </AppShell>
+   * ```
    */
-  workforces?: WorkforceItem[];
+  workforces?: StudioSidebarItem[];
   selectedId?: string;
   onSelect?: (id: string) => void;
   /** Initial collapse state when no persisted value exists. Default: false. */
@@ -320,14 +348,32 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
     return () => window.removeEventListener("resize", onResize);
   }, [mobileBreakpointPx]);
 
+  // When rendered inside an `AppShell` (and not explicitly controlled), the
+  // drawer syncs to the shell's mobile-nav controls — so `AppShell`'s built-in
+  // hamburger opens this sidebar with zero wiring and no topbar required.
+  const shellNav = useOptionalShellNav();
+  const isControlled = mobileOpenProp !== undefined;
+  const usingShellNav = !isControlled && shellNav !== null;
   const [internalMobileOpen, setInternalMobileOpen] = useState(false);
-  const mobileOpen = mobileOpenProp ?? internalMobileOpen;
+  const mobileOpen = isControlled
+    ? mobileOpenProp
+    : usingShellNav
+      ? shellNav.open
+      : internalMobileOpen;
   const setMobileOpen = useCallback(
     (next: boolean) => {
-      if (mobileOpenProp === undefined) setInternalMobileOpen(next);
+      if (isControlled) {
+        onMobileOpenChangeProp?.(next);
+        return;
+      }
+      if (usingShellNav) {
+        shellNav.setOpen(next);
+      } else {
+        setInternalMobileOpen(next);
+      }
       onMobileOpenChangeProp?.(next);
     },
-    [mobileOpenProp, onMobileOpenChangeProp],
+    [isControlled, usingShellNav, shellNav, onMobileOpenChangeProp],
   );
 
   // Selecting a workforce closes the mobile drawer — otherwise it stays stuck

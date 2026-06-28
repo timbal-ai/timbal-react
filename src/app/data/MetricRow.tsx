@@ -45,6 +45,20 @@ export interface MetricRowProps extends MetricCardHeaderProps {
  * Platform-style KPI strip in one elevated card — no chart.
  * Use for overview rows; pair with `MetricChartCard` when you need the plot below.
  * Fully supports background sparklines and rich inline trend metadata.
+ *
+ * Each metric needs a stable `id`, a `label`, and a `value`. Add `onMetricChange`
+ * (or `activeMetricId`) to make the tiles selectable.
+ *
+ * @example
+ * ```tsx
+ * <MetricRow
+ *   metrics={[
+ *     { id: "mrr", label: "MRR", value: "$48.2k", trend: "+12%" },
+ *     { id: "active", label: "Active users", value: "1,204" },
+ *     { id: "churn", label: "Churn", value: "1.8%" },
+ *   ]}
+ * />
+ * ```
  */
 export const MetricRow: FC<MetricRowProps> = ({
   title,

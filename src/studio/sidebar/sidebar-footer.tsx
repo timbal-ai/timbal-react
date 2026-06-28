@@ -109,38 +109,41 @@ export const StudioSidebarFooter: FC<StudioSidebarFooterProps> = ({
     <DropdownMenuContent
       side={iconOnlyLayout ? "right" : "top"}
       align={iconOnlyLayout ? "end" : "start"}
-      className="w-56 z-[70]"
+      className="w-64 z-[70] rounded-2xl border border-white/15 bg-neutral-900/75 backdrop-blur-2xl shadow-[0_16px_48px_rgba(0,0,0,0.5)] p-1.5"
     >
-      <DropdownMenuLabel className="font-normal">
+      <DropdownMenuLabel className="font-normal px-2.5 py-2">
         <div className="flex flex-col space-y-1">
-          <p className="truncate text-sm font-medium leading-none text-foreground">
+          <p className="truncate text-sm font-semibold text-white/90">
             {user.user_name}
           </p>
-          <p className="truncate text-xs leading-none text-muted-foreground">
+          <p className="truncate text-xs text-white/50">
             {user.user_email}
           </p>
         </div>
       </DropdownMenuLabel>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem onClick={handleToggleTheme} className="cursor-pointer">
+      <DropdownMenuSeparator className="-mx-1.5 bg-white/10 my-1" />
+      <DropdownMenuItem
+        onClick={handleToggleTheme}
+        className="cursor-pointer rounded-xl px-2.5 py-2 text-white/85 hover:bg-white/10 focus:bg-white/10 focus:text-white transition-colors gap-3"
+      >
         {isDark ? (
           <>
-            <Sun className="mr-2 size-3.5 shrink-0 text-muted-foreground" />
+            <Sun className="size-4 shrink-0 text-white/60" />
             <span>Light mode</span>
           </>
         ) : (
           <>
-            <Moon className="mr-2 size-3.5 shrink-0 text-muted-foreground" />
+            <Moon className="size-4 shrink-0 text-white/60" />
             <span>Dark mode</span>
           </>
         )}
       </DropdownMenuItem>
-      <DropdownMenuSeparator />
+      <DropdownMenuSeparator className="-mx-1.5 bg-white/10 my-1" />
       <DropdownMenuItem
         onClick={handleSignOut}
-        className="cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
+        className="cursor-pointer rounded-xl px-2.5 py-2 text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:text-rose-400 transition-colors gap-3"
       >
-        <LogOut className="mr-2 size-3.5 shrink-0" />
+        <LogOut className="size-4 shrink-0 text-rose-400" />
         <span>Sign out</span>
       </DropdownMenuItem>
     </DropdownMenuContent>

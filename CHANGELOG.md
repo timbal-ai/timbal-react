@@ -4,6 +4,56 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+## [1.8.0] — 2026-06-28
+
+Sidebar + anti-slop hardening: close the gap that let a codegen agent ship a
+hand-rolled neon "SOC" dashboard (custom nav rail, a topbar it was told not to
+add, glow shadows, hand-painted dark tokens, UPPERCASE chrome). The package now
+makes the canonical path the *only* easy path and rejects the slop with the lint
+gate instead of relying on prose the agent skipped.
+
+### Added
+
+- **`StudioSidebar` nav items take an optional `icon`** — items are now `{ id, name, icon? }` (new exported `StudioSidebarItem` type). The icon renders inline when expanded and as the rail glyph when collapsed (falling back to the initial). This removes the only real reason agents hand-rolled a custom sidebar: "I need per-item icons." `StudioSidebar` is now a first-class app route-nav sidebar, not just an agent picker. Fully backward compatible — existing `WorkforceItem[]` callers are unchanged.
+- **Four hard-error lint rules** (`lintGeneratedUi`), each mirrored in `HOUSE_RULES` so the prompt teaches what the gate enforces:
+  - `no-glow` — neon/glow shadows (`shadow-[0_0_…]`, `drop-shadow-[0_0_…]`), the canonical "cyberpunk AI dashboard" tell. Offset drop shadows and `shadow-card` are unaffected.
+  - `no-custom-shell-chrome` — a hand-rolled topbar (`AppShellSidebarTrigger` is unnecessary — `AppShell` renders the mobile menu itself) or a hand-rolled `<nav>`/`<aside>` rail (`flex-col` + fixed rail width). Use `AppShell sidebar={<StudioSidebar … />}`.
+  - `no-uppercase-heading` — `uppercase` on `<h1>`–`<h3>` or large text. Small `text-xs uppercase tracking-wide` eyebrows are intentionally allowed.
+  - `theme-via-generator` — `forcedTheme` or hand-authored theme token values (`--background: oklch(…)`, `--sidebar-bg: #…`). Brand via `createTimbalTheme({ brand })` instead.
+
+### Changed
+
+- **`APP_KIT_AGENT_INSTRUCTIONS` rewired around the shell** — new **Shell & navigation** section: sidebar = `StudioSidebar` with `{ id, name, icon? }` items + a copyable example; **no topbar by default** (AppShell renders the mobile menu); never hand-roll a rail or topbar. The "Sidebar dashboard" archetype, the Layout-chrome rule, the new Theme rule, and the `AppShell`/`StudioSidebar` menu entries all state this explicitly and name the linting rule that enforces it.
+- **Recipes + reference model the pattern** — `sidebar-dashboard` recipe, the `operations-dashboard` reference, and the blueprint `AppKitDemo` now pass icon nav items (and a `brand`), demonstrating route nav with icons and zero topbar.
+
+### Tooling
+
+- Anti-drift test asserts `StudioSidebarItem` accepts `{ id, name, icon }` at the type level, so the icon slot can't silently regress.
+
+## [1.7.0] — 2026-06-28
+
+Hardening release: make UI generation bulletproof for codegen agents by letting
+the package speak for itself (types, defaults, JSDoc-with-examples, fail-loud
+guardrails) instead of leaning on prose instructions.
+
+### Added
+
+- **`AppShell` auto mobile-nav hamburger (no topbar required)** — when an `AppShell` has a `sidebar` but no `topbar`, it now renders its own floating hamburger (`md:hidden`, top-left) that opens the sidebar drawer. New `mobileSidebarTrigger?: "auto" | "topbar" | "none"` (default `"auto"`). A sidebar dashboard now works on mobile with **no topbar and no wiring** — detaching the long-standing "inject a topbar just for the mobile menu" coupling.
+- **`StudioSidebar` auto-syncs to the shell** — inside `AppShell`, the drawer reads the shell's mobile-nav controls automatically when `mobileOpen` isn't passed (via a neutral `src/layout/shell-nav-context.tsx` channel, mirroring the inset channel). No more manual `mobileOpen` / `onMobileOpenChange` / `StudioSidebarBackdrop` plumbing.
+- **Chart-color lint rule (`chart-token-color-fn`, error)** — flags wrapping an OKLCH token in a color function (`hsl(var(--chart-1))`, `rgb(var(--primary))`, …), the silent "empty chart that still builds" bug. New `chart-token-color` entry in `HOUSE_RULES`.
+- **JSDoc `@example` on the hot prop surface** — `LineAreaChart`, `PieChart`, `RadialChart`, `RadarChart`, `DataTable`, `StatusBadge`, `StatusDot`, `MetricRow`, `Button`, `ChartPanel`/`MetricChartCard`, `FieldSelect` now carry copyable examples + disambiguation in their `.d.ts`, killing the "grep `dist/*.d.ts` to reverse-engineer props" loop.
+- **New recipes** — `sidebar-dashboard` (canonical no-topbar sidebar dashboard) and `chat-with-drawer` (chat-first + right-side Sheet drawer with a bounded scroll region) in `examples/app-kit`, registered in the blocks catalog.
+
+### Fixed
+
+- **`SheetDescription` / `DialogDescription` no longer cause hydration errors** — they render as a `<div>` (via `asChild`) instead of Radix's default `<p>`, so block-level children (badges, pill rows) are valid HTML.
+- **`lintGeneratedUi` / `formatLintReport` fail loud on misuse** — passing a non-string source (e.g. `{ filename, source }`) or the whole `LintResult` to `formatLintReport` now throws a `TypeError` whose message states the correct signature, instead of silently mis-running.
+
+### Tooling
+
+- Anti-drift test (`src/anti-drift.test.ts`) asserts the `/app`, `/ui`, `/studio` export surface the examples/blueprint depend on (and that `Tabs` / `AppShellTopbar` are NOT exported), so API drift fails a test instead of surfacing as a codegen error.
+- `docs/agent-environment.md` captures the environmental gotchas (`bun x tsc -b` not `npx`, preview vs EFS `node_modules` paths, stale `*.tsbuildinfo`) once, out of the prompt strings.
+
 ## [1.6.1] — 2026-06-27
 
 ### Fixed

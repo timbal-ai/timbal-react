@@ -59,3 +59,41 @@ export type {
   ToolCallContentPart,
 } from "../runtime/provider";
 export type { ThinkingContentPart } from "../runtime/types";
+
+// ── Conversation history (app runs) ──────────────────────────────────────────
+export {
+  listRuns,
+  getRun,
+  orderRunsForThread,
+  isRootRun,
+  runParentId,
+} from "../runtime/conversations";
+export type {
+  ListRunsParams,
+  ListRunsResult,
+  GetRunParams,
+  RunPreview,
+  RunDetail,
+  RunUser,
+  RunWorkforce,
+  RunStatus,
+  RunSortBy,
+  RunSortOrder,
+  TraceSpan,
+} from "../runtime/conversations";
+export {
+  runTraceToMessages,
+  conversationRunsToMessages,
+  normalizeContentToText,
+} from "../runtime/trace-to-messages";
+export type { RunTraceToMessagesOptions } from "../runtime/trace-to-messages";
+export { useConversations } from "../hooks/use-conversations";
+export type {
+  UseConversationsOptions,
+  UseConversationsResult,
+} from "../hooks/use-conversations";
+export { useConversation } from "../hooks/use-conversation";
+export type {
+  UseConversationOptions,
+  UseConversationResult,
+} from "../hooks/use-conversation";
