@@ -113,7 +113,7 @@ function SelectItem({
       data-slot="select-item"
       className={cn(
         overlayItemClass,
-        "w-full py-1.5 pr-8 pl-2 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        "w-full py-1 pr-8 pl-2 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className,
       )}
       {...props}

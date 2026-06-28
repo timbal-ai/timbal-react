@@ -58,7 +58,7 @@ describe("Button", () => {
       </Button>,
     );
     expect(
-      screen.getByRole("button", { name: "Publish now" }).className.includes("h-10"),
+      screen.getByRole("button", { name: "Publish now" }).className.includes("h-9"),
     ).toBe(true);
   });
 

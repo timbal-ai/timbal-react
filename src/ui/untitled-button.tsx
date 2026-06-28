@@ -111,10 +111,10 @@ export const untitledButtonVariants = cva(
         ),
       },
       size: {
-        sm: "h-9 gap-1.5 rounded-lg px-3 text-sm",
-        md: "h-10 gap-1.5 rounded-lg px-3.5 text-sm",
-        lg: "h-11 gap-2 rounded-lg px-4 text-base",
-        xl: "h-12 gap-2 rounded-lg px-5 text-base",
+        sm: "h-8 gap-1 rounded-md px-2.5 text-xs",
+        md: "h-9 gap-1.5 rounded-lg px-3 text-sm",
+        lg: "h-10 gap-1.5 rounded-lg px-3.5 text-sm",
+        xl: "h-11 gap-2 rounded-lg px-4 text-base",
       },
     },
     defaultVariants: {

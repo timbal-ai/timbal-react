@@ -52,12 +52,12 @@ const sheetContentVariants = cva(
   {
     variants: {
       side: {
-        top: "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top fixed top-4 inset-x-4 mx-auto w-[calc(100vw-2rem)] sm:max-w-lg rounded-2xl p-6",
+        top: "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top fixed top-4 inset-x-4 mx-auto w-[calc(100vw-2rem)] sm:max-w-lg rounded-2xl p-5",
         bottom:
-          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom fixed bottom-4 inset-x-4 mx-auto w-[calc(100vw-2rem)] sm:max-w-lg rounded-2xl p-6",
-        left: "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed top-4 bottom-4 left-4 w-[calc(100vw-2rem)] rounded-2xl p-6",
+          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom fixed bottom-4 inset-x-4 mx-auto w-[calc(100vw-2rem)] sm:max-w-lg rounded-2xl p-5",
+        left: "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed top-4 bottom-4 left-4 w-[calc(100vw-2rem)] rounded-2xl p-5",
         right:
-          "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right fixed top-4 bottom-4 right-4 w-[calc(100vw-2rem)] rounded-2xl p-6",
+          "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right fixed top-4 bottom-4 right-4 w-[calc(100vw-2rem)] rounded-2xl p-5",
       },
       size: {
         default: "",

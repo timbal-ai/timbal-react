@@ -62,7 +62,7 @@ function CopyButton({
         "inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium text-muted-foreground transition-colors",
         "hover:bg-accent hover:text-foreground data-[copied=true]:text-emerald-600 dark:data-[copied=true]:text-emerald-400",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
-        children ? "h-8 px-2" : "size-8",
+        children ? "h-7 px-1.5" : "size-7",
         className,
       )}
       {...props}

@@ -13,8 +13,8 @@ const snippetVariantClass: Record<SnippetVariant, string> = {
 };
 
 const snippetSizeClass: Record<SnippetSize, string> = {
-  sm: "gap-1.5 py-1 pl-2.5 pr-1 text-xs",
-  default: "gap-2 py-1.5 pl-3 pr-1.5 text-sm",
+  sm: "gap-1.5 py-0.5 pl-2 pr-0.5 text-xs",
+  default: "gap-2 py-1 pl-2.5 pr-1 text-sm",
 };
 
 export interface SnippetProps extends Omit<React.ComponentProps<"div">, "children"> {

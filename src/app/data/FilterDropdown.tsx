@@ -255,7 +255,6 @@ export function FilterDropdown({
           <Button
             variant="outline"
             size="sm"
-            shape="pill"
             className="border-dashed font-medium text-muted-foreground hover:text-foreground"
             iconLeading={<ListFilterIcon className="size-4" />}
           >
@@ -322,7 +321,7 @@ export function FilterDropdown({
         <button
           type="button"
           onClick={clearAll}
-          className="rounded-full px-2 py-1 text-xs font-medium text-muted-foreground outline-none transition-colors hover:text-foreground"
+          className="rounded-full px-3 py-1 text-sm font-medium text-muted-foreground outline-none transition-colors hover:text-foreground"
         >
           Clear all
         </button>
@@ -333,15 +332,15 @@ export function FilterDropdown({
 
 function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 py-1 pl-2.5 pr-1 text-xs font-medium text-foreground">
+    <span className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-muted/40 pl-3 pr-1.5 text-sm font-medium text-foreground">
       <span className="truncate">{label}</span>
       <button
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${label}`}
-        className="flex size-4 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground"
+        className="flex size-5 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground"
       >
-        <XIcon className="size-3" />
+        <XIcon className="size-3.5" />
       </button>
     </span>
   );

@@ -53,24 +53,24 @@ export const TIMBAL_V2_FROM_LEGACY_BUTTON: Record<
 };
 
 export const TIMBAL_V2_SIZE_HEIGHT: Record<TimbalV2Size, string> = {
-  xs: "min-h-8 h-8",
-  sm: "min-h-9 h-9",
-  md: "min-h-10 h-10",
-  lg: "min-h-11 h-11",
+  xs: "min-h-7 h-7",
+  sm: "min-h-8 h-8",
+  md: "min-h-9 h-9",
+  lg: "min-h-10 h-10",
 };
 
 export const TIMBAL_V2_SIZE_ICON: Record<TimbalV2Size, string> = {
-  xs: "min-h-8 min-w-8 size-8",
+  xs: "min-h-7 min-w-7 size-7",
   sm: "min-h-8 min-w-8 size-8",
-  md: "min-h-10 min-w-10 size-10",
-  lg: "min-h-11 min-w-11 size-11",
+  md: "min-h-9 min-w-9 size-9",
+  lg: "min-h-10 min-w-10 size-10",
 };
 
 export const TIMBAL_V2_SIZE_LABEL_PX: Record<TimbalV2Size, string> = {
-  xs: "px-3",
-  sm: "px-4",
-  md: "px-5",
-  lg: "px-6",
+  xs: "px-2.5",
+  sm: "px-3",
+  md: "px-3.5",
+  lg: "px-4.5",
 };
 
 /**

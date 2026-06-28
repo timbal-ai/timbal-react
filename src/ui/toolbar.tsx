@@ -27,7 +27,7 @@ function ToolbarButton({
     <ToolbarPrimitive.Button
       data-slot="toolbar-button"
       className={cn(
-        "inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm font-medium text-foreground outline-none transition-colors",
+        "inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-sm font-medium text-foreground outline-none transition-colors",
         "hover:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/10 disabled:pointer-events-none disabled:opacity-50",
         className,
       )}
@@ -70,7 +70,7 @@ function ToolbarToggleItem({
     <ToolbarPrimitive.ToggleItem
       data-slot="toolbar-toggle-item"
       className={cn(
-        "inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-sm outline-none transition-colors",
+        "inline-flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-sm outline-none transition-colors",
         "hover:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/10",
         "data-[state=on]:bg-accent data-[state=on]:text-accent-foreground",
         className,
@@ -88,7 +88,7 @@ function ToolbarLink({
     <ToolbarPrimitive.Link
       data-slot="toolbar-link"
       className={cn(
-        "inline-flex h-8 items-center rounded-md px-2 text-sm text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/10",
+        "inline-flex h-7 items-center rounded-md px-1.5 text-sm text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-foreground/10",
         className,
       )}
       {...props}

@@ -50,7 +50,7 @@ function InputOTPSlot({
       data-slot="input-otp-slot"
       className={cn(
         controlSurfaceClass,
-        "relative size-9 rounded-none text-center text-sm tabular-nums",
+        "relative size-8 rounded-none text-center text-sm tabular-nums",
         "-ms-px first:ms-0 first:rounded-s-lg last:rounded-e-lg",
         "focus-visible:z-10",
         className,

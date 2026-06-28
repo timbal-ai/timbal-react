@@ -104,6 +104,17 @@ const RAW_CONTROL_SURFACE_RE = /\bborder-input\b/;
 /** Colored hover backgrounds/gradients on interactive elements (e.g. hover:bg-primary). */
 const COLORED_HOVER_RE = /\bhover:(?:bg|from|to|via)-(?:primary|destructive|success|warn|danger|blue|emerald|green|amber|red|indigo|violet|purple|pink|rose|sky|cyan|teal|lime|yellow|orange|fuchsia)\b/;
 
+/**
+ * Trend/delta context: a directional icon, a `trend`/`delta`/`change` prop, or
+ * a signed percentage literal like `+8%` / `-3.2%`.
+ */
+const TREND_CONTEXT_RE =
+  /\b(?:trend|delta|TrendingUp|TrendingDown|ArrowUp|ArrowDown|ArrowUpRight|ArrowDownRight|MoveUp|MoveDown)\b|[+\-]\d+(?:\.\d+)?\s*%/;
+
+/** A positive/negative color (palette or semantic token) used as a trend tint. */
+const TREND_COLOR_RE =
+  /\b(?:text|bg|border)-(?:success|destructive|emerald|green|lime|teal|red|rose|orange|amber)(?:-\d{2,3})?(?:\/\d{1,3})?\b/;
+
 const RESERVED_GRADIENT_SET = new Set<string>(RESERVED_GRADIENT_TOKENS);
 
 function stripVariants(util: string): string {
@@ -182,6 +193,17 @@ export function lintGeneratedUi(
     if (cardMatch) {
       const isSelfClosing = /\/>/.test(line) && line.indexOf(cardMatch[0]) < line.indexOf("/>");
       if (!isSelfClosing) {
+        // A card opening while another is still open is card-in-card nesting.
+        if (openCards.length > 0) {
+          const parentCard = openCards[openCards.length - 1];
+          findings.push({
+            rule: "no-card-in-card",
+            severity: "warn",
+            line: lineNo,
+            message: `Card inside card. A <${cardMatch[1]}> is nested inside the <${parentCard.type}> opened on L${parentCard.line}. Double borders/shadows add no information — group with spacing or a <Section> instead.`,
+            snippet: line.trim().slice(0, 120),
+          });
+        }
         openCards.push({ type: cardMatch[1], line: lineNo });
       }
     }
@@ -268,6 +290,21 @@ export function lintGeneratedUi(
         line: lineNo,
         message:
           "Colored hover background/gradient. House style: interactive cards and list items must use neutral hover states — never hard-code colored backgrounds or borders on hover.",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+
+    // ── colored trend pill ──────────────────────────────────────────────
+    // Fires only when a trend/delta context AND a positive/negative color
+    // appear on the same line — the "loud green/red pill on every metric"
+    // tell. Kept high-precision by requiring both signals.
+    if (TREND_CONTEXT_RE.test(line) && TREND_COLOR_RE.test(line)) {
+      findings.push({
+        rule: "neutral-trend",
+        severity: "warn",
+        line: lineNo,
+        message:
+          "Colored trend indicator. House style: don't tint deltas green/red on every metric — show a trend only when the change is the point, and keep it muted (text-muted-foreground).",
         snippet: line.trim().slice(0, 120),
       });
     }

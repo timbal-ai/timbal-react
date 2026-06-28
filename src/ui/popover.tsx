@@ -50,7 +50,7 @@ function PopoverContent({
               )
             : cn(
                 overlaySurfaceClass,
-                "w-72 origin-[var(--radix-popover-content-transform-origin)] rounded-xl p-4 outline-hidden",
+                "w-72 origin-[var(--radix-popover-content-transform-origin)] rounded-xl p-3 outline-hidden",
               ),
           className,
         )}

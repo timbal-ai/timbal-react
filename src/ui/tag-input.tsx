@@ -9,8 +9,8 @@ import { cn } from "../utils";
 export type TagInputSize = "sm" | "default";
 
 const tagInputSizeClass: Record<TagInputSize, string> = {
-  sm: "min-h-9 gap-1 px-1.5 py-1",
-  default: "min-h-10 gap-1.5 px-2 py-1.5",
+  sm: "min-h-8 gap-1 px-1.5 py-0.5",
+  default: "min-h-9 gap-1 px-2 py-1",
 };
 
 export interface TagInputProps {

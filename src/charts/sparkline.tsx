@@ -55,15 +55,16 @@ export const Sparkline: FC<SparklineProps> = ({
     return <span className={cn("inline-block", className)} style={{ width, height }} />;
   }
 
-  const pad = strokeWidth + 1;
+  const padX = 0;
+  const padY = strokeWidth + 1;
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
-  const innerW = width - pad * 2;
-  const innerH = height - pad * 2;
+  const innerW = width - padX * 2;
+  const innerH = height - padY * 2;
   const points: Point[] = values.map((v, i) => ({
-    x: pad + (values.length > 1 ? (i / (values.length - 1)) * innerW : innerW / 2),
-    y: pad + innerH - ((v - min) / range) * innerH,
+    x: padX + (values.length > 1 ? (i / (values.length - 1)) * innerW : innerW / 2),
+    y: padY + innerH - ((v - min) / range) * innerH,
   }));
 
   const svg = (
@@ -84,7 +85,7 @@ export const Sparkline: FC<SparklineProps> = ({
               <stop offset="100%" style={{ stopColor: color, stopOpacity: 0 }} />
             </linearGradient>
           </defs>
-          <path d={monotoneAreaPath(points, height - pad)} fill={`url(#${uid}-spark)`} />
+          <path d={monotoneAreaPath(points, height - padY)} fill={`url(#${uid}-spark)`} />
         </>
       )}
       <path
@@ -154,7 +155,12 @@ export const Sparkline: FC<SparklineProps> = ({
       {active ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-[11px] font-medium leading-tight text-popover-foreground shadow-md"
+          className={cn(
+            "pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full whitespace-nowrap",
+            "rounded-xl border px-3 py-2 text-[11px] font-medium leading-none tabular-nums shadow-[0_12px_40px_-10px_rgba(0,0,0,0.55)]",
+            "border-white/10 bg-gradient-to-b from-neutral-800 to-neutral-950 text-white",
+            "dark:border-black/10 dark:from-white dark:to-neutral-100 dark:text-neutral-900"
+          )}
           style={{
             left: `${(active.x / width) * 100}%`,
             top: `${(active.y / height) * 100}%`,
@@ -162,9 +168,9 @@ export const Sparkline: FC<SparklineProps> = ({
           }}
         >
           {labels?.[activeIndex!] != null ? (
-            <span className="mr-1.5 text-muted-foreground">{labels[activeIndex!]}</span>
+            <span className="mr-1.5 text-neutral-300 dark:text-neutral-500">{labels[activeIndex!]}</span>
           ) : null}
-          <span className="tabular-nums">{formattedValue}</span>
+          <span>{formattedValue}</span>
         </span>
       ) : null}
     </span>

@@ -58,9 +58,9 @@ export function avatarChartVariantClass(_seed?: string): string {
 }
 
 const AVATAR_SIZE_CLASS = {
-  default: "size-8",
-  sm: "size-6",
-  lg: "size-10",
+  default: "size-7",
+  sm: "size-5",
+  lg: "size-9",
 } as const;
 
 function Avatar({

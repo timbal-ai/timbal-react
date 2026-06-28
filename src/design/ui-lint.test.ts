@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import { formatLintReport, lintGeneratedUi } from "./ui-lint";
+import { HOUSE_RULES } from "./ui-vocabulary";
 
 function rules(source: string, opts?: Parameters<typeof lintGeneratedUi>[1]) {
   return lintGeneratedUi(source, opts).findings.map((f) => f.rule);
@@ -221,6 +222,105 @@ describe("lintGeneratedUi — table inside card", () => {
       </Page>
     `;
     expect(rules(src).includes("no-table-in-card")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — card inside card", () => {
+  it("warns when a Card is nested inside another Card", () => {
+    const src = `
+      <Card>
+        <Card>
+          <span>nested</span>
+        </Card>
+      </Card>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-card-in-card"]));
+  });
+
+  it("warns on SurfaceCard nested inside Card", () => {
+    const src = `
+      <Card>
+        <SurfaceCard>
+          <span>nested</span>
+        </SurfaceCard>
+      </Card>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-card-in-card"]));
+  });
+
+  it("does not warn on sibling cards", () => {
+    const src = `
+      <Page>
+        <Card><span>a</span></Card>
+        <Card><span>b</span></Card>
+      </Page>
+    `;
+    expect(rules(src).includes("no-card-in-card")).toBe(false);
+  });
+
+  it("does not warn on card subcomponents (CardHeader/CardContent)", () => {
+    const src = `
+      <Card>
+        <CardHeader><span>title</span></CardHeader>
+        <CardContent><span>body</span></CardContent>
+      </Card>
+    `;
+    expect(rules(src).includes("no-card-in-card")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — neutral trend", () => {
+  it("warns on a colored signed-percentage delta", () => {
+    expect(
+      rules(`<span className="text-emerald-500">+8%</span>`),
+    ).toEqual(expect.arrayContaining(["neutral-trend"]));
+  });
+
+  it("warns on a colored trending icon", () => {
+    expect(
+      rules(`<TrendingUp className="text-success" />`),
+    ).toEqual(expect.arrayContaining(["neutral-trend"]));
+  });
+
+  it("does not warn on a muted trend", () => {
+    const res = lintGeneratedUi(
+      `<span className="text-muted-foreground">+8%</span>`,
+    );
+    expect(res.findings.some((f) => f.rule === "neutral-trend")).toBe(false);
+  });
+
+  it("does not warn on a colored element without trend context", () => {
+    const res = lintGeneratedUi(`<Badge className="text-destructive">Overdue</Badge>`);
+    expect(res.findings.some((f) => f.rule === "neutral-trend")).toBe(false);
+  });
+});
+
+describe("HOUSE_RULES lint coverage", () => {
+  // Every HouseRule must make an explicit coverage decision: either a
+  // deterministic linter rule maps to it, or it is annotated prompt-only.
+  // This guards against a new rule being added without wiring up the gate.
+  const LINT_COVERAGE: Record<string, string[]> = {
+    "semantic-color": ["raw-color", "color-literal", "inline-style-color"],
+    "no-decorative-icons": ["icon-spam"],
+    "neutral-trend": ["neutral-trend"],
+    "values-normal-weight": ["bold-metric"],
+    "no-card-in-card": ["no-card-in-card"],
+    "no-table-in-card": ["no-table-in-card"],
+    "no-row-dividers": ["row-divider"],
+    "no-data-gradient": ["data-gradient"],
+    "use-kit-controls": ["raw-control-surface"],
+    "no-title-repetition": ["no-title-repetition"],
+    "no-chat-wrapping": ["no-chat-wrapping"],
+    "no-colored-hover": ["no-colored-hover"],
+  };
+
+  it("covers every HOUSE_RULES id with a lint check or a prompt-only annotation", () => {
+    for (const rule of HOUSE_RULES) {
+      const covered =
+        rule.enforcement === "prompt-only" ||
+        Array.isArray(LINT_COVERAGE[rule.id]);
+      expect({ id: rule.id, covered }).toEqual({ id: rule.id, covered: true });
+    }
   });
 });
 

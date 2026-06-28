@@ -30,11 +30,11 @@ export const pillSegmentedTrackFlushClass = cn(
 );
 
 export const pillSegmentedSegmentClass = cn(
-  "relative flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-normal transition-colors",
+  "relative flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-normal transition-colors",
 );
 
 export const pillSegmentedFlushSegmentClass = cn(
-  "relative box-border inline-flex h-9 min-h-9 items-center justify-center gap-1.5 rounded-full px-3.5 py-0",
+  "relative box-border inline-flex h-8 min-h-8 items-center justify-center gap-1.5 rounded-full px-3 py-0",
   "text-sm font-normal leading-tight transition-colors",
 );
 

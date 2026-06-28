@@ -47,7 +47,7 @@ export const StatusBadge: FC<StatusBadgeProps> = ({
   return (
     <span
       className={cn(
-        "aui-app-status-badge inline-flex items-center gap-1.5 rounded-full px-2 py-0.5",
+        "aui-app-status-badge inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5",
         "text-xs font-medium leading-none ring-1 ring-inset",
         statusBadgeToneClass[tone],
         className,

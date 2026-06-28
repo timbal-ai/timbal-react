@@ -13,7 +13,7 @@ function Menubar({
     <MenubarPrimitive.Root
       data-slot="menubar"
       className={cn(
-        "flex h-9 items-center gap-1 rounded-lg border border-border bg-gradient-to-b from-elevated-from to-elevated-to p-1 shadow-card",
+        "flex h-8 items-center gap-1 rounded-lg border border-border bg-gradient-to-b from-elevated-from to-elevated-to p-1 shadow-card",
         className,
       )}
       {...props}
@@ -35,7 +35,7 @@ function MenubarTrigger({
     <MenubarPrimitive.Trigger
       data-slot="menubar-trigger"
       className={cn(
-        "flex cursor-default items-center rounded-md px-2 py-1 text-sm font-medium outline-none select-none",
+        "flex cursor-default items-center rounded-md px-2 py-0.5 text-sm font-medium outline-none select-none",
         "focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
         className,
       )}
@@ -102,7 +102,7 @@ function MenubarCheckboxItem({
   return (
     <MenubarPrimitive.CheckboxItem
       data-slot="menubar-checkbox-item"
-      className={cn(overlayItemClass, "py-1.5 pr-2 pl-8", className)}
+      className={cn(overlayItemClass, "py-1 pr-2 pl-8", className)}
       checked={checked}
       {...props}
     >
@@ -132,7 +132,7 @@ function MenubarRadioItem({
   return (
     <MenubarPrimitive.RadioItem
       data-slot="menubar-radio-item"
-      className={cn(overlayItemClass, "py-1.5 pr-2 pl-8", className)}
+      className={cn(overlayItemClass, "py-1 pr-2 pl-8", className)}
       {...props}
     >
       <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">

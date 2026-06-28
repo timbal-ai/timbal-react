@@ -30,8 +30,8 @@ export type ControlShape = "field" | "pill";
 
 /** Height + horizontal padding per control size — shared by every control. */
 export const CONTROL_SIZE: Record<ControlSize, string> = {
-  sm: "h-9 px-3",
-  default: "h-10 px-3",
+  sm: "h-8 px-2.5",
+  default: "h-9 px-3",
 };
 
 const CONTROL_SHAPE: Record<ControlShape, string> = {
@@ -113,4 +113,4 @@ export const overlayListPanelClass = cn(
  * override padding (e.g. `pl-8` for a leading indicator) on top of this.
  */
 export const overlayItemClass =
-  "relative flex cursor-default items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground";
+  "relative flex cursor-default items-center gap-2 rounded-md px-2 py-1 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 [&_svg:not([class*='text-'])]:text-muted-foreground";

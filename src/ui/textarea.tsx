@@ -13,7 +13,7 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
       data-slot="textarea"
       className={cn(
         controlSurfaceClass,
-        "min-h-16 w-full resize-y rounded-lg px-3 py-2 leading-relaxed",
+        "min-h-16 w-full resize-y rounded-lg px-2.5 py-1.5 leading-relaxed",
         className,
       )}
       {...props}

@@ -178,6 +178,15 @@ export interface HouseRule {
   slop?: string;
   /** The tasteful equivalent. */
   good?: string;
+  /**
+   * How the rule is enforced. `"lint"` (the default) means `ui-lint.ts` has a
+   * deterministic check for it; `"prompt-only"` means the pattern can't be
+   * detected with high enough precision to gate on, so it's taught in the
+   * prompt but deliberately not linted (a low-precision check would false-flag
+   * legitimate UIs under the strict gate). Keeping this explicit lets a test
+   * assert every rule made a coverage decision — see `ui-lint.test.ts`.
+   */
+  enforcement?: "lint" | "prompt-only";
 }
 
 export const HOUSE_RULES: readonly HouseRule[] = [
@@ -235,6 +244,10 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     id: "compose-from-blocks",
     rule: "Build from premade blocks (MetricRow, MetricChartCard, DataTable, IntegrationCard). Drop to raw primitives only when no block fits.",
     why: "Slop appears the moment generation falls below the curated block layer.",
+    // "Should have used a block" is a judgement about absence, not a textual
+    // pattern — no high-precision deterministic check exists, so this stays
+    // prompt-only rather than risk false-positives blocking valid UIs.
+    enforcement: "prompt-only",
   },
   {
     id: "use-kit-controls",

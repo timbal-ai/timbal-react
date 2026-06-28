@@ -24,8 +24,8 @@ export const SIDEBAR_GAP_PX = 12;
 export const SIDEBAR_CONTENT_GAP_PX = 8;
 
 export const TOPBAR_GAP_PX = 8;
-export const TOPBAR_HEIGHT_PX = 48;
-export const PILL_HEIGHT_PX = 40;
+export const TOPBAR_HEIGHT_PX = 44;
+export const PILL_HEIGHT_PX = 36;
 
 // Derived insets — distance from the viewport's left edge to the chat column.
 export const SIDEBAR_INSET_PX_EXPANDED =

@@ -39,7 +39,7 @@ function Toast({
       data-slot="toast"
       className={cn(
         TIMBAL_V2_ELEVATED_SURFACE,
-        "group pointer-events-auto relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-xl p-4 pr-8 shadow-card-elevated transition-all",
+        "group pointer-events-auto relative flex w-full items-center justify-between gap-3 overflow-hidden rounded-xl p-3 pr-7 shadow-card-elevated transition-all",
         "data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-80 data-[state=open]:slide-in-from-top-full data-[state=open]:sm:slide-in-from-bottom-full data-[state=closed]:slide-out-to-right-full",
         variant === "destructive" &&
           "border-destructive/45 bg-destructive/10 text-destructive",

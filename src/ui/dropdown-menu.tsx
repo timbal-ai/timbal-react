@@ -84,7 +84,7 @@ function DropdownMenuCheckboxItem({
   return (
     <DropdownMenuPrimitive.CheckboxItem
       data-slot="dropdown-menu-checkbox-item"
-      className={cn(overlayItemClass, "py-1.5 pr-2 pl-8", className)}
+      className={cn(overlayItemClass, "py-1 pr-2 pl-8", className)}
       checked={checked}
       {...props}
     >
@@ -117,7 +117,7 @@ function DropdownMenuRadioItem({
   return (
     <DropdownMenuPrimitive.RadioItem
       data-slot="dropdown-menu-radio-item"
-      className={cn(overlayItemClass, "py-1.5 pr-2 pl-8", className)}
+      className={cn(overlayItemClass, "py-1 pr-2 pl-8", className)}
       {...props}
     >
       <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">

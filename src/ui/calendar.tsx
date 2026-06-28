@@ -42,12 +42,12 @@ function Calendar({
         button_previous: cn(navButtonClass, defaults.button_previous),
         button_next: cn(navButtonClass, defaults.button_next),
         month_caption: cn(
-          "flex h-10 items-center justify-center",
+          "flex h-9 items-center justify-center",
           defaults.month_caption,
         ),
         caption_label: cn("text-sm font-semibold", defaults.caption_label),
         dropdowns: cn(
-          "flex h-10 items-center justify-center gap-1.5 text-sm font-semibold",
+          "flex h-9 items-center justify-center gap-1.5 text-sm font-semibold",
           defaults.dropdowns,
         ),
         dropdown_root: cn(
@@ -58,17 +58,17 @@ function Calendar({
         month_grid: cn("border-separate border-spacing-y-1", defaults.month_grid),
         weekdays: cn(defaults.weekdays),
         weekday: cn(
-          "size-10 pb-2 text-xs font-medium text-muted-foreground",
+          "size-9 pb-2 text-xs font-medium text-muted-foreground",
           defaults.weekday,
         ),
         week: cn(defaults.week),
-        week_number_header: cn("size-10", defaults.week_number_header),
+        week_number_header: cn("size-9", defaults.week_number_header),
         week_number: cn(
           "text-xs text-muted-foreground",
           defaults.week_number,
         ),
         day: cn(
-          "relative size-10 p-0 text-center text-sm focus-within:relative focus-within:z-10",
+          "relative size-9 p-0 text-center text-sm focus-within:relative focus-within:z-10",
           defaults.day,
         ),
         range_start: cn("rounded-l-md", defaults.range_start),
