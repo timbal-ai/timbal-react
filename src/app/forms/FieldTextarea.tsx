@@ -1,6 +1,6 @@
 "use client";
 
-import type { FC, TextareaHTMLAttributes } from "react";
+import { useId, type FC, type TextareaHTMLAttributes } from "react";
 
 import { appInputClass } from "../../design/app-classes";
 import { cn } from "../../utils";
@@ -28,7 +28,8 @@ export const FieldTextarea: FC<FieldTextareaProps> = ({
   id,
   ...props
 }) => {
-  const textareaId = id ?? props.name;
+  const autoId = useId();
+  const textareaId = id ?? props.name ?? autoId;
   return (
     <Field
       label={label}

@@ -1,6 +1,6 @@
 "use client";
 
-import type { FC, InputHTMLAttributes, ReactNode } from "react";
+import { useId, type FC, type InputHTMLAttributes, type ReactNode } from "react";
 
 import {
   TIMBAL_V2_SWITCH_THUMB,
@@ -36,7 +36,8 @@ export const FieldSwitch: FC<FieldSwitchProps> = ({
   id,
   ...props
 }) => {
-  const inputId = id ?? props.name ?? "switch";
+  const autoId = useId();
+  const inputId = id ?? props.name ?? autoId;
   return (
     <label
       className={cn(

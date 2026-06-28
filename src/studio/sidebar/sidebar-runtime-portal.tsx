@@ -26,14 +26,15 @@ interface StudioSidebarRuntimePortalProps {
 export const StudioSidebarRuntimePortal: FC<StudioSidebarRuntimePortalProps> = ({
   label = "New chat",
 }) => {
-  const { iconOnlyLayout } = useStudioSidebarLayout();
+  const { iconOnlyLayout, isMobile, closeMobile } = useStudioSidebarLayout();
   const hasMessages = useThread((s) => s.messages.length > 0);
   const { clear } = useTimbalRuntime();
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
   const startNewChat = useCallback(() => {
     clear();
-  }, [clear]);
+    if (isMobile) closeMobile?.();
+  }, [clear, isMobile, closeMobile]);
 
   useLayoutEffect(() => {
     setAnchor(document.getElementById(DOM_IDS.sidebarRuntimeAnchor));

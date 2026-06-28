@@ -58,9 +58,11 @@
 
   /* Timbal extension tokens — keep light + dark in sync below */
 
-  /* Elevated surface gradient (cards, sidebar panel, secondary chrome). */
+  /* Elevated surface gradient (cards, sidebar panel, secondary chrome).
+     Opaque stops — keeps the signature vertical gradient with no alpha
+     bleed-through, so whatever sits behind the surface never shows through. */
   --elevated-from: oklch(1 0 0);
-  --elevated-to: oklch(0.985 0.002 260 / 0.7);
+  --elevated-to: oklch(0.985 0.002 260);
 
   /* Opaque modal/dialog gradient — same hue as elevated, no alpha bleed-through. */
   --modal-from: oklch(1 0 0);
@@ -100,9 +102,26 @@
   --destructive-fill-active-from: oklch(0.93 0.09 27 / 0.9);
   --destructive-fill-active-to: oklch(0.86 0.13 27 / 0.65);
 
+  /* Solid destructive button (primary-destructive) — filled red CTA. */
+  --destructive-solid-from: oklch(0.62 0.23 27);
+  --destructive-solid-to: oklch(0.555 0.245 27.325);
+  --destructive-solid-hover-from: oklch(0.585 0.24 27);
+  --destructive-solid-hover-to: oklch(0.52 0.25 27.325);
+  --destructive-solid-active-from: oklch(0.535 0.25 27.325);
+  --destructive-solid-active-to: oklch(0.49 0.25 27.325);
+
   /* Ghost button hover/active fills. */
   --ghost-fill-hover: oklch(0.965 0.002 260 / 0.7);
   --ghost-fill-active: oklch(0.91 0.004 260 / 0.7);
+
+  /* Chart series palette — cohesive blue / indigo / cyan family.
+     Override any of these in your host app's :root to rebrand every chart. */
+  --chart-1: oklch(0.50 0.19 264);
+  --chart-2: oklch(0.58 0.14 230);
+  --chart-3: oklch(0.62 0.12 215);
+  --chart-4: oklch(0.54 0.17 278);
+  --chart-5: oklch(0.66 0.11 248);
+  --chart-6: oklch(0.44 0.11 252);
 
   /* Code block surface (markdown). */
   --code-block-bg: oklch(0.98 0 0);
@@ -181,8 +200,10 @@
   --sidebar-border: oklch(1 0 0 / 0.10);
   --sidebar-ring: oklch(0.55 0.01 260);
 
-  --elevated-from: oklch(1 0 0 / 0.05);
-  --elevated-to: oklch(1 0 0 / 0.025);
+  /* Opaque equivalents of the translucent white wash — preserves the elevated
+     gradient look while keeping the surface fully opaque (no bleed-through). */
+  --elevated-from: oklch(0.205 0.004 260);
+  --elevated-to: oklch(0.185 0.004 260);
 
   --modal-from: oklch(0.22 0.005 260);
   --modal-to: oklch(0.19 0.005 260);
@@ -228,8 +249,24 @@
   --destructive-fill-active-from: oklch(0.6 0.2 27 / 0.20);
   --destructive-fill-active-to: oklch(0.6 0.2 27 / 0.12);
 
+  /* Solid destructive button (primary-destructive) — vivid red on dark. */
+  --destructive-solid-from: oklch(0.66 0.205 25);
+  --destructive-solid-to: oklch(0.6 0.205 25);
+  --destructive-solid-hover-from: oklch(0.7 0.205 25);
+  --destructive-solid-hover-to: oklch(0.64 0.205 25);
+  --destructive-solid-active-from: oklch(0.58 0.205 25);
+  --destructive-solid-active-to: oklch(0.52 0.205 25);
+
   --ghost-fill-hover: oklch(1 0 0 / 0.10);
   --ghost-fill-active: oklch(1 0 0 / 0.15);
+
+  /* Chart series palette (dark) — brighter blues for contrast on dark surfaces. */
+  --chart-1: oklch(0.68 0.17 264);
+  --chart-2: oklch(0.72 0.13 230);
+  --chart-3: oklch(0.76 0.11 215);
+  --chart-4: oklch(0.70 0.15 278);
+  --chart-5: oklch(0.78 0.10 248);
+  --chart-6: oklch(0.62 0.10 252);
 
   --code-block-bg: oklch(0.19 0 0);
   --code-header-bg: oklch(0.22 0 0 / 0.8);
@@ -302,6 +339,13 @@
   --color-bubble-user: var(--bubble-user);
   --color-bubble-user-foreground: var(--bubble-user-foreground);
 
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+
   --color-primary-fill-from: var(--primary-fill-from);
   --color-primary-fill-to: var(--primary-fill-to);
   --color-primary-fill-hover-from: var(--primary-fill-hover-from);
@@ -319,6 +363,13 @@
   --color-destructive-fill-active-from: var(--destructive-fill-active-from);
   --color-destructive-fill-active-to: var(--destructive-fill-active-to);
 
+  --color-destructive-solid-from: var(--destructive-solid-from);
+  --color-destructive-solid-to: var(--destructive-solid-to);
+  --color-destructive-solid-hover-from: var(--destructive-solid-hover-from);
+  --color-destructive-solid-hover-to: var(--destructive-solid-hover-to);
+  --color-destructive-solid-active-from: var(--destructive-solid-active-from);
+  --color-destructive-solid-active-to: var(--destructive-solid-active-to);
+
   --color-ghost-fill-hover: var(--ghost-fill-hover);
   --color-ghost-fill-active: var(--ghost-fill-active);
 
@@ -334,9 +385,215 @@
    from `<html>` and every utility flips together with the base tokens. */
 @custom-variant dark (&:is(.dark *));
 
+/* =============================================================== *
+ * Motion engine — enter/exit, fade, zoom, slide, accordion        *
+ * --------------------------------------------------------------- *
+ * Every overlay in the package (Dialog, Sheet, DropdownMenu,      *
+ * Popover, Select, Tooltip, Toast, NavigationMenu) is authored    *
+ * against these `animate-in` / `animate-out` + modifier classes.  *
+ * They are inlined here so the shipped stylesheet animates with    *
+ * zero extra dependencies and zero consumer config. Duration flows *
+ * from any `duration-*` utility on the element (var --tw-duration).*
+ * =============================================================== */
+
+@keyframes tw-enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(
+        var(--tw-enter-translate-x, 0),
+        var(--tw-enter-translate-y, 0),
+        0
+      )
+      scale3d(
+        var(--tw-enter-scale, 1),
+        var(--tw-enter-scale, 1),
+        var(--tw-enter-scale, 1)
+      )
+      rotate(var(--tw-enter-rotate, 0));
+  }
+}
+
+@keyframes tw-exit {
+  to {
+    opacity: var(--tw-exit-opacity, 1);
+    transform: translate3d(
+        var(--tw-exit-translate-x, 0),
+        var(--tw-exit-translate-y, 0),
+        0
+      )
+      scale3d(
+        var(--tw-exit-scale, 1),
+        var(--tw-exit-scale, 1),
+        var(--tw-exit-scale, 1)
+      )
+      rotate(var(--tw-exit-rotate, 0));
+  }
+}
+
+@utility animate-in {
+  animation: tw-enter var(--tw-duration, 150ms) ease-out;
+}
+@utility animate-out {
+  animation: tw-exit var(--tw-duration, 150ms) ease-in;
+}
+
+/* Fade modifiers (number = target opacity ÷ 100). */
+@utility fade-in {
+  --tw-enter-opacity: 0;
+}
+@utility fade-in-0 {
+  --tw-enter-opacity: 0;
+}
+@utility fade-out {
+  --tw-exit-opacity: 0;
+}
+@utility fade-out-0 {
+  --tw-exit-opacity: 0;
+}
+@utility fade-out-80 {
+  --tw-exit-opacity: 0.8;
+}
+
+/* Zoom modifiers (number = scale × 100). */
+@utility zoom-in-95 {
+  --tw-enter-scale: 0.95;
+}
+@utility zoom-out-95 {
+  --tw-exit-scale: 0.95;
+}
+
+/* Slide-in (starting offset). Unitless + `-full` = 100%; `-2` = 0.5rem; `-52` = 13rem. */
+@utility slide-in-from-top {
+  --tw-enter-translate-y: -100%;
+}
+@utility slide-in-from-top-full {
+  --tw-enter-translate-y: -100%;
+}
+@utility slide-in-from-bottom {
+  --tw-enter-translate-y: 100%;
+}
+@utility slide-in-from-bottom-full {
+  --tw-enter-translate-y: 100%;
+}
+@utility slide-in-from-left {
+  --tw-enter-translate-x: -100%;
+}
+@utility slide-in-from-right {
+  --tw-enter-translate-x: 100%;
+}
+@utility slide-in-from-top-2 {
+  --tw-enter-translate-y: -0.5rem;
+}
+@utility slide-in-from-bottom-2 {
+  --tw-enter-translate-y: 0.5rem;
+}
+@utility slide-in-from-left-2 {
+  --tw-enter-translate-x: -0.5rem;
+}
+@utility slide-in-from-right-2 {
+  --tw-enter-translate-x: 0.5rem;
+}
+@utility slide-in-from-bottom-1 {
+  --tw-enter-translate-y: 0.25rem;
+}
+@utility slide-in-from-left-52 {
+  --tw-enter-translate-x: -13rem;
+}
+@utility slide-in-from-right-52 {
+  --tw-enter-translate-x: 13rem;
+}
+
+/* Slide-out (ending offset). */
+@utility slide-out-to-top {
+  --tw-exit-translate-y: -100%;
+}
+@utility slide-out-to-bottom {
+  --tw-exit-translate-y: 100%;
+}
+@utility slide-out-to-left {
+  --tw-exit-translate-x: -100%;
+}
+@utility slide-out-to-right {
+  --tw-exit-translate-x: 100%;
+}
+@utility slide-out-to-right-full {
+  --tw-exit-translate-x: 100%;
+}
+@utility slide-out-to-left-52 {
+  --tw-exit-translate-x: -13rem;
+}
+@utility slide-out-to-right-52 {
+  --tw-exit-translate-x: 13rem;
+}
+
+/* Disclosure height transitions — read Radix's measured content height. */
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+@keyframes collapsible-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-collapsible-content-height);
+  }
+}
+@keyframes collapsible-up {
+  from {
+    height: var(--radix-collapsible-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+@keyframes caret-blink {
+  0%,
+  70%,
+  100% {
+    opacity: 1;
+  }
+  20%,
+  50% {
+    opacity: 0;
+  }
+}
+
+@theme {
+  --animate-accordion-down: accordion-down 200ms ease-out;
+  --animate-accordion-up: accordion-up 200ms ease-out;
+  --animate-collapsible-down: collapsible-down 200ms ease-out;
+  --animate-collapsible-up: collapsible-up 200ms ease-out;
+  --animate-caret-blink: caret-blink 1.25s ease-out infinite;
+}
+
 /** Pill segmented track — supports solid or gradient via `--pill-segmented-track`. */
 @utility bg-pill-segmented-track {
   background: var(--pill-segmented-track);
+}
+
+@utility shadow-skeuomorphic-solid {
+  box-shadow: 
+    0px 1px 2px 0px rgba(16, 24, 40, 0.1),
+    inset 0px 1px 0px 0px rgba(255, 255, 255, 0.35) !important;
+}
+
+@utility shadow-skeuomorphic-bordered {
+  box-shadow: 
+    0px 1px 2px 0px rgba(16, 24, 40, 0.05),
+    inset 0px 1px 0px 0px rgba(255, 255, 255, 0.4) !important;
 }
 
 /* =============================================================== *
@@ -522,3 +779,24 @@
 .aui-composer-action-wrapper {
   background-color: var(--composer-bg);
 }
+
+/* Custom checkbox pop animation */
+@keyframes checkbox-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  75% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@utility animate-checkbox-pop {
+  animation: checkbox-pop 200ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+

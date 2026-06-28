@@ -32,6 +32,10 @@ interface StudioSidebarHeaderProps {
    * 32px Timbal mark; pass any node to use your own logo.
    */
   brand: ReactNode;
+  /** Logo element rendered in the collapsed sidebar header. */
+  logo?: ReactNode;
+  /** Force the collapsed sidebar header to fallback to the open chevron statically. */
+  fallbackToChevron?: boolean;
 }
 
 const SidebarToggleButton: FC<{
@@ -52,44 +56,68 @@ const SidebarToggleButton: FC<{
 );
 
 /** Collapsed rail: bare mark (no card chrome); crossfades to expand chevron on hover. */
-const CollapsedBrandToggle: FC<{ onExpand: () => void; brand: ReactNode }> = ({
-  onExpand,
-  brand,
-}) => (
-  <div className={studioSidebarCollapsedRailChipRowClass}>
-    <StudioSidebarTooltip label="Expand sidebar" enabled>
-      <button
-        type="button"
-        onClick={onExpand}
-        aria-label="Expand sidebar"
-        aria-expanded={false}
-        className={cn(
-          toggleButtonClass,
-          "group relative inline-flex size-8 items-center justify-center overflow-hidden rounded-lg",
-        )}
-      >
-        <span
-          aria-hidden
+const CollapsedBrandToggle: FC<{
+  onExpand: () => void;
+  logo?: ReactNode;
+  fallbackToChevron?: boolean;
+}> = ({ onExpand, logo, fallbackToChevron }) => {
+  if (fallbackToChevron || !logo) {
+    return (
+      <div className={studioSidebarCollapsedRailChipRowClass}>
+        <StudioSidebarTooltip label="Expand sidebar" enabled>
+          <button
+            type="button"
+            onClick={onExpand}
+            aria-label="Expand sidebar"
+            aria-expanded={false}
+            className={cn(
+              toggleButtonClass,
+              "group relative inline-flex size-8 items-center justify-center overflow-hidden rounded-lg",
+            )}
+          >
+            <ChevronRight aria-hidden className="size-4" />
+          </button>
+        </StudioSidebarTooltip>
+      </div>
+    );
+  }
+
+  return (
+    <div className={studioSidebarCollapsedRailChipRowClass}>
+      <StudioSidebarTooltip label="Expand sidebar" enabled>
+        <button
+          type="button"
+          onClick={onExpand}
+          aria-label="Expand sidebar"
+          aria-expanded={false}
           className={cn(
-            "pointer-events-none flex items-center justify-center",
-            "transition-[opacity,transform] duration-200 ease-out",
-            "group-hover:scale-90 group-hover:opacity-0",
+            toggleButtonClass,
+            "group relative inline-flex size-8 items-center justify-center overflow-hidden rounded-lg",
           )}
         >
-          {brand}
-        </span>
-        <ChevronRight
-          aria-hidden
-          className={cn(
-            "pointer-events-none absolute inset-0 m-auto size-4",
-            "opacity-0 transition-[opacity,transform] duration-200 ease-out",
-            "group-hover:opacity-100",
-          )}
-        />
-      </button>
-    </StudioSidebarTooltip>
-  </div>
-);
+          <span
+            aria-hidden
+            className={cn(
+              "pointer-events-none flex items-center justify-center",
+              "transition-[opacity,transform] duration-200 ease-out",
+              "group-hover:scale-90 group-hover:opacity-0",
+            )}
+          >
+            {logo}
+          </span>
+          <ChevronRight
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute inset-0 m-auto size-4",
+              "opacity-0 transition-[opacity,transform] duration-200 ease-out",
+              "group-hover:opacity-100",
+            )}
+          />
+        </button>
+      </StudioSidebarTooltip>
+    </div>
+  );
+};
 
 export const StudioSidebarHeader: FC<StudioSidebarHeaderProps> = ({
   isCollapsedRail,
@@ -97,6 +125,8 @@ export const StudioSidebarHeader: FC<StudioSidebarHeaderProps> = ({
   mobileOpen,
   onToggle,
   brand,
+  logo,
+  fallbackToChevron,
 }) => {
   if (isMobile) {
     return (
@@ -121,7 +151,11 @@ export const StudioSidebarHeader: FC<StudioSidebarHeaderProps> = ({
           studioSidebarCollapsedRailInsetClass,
         )}
       >
-        <CollapsedBrandToggle onExpand={onToggle} brand={brand} />
+        <CollapsedBrandToggle
+          onExpand={onToggle}
+          logo={logo}
+          fallbackToChevron={fallbackToChevron}
+        />
       </header>
     );
   }

@@ -72,6 +72,11 @@ export interface ThreadWelcomeProps {
   config?: ThreadWelcomeConfig;
   suggestions?: SuggestionsSource;
   /**
+   * When set, controls whether the default welcome renders `suggestions`.
+   * Omitted: shown for `variant="default"`, hidden for `variant="panel"`.
+   */
+  showWelcomeSuggestions?: boolean;
+  /**
    * The resolved `Suggestions` component (default or user-overridden via
    * `components.Suggestions`). Custom Welcome implementations should render
    * this and pass their `suggestions` source through.
@@ -123,6 +128,11 @@ export interface ThreadProps {
    * async function for per-user suggestions.
    */
   suggestions?: SuggestionsSource;
+  /**
+   * Show suggestion rows on the built-in welcome when `suggestions` is set.
+   * Default: `true` for `variant="default"`, `false` for `variant="panel"`.
+   */
+  showWelcomeSuggestions?: boolean;
   /** Composer input placeholder. Default: "Send a message...". */
   composerPlaceholder?: string;
   /** Override individual UI slots while keeping the rest as defaults. */
@@ -153,6 +163,7 @@ export const Thread: FC<ThreadProps> = ({
   maxWidth: maxWidthProp,
   welcome,
   suggestions,
+  showWelcomeSuggestions,
   composerPlaceholder,
   components,
   artifacts,
@@ -201,6 +212,7 @@ export const Thread: FC<ThreadProps> = ({
             <WelcomeSlot
               config={welcome}
               suggestions={suggestions}
+              showWelcomeSuggestions={showWelcomeSuggestions}
               Suggestions={SuggestionsSlot}
             />
 
@@ -292,10 +304,13 @@ const welcomeIcon = {
 const ThreadWelcome: FC<ThreadWelcomeProps> = ({
   config,
   suggestions,
+  showWelcomeSuggestions: showWelcomeSuggestionsProp,
   Suggestions: SuggestionsSlot = Suggestions,
 }) => {
   const isEmpty = useThread((s) => s.messages.length === 0);
   const isPanel = useThreadVariant() === "panel";
+  const showWelcomeSuggestions =
+    showWelcomeSuggestionsProp ?? !isPanel;
   if (!isEmpty) return null;
 
   const defaultHeading = isPanel
@@ -339,7 +354,7 @@ const ThreadWelcome: FC<ThreadWelcomeProps> = ({
           </motion.p>
         </motion.div>
       </div>
-      {suggestions && !isPanel ? (
+      {showWelcomeSuggestions && suggestions ? (
         <div className="aui-thread-welcome-suggestions mx-auto w-full max-w-(--thread-max-width) px-2">
           <SuggestionsSlot suggestions={suggestions} />
         </div>

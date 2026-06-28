@@ -97,6 +97,8 @@ export interface TimbalStudioShellProps
   workforcesBaseUrl?: string;
   /** Brand mark rendered in the sidebar header. Default: `<TimbalMark />`. */
   brand?: ReactNode;
+  /** Logo element rendered in the collapsed sidebar header. Default: uses brand if default, otherwise falls back to the open chevron. */
+  logo?: ReactNode;
   /** Extra actions rendered at the right of the floating top bar. */
   headerActions?: ReactNode;
   /** Nodes rendered at the left of the floating top bar (after the menu button). */
@@ -124,6 +126,7 @@ export const TimbalStudioShell: FC<TimbalStudioShellProps> = ({
   workforcesFetch,
   workforcesBaseUrl,
   brand,
+  logo,
   headerActions,
   headerStart,
   defaultCollapsed = false,
@@ -231,6 +234,7 @@ export const TimbalStudioShell: FC<TimbalStudioShellProps> = ({
       isMobile,
       isCollapsedRail,
       iconOnlyLayout,
+      closeMobile: () => setMobileSidebarOpen(false),
     }),
     [effectiveCollapsed, isMobile, isCollapsedRail, iconOnlyLayout],
   );
@@ -283,6 +287,7 @@ export const TimbalStudioShell: FC<TimbalStudioShellProps> = ({
           onEntriesBlurOutComplete={onEntriesBlurOutComplete}
           onPanelWidthComplete={onPanelWidthComplete}
           brand={brand}
+          logo={logo}
           emptyCaption={sidebarEmptyCaption}
         />
 

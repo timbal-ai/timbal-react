@@ -14,10 +14,9 @@ import { useAppShellChat } from "../layout/app-shell-chat-context";
 const shellClass =
   "aui-app-chat-panel flex h-full min-h-0 flex-col overflow-hidden";
 
-/** Dedicated top band — messages never share this row with the close control. */
+/** Non-scrolling band for the close control — no separate surface (inherits panel bg). */
 const chromeClass = cn(
-  "aui-app-chat-panel-chrome relative z-20 flex min-h-12 shrink-0 items-center justify-end",
-  "bg-card/90 px-2 pt-3 pb-3 backdrop-blur-sm",
+  "aui-app-chat-panel-chrome relative z-20 flex min-h-10 shrink-0 items-center justify-end px-2 pt-2",
 );
 
 const closeButtonClass = cn(
@@ -36,8 +35,9 @@ const bodyClass = cn(
   "[&_.aui-thread-viewport]:[scrollbar-gutter:stable_both-edges]",
   // Tighter symmetric horizontal inset for panel + composer
   "[&_.aui-thread-viewport]:!px-2",
-  "[&_.aui-thread-viewport]:!pt-2",
+  "[&_.aui-thread-viewport]:!pt-1",
   "[&_.aui-user-message-root]:!px-0",
+  "[&_.aui-user-message-root]:!pe-1",
   "[&_.aui-composer-input]:!px-2",
   "[&_.aui-composer-action-wrapper]:!px-2",
 );
@@ -63,6 +63,7 @@ export const AppChatPanel: FC<AppChatPanelProps> = ({
   debug,
   welcome,
   suggestions,
+  showWelcomeSuggestions,
   composerPlaceholder,
   components,
   artifacts,
@@ -100,6 +101,7 @@ export const AppChatPanel: FC<AppChatPanelProps> = ({
             className="aui-app-chat-panel-thread"
             welcome={welcome}
             suggestions={suggestions}
+            showWelcomeSuggestions={showWelcomeSuggestions}
             composerPlaceholder={composerPlaceholder}
             components={components}
             artifacts={artifacts}

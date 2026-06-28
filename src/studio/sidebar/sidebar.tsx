@@ -70,6 +70,7 @@ export interface StudioSidebarPanelProps {
   onEntriesBlurOutComplete: () => void;
   onPanelWidthComplete: () => void;
   brand?: ReactNode;
+  logo?: ReactNode;
   emptyCaption?: string | null;
 }
 
@@ -92,6 +93,7 @@ export const StudioSidebarPanel: FC<StudioSidebarPanelProps> = ({
   onEntriesBlurOutComplete,
   onPanelWidthComplete,
   brand,
+  logo,
   emptyCaption = null,
 }) => {
   const reducedMotion = useReducedMotion();
@@ -119,7 +121,10 @@ export const StudioSidebarPanel: FC<StudioSidebarPanelProps> = ({
       ? SIDEBAR_WIDTH_COLLAPSED_PX
       : SIDEBAR_WIDTH_PX;
 
+  const isCustomBrand = brand !== undefined;
+  const fallbackToChevron = isCustomBrand && !logo;
   const brandNode = brand ?? <TimbalMark size={32} />;
+  const logoNode = logo ?? (isCustomBrand ? null : brandNode);
 
   const panel = (
     <motion.div
@@ -143,6 +148,8 @@ export const StudioSidebarPanel: FC<StudioSidebarPanelProps> = ({
         mobileOpen={mobileOpen}
         onToggle={handleToggle}
         brand={brandNode}
+        logo={logoNode}
+        fallbackToChevron={fallbackToChevron}
       />
 
       <StudioSidebarEntries
@@ -231,6 +238,8 @@ export interface StudioSidebarProps {
   mobileBreakpointPx?: number;
   /** Brand element rendered in the sidebar header. Default: `<TimbalMark />`. */
   brand?: ReactNode;
+  /** Logo element rendered in the collapsed sidebar header. Default: uses brand if default, otherwise falls back to the open chevron. */
+  logo?: ReactNode;
   /** Caption shown in the footer when no user is signed in. */
   emptyCaption?: string | null;
   /** External control over the mobile drawer (used by `TimbalStudioShell`). */
@@ -257,6 +266,7 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
   persistKey = STORAGE_KEYS.sidebarCollapsed,
   mobileBreakpointPx = DEFAULT_BREAKPOINT_PX,
   brand,
+  logo,
   emptyCaption,
   mobileOpen: mobileOpenProp,
   onMobileOpenChange: onMobileOpenChangeProp,
@@ -285,14 +295,6 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
     workforces[0]?.uid ??
     workforces[0]?.name ??
     "";
-
-  const handleSelect = useCallback(
-    (id: string) => {
-      if (selectedIdProp === undefined) setInternalSelected(id);
-      onSelect?.(id);
-    },
-    [selectedIdProp, onSelect],
-  );
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     const persisted = readPersistedCollapsed(persistKey);
@@ -328,6 +330,32 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
     [mobileOpenProp, onMobileOpenChangeProp],
   );
 
+  // Selecting a workforce closes the mobile drawer — otherwise it stays stuck
+  // open over the freshly selected content (bad mobile UX).
+  const handleSelect = useCallback(
+    (id: string) => {
+      if (selectedIdProp === undefined) setInternalSelected(id);
+      onSelect?.(id);
+      if (isMobile) setMobileOpen(false);
+    },
+    [selectedIdProp, onSelect, isMobile, setMobileOpen],
+  );
+
+  // Returning to a desktop viewport collapses the drawer back into the rail.
+  useEffect(() => {
+    if (!isMobile && mobileOpen) setMobileOpen(false);
+  }, [isMobile, mobileOpen, setMobileOpen]);
+
+  // Escape closes the open mobile drawer.
+  useEffect(() => {
+    if (!isMobile || !mobileOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMobileOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isMobile, mobileOpen, setMobileOpen]);
+
   const effectiveCollapsed = isMobile ? false : collapsed;
   const {
     widthCollapsed,
@@ -345,8 +373,9 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
       isMobile,
       isCollapsedRail,
       iconOnlyLayout,
+      closeMobile: () => setMobileOpen(false),
     }),
-    [effectiveCollapsed, isMobile, isCollapsedRail, iconOnlyLayout],
+    [effectiveCollapsed, isMobile, isCollapsedRail, iconOnlyLayout, setMobileOpen],
   );
 
   return (
@@ -366,6 +395,7 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
         onEntriesBlurOutComplete={onEntriesBlurOutComplete}
         onPanelWidthComplete={onPanelWidthComplete}
         brand={brand}
+        logo={logo}
         emptyCaption={emptyCaption}
       />
     </StudioSidebarContext.Provider>

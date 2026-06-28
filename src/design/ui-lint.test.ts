@@ -1,0 +1,348 @@
+import { describe, expect, it } from "bun:test";
+
+import { formatLintReport, lintGeneratedUi } from "./ui-lint";
+import { HOUSE_RULES } from "./ui-vocabulary";
+
+function rules(source: string, opts?: Parameters<typeof lintGeneratedUi>[1]) {
+  return lintGeneratedUi(source, opts).findings.map((f) => f.rule);
+}
+
+describe("lintGeneratedUi — raw colors", () => {
+  it("flags hardcoded palette colors as errors", () => {
+    const res = lintGeneratedUi(
+      `<span className="text-blue-600 bg-green-50">Revenue</span>`,
+    );
+    expect(res.ok).toBe(false);
+    expect(res.findings.filter((f) => f.rule === "raw-color").length).toBe(2);
+  });
+
+  it("flags palette colors behind variants and opacity", () => {
+    expect(rules(`<div className="hover:bg-rose-400/40 dark:to-sky-300" />`)).toEqual(
+      expect.arrayContaining(["raw-color"]),
+    );
+  });
+
+  it("accepts semantic tokens", () => {
+    const res = lintGeneratedUi(
+      `<span className="text-primary bg-muted border-border text-muted-foreground" />`,
+    );
+    expect(res.ok).toBe(true);
+    expect(res.findings).toHaveLength(0);
+  });
+
+  it("does not flag palette-like words without a numeric shade", () => {
+    // `border` / `bg-card` etc. must not trip the palette matcher.
+    const res = lintGeneratedUi(`<div className="border bg-card rounded-xl" />`);
+    expect(res.findings).toHaveLength(0);
+  });
+});
+
+describe("lintGeneratedUi — literals & inline styles", () => {
+  it("flags hex and oklch literals", () => {
+    expect(rules(`<div style={{ background: "#ff0066" }} />`)).toEqual(
+      expect.arrayContaining(["color-literal", "inline-style-color"]),
+    );
+    expect(rules(`const c = "oklch(0.6 0.2 264)";`)).toEqual(
+      expect.arrayContaining(["color-literal"]),
+    );
+  });
+
+  it("flags inline style color", () => {
+    expect(rules(`<span style={{ color: tone }}>x</span>`)).toEqual(
+      expect.arrayContaining(["inline-style-color"]),
+    );
+  });
+});
+
+describe("lintGeneratedUi — house style", () => {
+  it("warns on bold giant values", () => {
+    expect(
+      rules(`<span className="text-3xl font-bold tabular-nums">$322k</span>`),
+    ).toEqual(expect.arrayContaining(["bold-metric"]));
+  });
+
+  it("does not warn on normal-weight values", () => {
+    const res = lintGeneratedUi(
+      `<span className="text-2xl font-normal tabular-nums">$322k</span>`,
+    );
+    expect(res.findings).toHaveLength(0);
+  });
+
+  it("warns on gradients outside chrome tokens", () => {
+    expect(
+      rules(`<div className="bg-gradient-to-br from-purple-500 to-pink-500" />`),
+    ).toEqual(expect.arrayContaining(["data-gradient"]));
+  });
+
+  it("allows gradients built only from reserved chrome tokens", () => {
+    const res = lintGeneratedUi(
+      `<div className="bg-gradient-to-b from-elevated-from to-elevated-to" />`,
+    );
+    expect(res.findings.some((f) => f.rule === "data-gradient")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — hand-rolled controls", () => {
+  it("warns when a control surface is hand-rolled with border-input", () => {
+    expect(
+      rules(`<button className="rounded-lg border border-input bg-transparent h-9 px-3" />`),
+    ).toEqual(expect.arrayContaining(["raw-control-surface"]));
+  });
+
+  it("does not warn when using kit controls", () => {
+    const res = lintGeneratedUi(
+      `<SelectTrigger><SelectValue placeholder="Pick" /></SelectTrigger>`,
+    );
+    expect(res.findings.some((f) => f.rule === "raw-control-surface")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — colored hover style", () => {
+  it("warns when hover is colored", () => {
+    expect(
+      rules(`<div className="hover:bg-primary" />`),
+    ).toEqual(expect.arrayContaining(["no-colored-hover"]));
+
+    expect(
+      rules(`<div className="hover:bg-emerald-500/10" />`),
+    ).toEqual(expect.arrayContaining(["no-colored-hover"]));
+  });
+
+  it("does not warn when hover is neutral", () => {
+    const res = lintGeneratedUi(
+      `<div className="hover:bg-muted hover:text-foreground" />`,
+    );
+    expect(res.findings.some((f) => f.rule === "no-colored-hover")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — icon spam", () => {
+  it("warns when icon usages exceed the budget", () => {
+    const icons = Array.from({ length: 8 }, () => "<BarChart2 />").join("\n");
+    const src = `import { BarChart2 } from "lucide-react";\n${icons}`;
+    expect(rules(src)).toEqual(expect.arrayContaining(["icon-spam"]));
+  });
+
+  it("does not warn under the budget", () => {
+    const src = `import { Check } from "lucide-react";\n<Check />\n<Check />`;
+    expect(rules(src).includes("icon-spam")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — title repetition", () => {
+  it("warns when a Section title repeats the Page title", () => {
+    const src = `
+      <Page title="Orders" description="Manage orders">
+        <Section title="Orders" />
+      </Page>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-title-repetition"]));
+  });
+
+  it("warns when a Section title is very similar to the Page title", () => {
+    const src = `
+      <Page title="Orders" description="Manage orders">
+        <Section title="Orders (ERP)" />
+      </Page>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-title-repetition"]));
+  });
+
+  it("does not warn when titles are completely different", () => {
+    const src = `
+      <Page title="Orders" description="Manage orders">
+        <Section title="Recent Activity" />
+      </Page>
+    `;
+    expect(rules(src).includes("no-title-repetition")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — chat wrapping", () => {
+  it("flags wrapping TimbalChat or AppChatPanel in Cards or Sections", () => {
+    const src = `
+      <Page title="Assistant">
+        <Card>
+          <TimbalChat workforceId="tiba" />
+        </Card>
+      </Page>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-chat-wrapping"]));
+  });
+
+  it("flags custom h1-6 headings in a chat view", () => {
+    const src = `
+      <Page title="Assistant">
+        <h3>TIBA Concierge</h3>
+        <AppChatPanel workforceId="tiba" />
+      </Page>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-chat-wrapping"]));
+  });
+
+  it("does not flag standalone TimbalChat directly in Page", () => {
+    const src = `
+      <Page fill>
+        <TimbalChat workforceId="tiba" />
+      </Page>
+    `;
+    expect(rules(src).includes("no-chat-wrapping")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — table inside card", () => {
+  it("flags wrapping DataTable, table, or Table inside Card, SurfaceCard, or ArtifactCard", () => {
+    const src = `
+      <Page title="Dashboard">
+        <Card>
+          <DataTable columns={columns} rows={rows} getRowKey={getRowKey} />
+        </Card>
+      </Page>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-table-in-card"]));
+  });
+
+  it("flags wrapping table inside SurfaceCard", () => {
+    const src = `
+      <SurfaceCard>
+        <table>
+          <thead><tr><th>Col</th></tr></thead>
+        </table>
+      </SurfaceCard>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-table-in-card"]));
+  });
+
+  it("does not flag DataTable directly in Page or Section", () => {
+    const src = `
+      <Page title="Dashboard">
+        <Section title="Data">
+          <DataTable columns={columns} rows={rows} getRowKey={getRowKey} />
+        </Section>
+      </Page>
+    `;
+    expect(rules(src).includes("no-table-in-card")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — card inside card", () => {
+  it("warns when a Card is nested inside another Card", () => {
+    const src = `
+      <Card>
+        <Card>
+          <span>nested</span>
+        </Card>
+      </Card>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-card-in-card"]));
+  });
+
+  it("warns on SurfaceCard nested inside Card", () => {
+    const src = `
+      <Card>
+        <SurfaceCard>
+          <span>nested</span>
+        </SurfaceCard>
+      </Card>
+    `;
+    expect(rules(src)).toEqual(expect.arrayContaining(["no-card-in-card"]));
+  });
+
+  it("does not warn on sibling cards", () => {
+    const src = `
+      <Page>
+        <Card><span>a</span></Card>
+        <Card><span>b</span></Card>
+      </Page>
+    `;
+    expect(rules(src).includes("no-card-in-card")).toBe(false);
+  });
+
+  it("does not warn on card subcomponents (CardHeader/CardContent)", () => {
+    const src = `
+      <Card>
+        <CardHeader><span>title</span></CardHeader>
+        <CardContent><span>body</span></CardContent>
+      </Card>
+    `;
+    expect(rules(src).includes("no-card-in-card")).toBe(false);
+  });
+});
+
+describe("lintGeneratedUi — neutral trend", () => {
+  it("warns on a colored signed-percentage delta", () => {
+    expect(
+      rules(`<span className="text-emerald-500">+8%</span>`),
+    ).toEqual(expect.arrayContaining(["neutral-trend"]));
+  });
+
+  it("warns on a colored trending icon", () => {
+    expect(
+      rules(`<TrendingUp className="text-success" />`),
+    ).toEqual(expect.arrayContaining(["neutral-trend"]));
+  });
+
+  it("does not warn on a muted trend", () => {
+    const res = lintGeneratedUi(
+      `<span className="text-muted-foreground">+8%</span>`,
+    );
+    expect(res.findings.some((f) => f.rule === "neutral-trend")).toBe(false);
+  });
+
+  it("does not warn on a colored element without trend context", () => {
+    const res = lintGeneratedUi(`<Badge className="text-destructive">Overdue</Badge>`);
+    expect(res.findings.some((f) => f.rule === "neutral-trend")).toBe(false);
+  });
+});
+
+describe("HOUSE_RULES lint coverage", () => {
+  // Every HouseRule must make an explicit coverage decision: either a
+  // deterministic linter rule maps to it, or it is annotated prompt-only.
+  // This guards against a new rule being added without wiring up the gate.
+  const LINT_COVERAGE: Record<string, string[]> = {
+    "semantic-color": ["raw-color", "color-literal", "inline-style-color"],
+    "no-decorative-icons": ["icon-spam"],
+    "neutral-trend": ["neutral-trend"],
+    "values-normal-weight": ["bold-metric"],
+    "no-card-in-card": ["no-card-in-card"],
+    "no-table-in-card": ["no-table-in-card"],
+    "no-row-dividers": ["row-divider"],
+    "no-data-gradient": ["data-gradient"],
+    "use-kit-controls": ["raw-control-surface"],
+    "no-title-repetition": ["no-title-repetition"],
+    "no-chat-wrapping": ["no-chat-wrapping"],
+    "no-colored-hover": ["no-colored-hover"],
+  };
+
+  it("covers every HOUSE_RULES id with a lint check or a prompt-only annotation", () => {
+    for (const rule of HOUSE_RULES) {
+      const covered =
+        rule.enforcement === "prompt-only" ||
+        Array.isArray(LINT_COVERAGE[rule.id]);
+      expect({ id: rule.id, covered }).toEqual({ id: rule.id, covered: true });
+    }
+  });
+});
+
+describe("formatLintReport", () => {
+  it("returns empty string with no findings", () => {
+    expect(formatLintReport([])).toBe("");
+  });
+
+  it("summarizes counts and lists findings", () => {
+    const { findings } = lintGeneratedUi(
+      `<span className="text-blue-600 font-bold text-3xl">x</span>`,
+    );
+    const report = formatLintReport(findings);
+    expect(report).toContain("error(s)");
+    expect(report).toContain("raw-color");
+  });
+});
+
+describe("lintGeneratedUi — strict mode", () => {
+  it("treats warnings as failures when strict", () => {
+    const src = `<span className="text-3xl font-bold">$1</span>`;
+    expect(lintGeneratedUi(src).ok).toBe(true); // warn only
+    expect(lintGeneratedUi(src, { strict: true }).ok).toBe(false);
+  });
+});

@@ -8,14 +8,17 @@ import {
 } from "../../design/app-classes";
 import { cn } from "../../utils";
 
-export interface BreadcrumbItem {
+export interface BreadcrumbEntry {
   label: ReactNode;
   href?: string;
   onClick?: () => void;
 }
 
+/** @deprecated Use `BreadcrumbEntry` — avoids clashing with the UI `BreadcrumbItem` primitive. */
+export type BreadcrumbItem = BreadcrumbEntry;
+
 export interface BreadcrumbsProps {
-  items: BreadcrumbItem[];
+  items: BreadcrumbEntry[];
   className?: string;
 }
 

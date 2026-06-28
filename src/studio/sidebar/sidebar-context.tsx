@@ -7,6 +7,8 @@ export interface StudioSidebarContextValue {
   isMobile: boolean;
   isCollapsedRail: boolean;
   iconOnlyLayout: boolean;
+  /** Close the mobile drawer (no-op on desktop). Used by portal slots. */
+  closeMobile?: () => void;
 }
 
 export const StudioSidebarContext = createContext<StudioSidebarContextValue>({

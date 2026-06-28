@@ -20,6 +20,7 @@ export type TimbalV2Variant =
   | "ghost"
   | "informative"
   | "destructive"
+  | "destructive-solid"
   | "link";
 
 export type TimbalV2Size = "xs" | "sm" | "md" | "lg";
@@ -52,24 +53,24 @@ export const TIMBAL_V2_FROM_LEGACY_BUTTON: Record<
 };
 
 export const TIMBAL_V2_SIZE_HEIGHT: Record<TimbalV2Size, string> = {
-  xs: "min-h-8 h-8",
-  sm: "min-h-9 h-9",
-  md: "min-h-10 h-10",
-  lg: "min-h-11 h-11",
+  xs: "min-h-7 h-7",
+  sm: "min-h-8 h-8",
+  md: "min-h-9 h-9",
+  lg: "min-h-10 h-10",
 };
 
 export const TIMBAL_V2_SIZE_ICON: Record<TimbalV2Size, string> = {
-  xs: "min-h-8 min-w-8 size-8",
+  xs: "min-h-7 min-w-7 size-7",
   sm: "min-h-8 min-w-8 size-8",
-  md: "min-h-10 min-w-10 size-10",
-  lg: "min-h-11 min-w-11 size-11",
+  md: "min-h-9 min-w-9 size-9",
+  lg: "min-h-10 min-w-10 size-10",
 };
 
 export const TIMBAL_V2_SIZE_LABEL_PX: Record<TimbalV2Size, string> = {
-  xs: "px-3",
-  sm: "px-4",
-  md: "px-5",
-  lg: "px-6",
+  xs: "px-2.5",
+  sm: "px-3",
+  md: "px-3.5",
+  lg: "px-4.5",
 };
 
 /**
@@ -98,6 +99,11 @@ export const TIMBAL_V2_FILL: Record<TimbalV2Variant, string> = {
     "group-hover/tbv2:from-destructive-fill-hover-from group-hover/tbv2:to-destructive-fill-hover-to",
     "group-active/tbv2:from-destructive-fill-active-from group-active/tbv2:to-destructive-fill-active-to",
   ].join(" "),
+  "destructive-solid": [
+    "bg-gradient-to-b from-destructive-solid-from to-destructive-solid-to",
+    "group-hover/tbv2:from-destructive-solid-hover-from group-hover/tbv2:to-destructive-solid-hover-to",
+    "group-active/tbv2:from-destructive-solid-active-from group-active/tbv2:to-destructive-solid-active-to",
+  ].join(" "),
   secondary: [
     TIMBAL_V2_ELEVATED_GRADIENT,
     "group-hover/tbv2:from-secondary-fill-hover-from group-hover/tbv2:to-secondary-fill-hover-to",
@@ -115,6 +121,7 @@ export const TIMBAL_V2_LABEL: Record<TimbalV2Variant, string> = {
   primary: "text-primary-foreground",
   informative: "text-primary-foreground",
   destructive: "text-destructive",
+  "destructive-solid": "text-destructive-foreground",
   secondary: "text-foreground",
   ghost: "text-foreground",
   link: "text-foreground underline decoration-foreground/25 underline-offset-2 group-hover/tbv2:decoration-foreground/45",
@@ -124,6 +131,7 @@ export const TIMBAL_V2_BORDER: Record<TimbalV2Variant, string> = {
   primary: "",
   informative: "border border-foreground/15",
   destructive: "border border-destructive/45",
+  "destructive-solid": "",
   secondary: "border border-border",
   ghost: "",
   link: "",
@@ -133,10 +141,54 @@ export const TIMBAL_V2_SHADOW: Record<TimbalV2Variant, string> = {
   primary: "shadow-card",
   informative: "shadow-card",
   destructive: "shadow-card",
+  "destructive-solid": "shadow-card",
   secondary: "shadow-card",
   ghost: "",
   link: "",
 };
+
+/** Primary chrome without interaction states — matches default `Button` fill + shadow + border. */
+export const TIMBAL_V2_PRIMARY_SURFACE = cn(
+  TIMBAL_V2_PRIMARY_GRADIENT,
+  TIMBAL_V2_SHADOW.primary,
+  TIMBAL_V2_BORDER.primary,
+);
+
+/**
+ * Primary pill shell — same root chrome as `TimbalV2Button` (border, shadow, overflow).
+ * Pair with {@link TIMBAL_V2_PRIMARY_PILL_FILL_LAYER} + {@link TIMBAL_V2_LABEL}.primary.
+ */
+export const TIMBAL_V2_PRIMARY_PILL_ROOT = cn(
+  "relative box-border inline-flex items-center justify-center overflow-hidden rounded-full border-0 bg-transparent p-0 font-normal shadow-none transition duration-200 ease-in-out",
+  TIMBAL_V2_SHADOW.primary,
+  TIMBAL_V2_BORDER.primary,
+);
+
+/** Absolute fill layer for primary pills (avatar, icon button) — rest + hover/active like `TIMBAL_V2_FILL`.primary. */
+export const TIMBAL_V2_PRIMARY_PILL_FILL_LAYER = cn(
+  "pointer-events-none absolute inset-0 transition duration-200 ease-in-out",
+  "bg-gradient-to-b from-primary-fill-from to-primary-fill-to",
+  "group-hover/avatar:from-primary-fill-hover-from group-hover/avatar:to-primary-fill-hover-to",
+  "group-active/avatar:from-primary-fill-active-from group-active/avatar:to-primary-fill-active-to",
+);
+
+/**
+ * Secondary pill shell — same as `Button variant="secondary"` / catalog “Action” buttons.
+ * Pair with {@link TIMBAL_V2_SECONDARY_PILL_FILL_LAYER} + {@link TIMBAL_V2_LABEL}.secondary.
+ */
+export const TIMBAL_V2_SECONDARY_PILL_ROOT = cn(
+  "relative box-border inline-flex items-center justify-center overflow-hidden rounded-full bg-transparent p-0 font-normal shadow-none transition duration-200 ease-in-out",
+  TIMBAL_V2_SHADOW.secondary,
+  TIMBAL_V2_BORDER.secondary,
+);
+
+/** Absolute fill layer for secondary pills — elevated gradient + hover/active like `TIMBAL_V2_FILL`.secondary. */
+export const TIMBAL_V2_SECONDARY_PILL_FILL_LAYER = cn(
+  "pointer-events-none absolute inset-0 transition duration-200 ease-in-out",
+  TIMBAL_V2_ELEVATED_GRADIENT,
+  "group-hover/avatar:from-secondary-fill-hover-from group-hover/avatar:to-secondary-fill-hover-to",
+  "group-active/avatar:from-secondary-fill-active-from group-active/avatar:to-secondary-fill-active-to",
+);
 
 /** Switch track (off) — elevated gradient like cards. */
 export const TIMBAL_V2_SWITCH_TRACK_OFF = cn(
@@ -150,6 +202,15 @@ export const TIMBAL_V2_SWITCH_THUMB = cn(
   "border border-border/80 shadow-sm",
 );
 
+/**
+ * Elevated card/list surface — same look as secondary chrome without hover/active
+ * fill shifts (integration catalog cards, connection lists).
+ */
+export const TIMBAL_V2_ELEVATED_SURFACE = cn(
+  TIMBAL_V2_ELEVATED_GRADIENT,
+  "border border-border shadow-card",
+);
+
 /** Interactive secondary chrome for native controls beside v2 buttons (selects, search inputs). */
 export const TIMBAL_V2_SECONDARY_CHROME = [
   TIMBAL_V2_ELEVATED_GRADIENT,
@@ -158,3 +219,13 @@ export const TIMBAL_V2_SECONDARY_CHROME = [
   "hover:from-secondary-fill-hover-from hover:to-secondary-fill-hover-to",
   "active:from-secondary-fill-active-from active:to-secondary-fill-active-to",
 ].join(" ");
+
+/**
+ * Logo / integration mark tiles — pinned to the light plate in both themes so
+ * dark provider logos stay legible (matches timbal-platform `TIMBAL_V2_LOGO_TILE_CLASS`).
+ */
+export const TIMBAL_V2_LOGO_TILE = cn(
+  "bg-gradient-to-b from-white to-neutral-100",
+  "border border-neutral-200",
+  "shadow-[0_1px_2px_-0.5px_rgba(0,0,0,0.08)]",
+);

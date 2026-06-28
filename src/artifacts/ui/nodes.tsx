@@ -236,7 +236,7 @@ const BadgeNode: FC<{ node: UiBadgeNode }> = ({ node }) => {
   return (
     <span
       className={cn(
-        "aui-ui-badge inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        "aui-ui-badge inline-flex w-fit shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium",
         BADGE_TONE[node.tone ?? "default"],
         node.className,
       )}

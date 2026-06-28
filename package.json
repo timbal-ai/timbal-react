@@ -1,11 +1,14 @@
 {
   "name": "@timbal-ai/timbal-react",
-  "version": "0.6.0",
+  "version": "1.6.1",
   "description": "React components and runtime for building Timbal chat and studio apps",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "timbal-ui-lint": "dist/cli/timbal-ui-lint.mjs"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -32,6 +35,11 @@
       "import": "./dist/app.esm.js",
       "require": "./dist/app.cjs"
     },
+    "./site": {
+      "types": "./dist/site.d.ts",
+      "import": "./dist/site.esm.js",
+      "require": "./dist/site.cjs"
+    },
     "./styles.css": "./dist/styles.css",
     "./vite": {
       "types": "./vite/local-dev.d.ts",
@@ -43,10 +51,11 @@
     "vite",
     "scripts/dev-linked.mjs",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && tsup --config tsup.cli.config.ts",
     "build:watch": "tsup --watch",
     "clean": "rm -rf dist",
     "test": "bun test",
@@ -54,6 +63,7 @@
     "typecheck": "tsc --noEmit",
     "check:boundaries": "depcruise src --config .dependency-cruiser.cjs",
     "check:bundle": "bun run build && node scripts/check-bundle-sizes.mjs",
+    "check:deps": "node scripts/check-immer.mjs",
     "example:install": "npm install --prefix examples/mock-ui && npm install --prefix examples/app-kit",
     "example:mock": "node scripts/dev-linked.mjs examples/mock-ui vite",
     "example:app": "node scripts/dev-linked.mjs examples/app-kit vite",
@@ -63,10 +73,14 @@
     "@assistant-ui/react": ">=0.12",
     "@timbal-ai/timbal-sdk": ">=0.4",
     "react": ">=19",
-    "react-dom": ">=19"
+    "react-dom": ">=19",
+    "react-is": ">=19"
   },
   "dependencies": {
     "@assistant-ui/react-markdown": "^0.12.3",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@paper-design/shaders-react": "^0.0.76",
     "@radix-ui/react-avatar": "^1.1.11",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -74,10 +88,13 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "katex": "^0.16.28",
     "lucide-react": "^0.574.0",
     "motion": "^12.23.24",
     "radix-ui": "^1.4.3",
+    "react-day-picker": "^10.0.1",
+    "recharts": "3.8.1",
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
@@ -93,12 +110,20 @@
     "@timbal-ai/timbal-sdk": "0.4.9",
     "@types/react": "^19.2.4",
     "@types/react-dom": "^19.2.3",
+    "@types/react-is": "^19.2.0",
+    "dependency-cruiser": "^16.10.4",
     "happy-dom": "^20.8.9",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "dependency-cruiser": "^16.10.4",
+    "react-is": "^19.2.0",
     "tsup": "^8.5.0",
     "typescript": "~5.8.3"
+  },
+  "overrides": {
+    "immer": ">=11.0.1"
+  },
+  "resolutions": {
+    "immer": ">=11.0.1"
   },
   "keywords": [
     "timbal",

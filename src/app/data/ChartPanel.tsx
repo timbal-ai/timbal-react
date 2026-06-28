@@ -1,55 +1,91 @@
 "use client";
 
-import type { FC, ReactNode } from "react";
+import { useId, type FC, type ReactNode } from "react";
 
 import { ChartArtifactView } from "../../artifacts/chart-artifact";
 import type { ChartArtifact } from "../../artifacts/types";
-import {
-  appChartPanelClass,
-  appChartPanelTitleClass,
-} from "../../design/app-classes";
+import { APP_DENSITY_CHART_HEIGHT } from "../../design/app-density";
+import { Skeleton } from "../../ui/skeleton";
 import { cn } from "../../utils";
-
-/** Strip nested artifact card when `ChartArtifactView` is embedded in a panel. */
-const chartEmbedClass =
-  "[&_.aui-artifact-root]:my-0 [&_.aui-artifact-root]:rounded-none [&_.aui-artifact-root]:border-0 [&_.aui-artifact-root]:bg-transparent [&_.aui-artifact-root]:shadow-none";
+import { useAppDensity, useAppDensityClass } from "../layout/app-density-context";
+import {
+  MetricCardHeader,
+  metricCardShellClass,
+} from "./metrics-shared";
 
 export interface ChartPanelProps {
   title?: ReactNode;
+  description?: ReactNode;
   /** Built-in SVG chart — alternative to custom `children`. */
   artifact?: ChartArtifact;
   children?: ReactNode;
   actions?: ReactNode;
+  /** Plot height in px. Defaults to the active page density (300 default, 220 compact). */
+  height?: number;
+  /** Render a skeleton at the plot height while data loads. */
+  loading?: boolean;
   className?: string;
 }
 
 /**
- * Chrome for charts — pass `artifact` for the built-in renderer or any chart in `children`.
+ * Chart shell matching `MetricChartCard` — title row with side padding, flush
+ * plot edge-to-edge with only top inset on the chart region.
  */
 export const ChartPanel: FC<ChartPanelProps> = ({
   title,
+  description,
   artifact,
   children,
   actions,
+  height: heightProp,
+  loading = false,
   className,
 }) => {
-  const body =
+  const density = useAppDensity();
+  const height = heightProp ?? APP_DENSITY_CHART_HEIGHT[density];
+  const metricChartPlotRegionClass = useAppDensityClass("metricChartPlotRegion");
+  const chartPanelBodyClass = useAppDensityClass("chartPanelBody");
+  const titleId = useId();
+  const resolvedTitle = title ?? artifact?.title;
+  const hasHeader = Boolean(resolvedTitle || description || actions);
+
+  const body = loading ? (
+    <Skeleton className="w-full rounded-lg" style={{ height }} aria-hidden />
+  ) : (
     children ??
     (artifact ? (
-      <div className={chartEmbedClass}>
-        <ChartArtifactView artifact={artifact} />
-      </div>
-    ) : null);
+      <ChartArtifactView artifact={artifact} embedded height={height} />
+    ) : null)
+  );
 
   return (
-    <div className={cn("aui-app-chart-panel", appChartPanelClass, className)}>
-      {title || actions ? (
-        <div className="flex items-center justify-between gap-2">
-          {title ? <h3 className={appChartPanelTitleClass}>{title}</h3> : <span />}
-          {actions}
-        </div>
-      ) : null}
-      <div className="min-h-[12rem] w-full">{body}</div>
-    </div>
+    <section
+      className={cn(metricCardShellClass, "aui-app-chart-panel", className)}
+      aria-labelledby={resolvedTitle ? titleId : undefined}
+    >
+      <MetricCardHeader
+        title={resolvedTitle}
+        titleId={titleId}
+        description={description}
+        actions={actions}
+      />
+
+      <div
+        className={cn(
+          "relative min-h-0 w-full",
+          hasHeader ? metricChartPlotRegionClass : chartPanelBodyClass,
+        )}
+      >
+        {body ?? (
+          <div
+            className="flex items-center justify-center text-sm font-normal text-muted-foreground"
+            style={{ minHeight: height }}
+            role="status"
+          >
+            No chart
+          </div>
+        )}
+      </div>
+    </section>
   );
 };

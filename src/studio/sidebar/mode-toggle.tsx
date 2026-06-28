@@ -1,6 +1,6 @@
 "use client";
 
-import { type FC, useCallback, useEffect, useState } from "react";
+import { type FC, useCallback, useLayoutEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 
 import { cn } from "../../utils";
@@ -8,7 +8,34 @@ import {
   studioTopbarIconPillClass,
   studioTopbarPillHeightClass,
 } from "../../design/classes";
+import { STORAGE_KEYS } from "../../design/tokens";
 import { TimbalV2Button } from "../../ui/timbal-v2-button";
+
+type StoredTheme = "light" | "dark";
+
+function readStoredTheme(): StoredTheme | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = window.localStorage.getItem(STORAGE_KEYS.theme);
+    return value === "dark" || value === "light" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredTheme(theme: StoredTheme): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORAGE_KEYS.theme, theme);
+  } catch {
+    // private mode / quota — still toggle the class for this session
+  }
+}
+
+function applyDarkClass(isDark: boolean): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("dark", isDark);
+}
 
 export type ModeToggleTheme = "light" | "dark" | "system";
 
@@ -33,9 +60,10 @@ export interface ModeToggleProps {
  *
  * 1. Pass `theme` + `setTheme` (e.g. from `next-themes`'s `useTheme`).
  *    The component is then fully controlled.
- * 2. Omit both. The toggle reads the current state from `.dark` on
- *    `<html>` and flips it on click. Good enough for prototypes and
- *    cases where there is no theme manager.
+ * 2. Omit both. The toggle reads/writes `.dark` on `<html>` and persists
+ *    the choice to `localStorage` under `STORAGE_KEYS.theme`. For SSR or
+ *    zero flash on first paint, mirror that key in a blocking `<script>` in
+ *    `index.html` before your bundle loads.
  */
 export const ModeToggle: FC<ModeToggleProps> = ({
   theme,
@@ -46,9 +74,17 @@ export const ModeToggle: FC<ModeToggleProps> = ({
   const isControlled = theme !== undefined;
   const [internalIsDark, setInternalIsDark] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isControlled) return;
-    if (typeof document === "undefined") return;
+
+    const stored = readStoredTheme();
+    if (stored) {
+      const isDark = stored === "dark";
+      applyDarkClass(isDark);
+      setInternalIsDark(isDark);
+      return;
+    }
+
     setInternalIsDark(document.documentElement.classList.contains("dark"));
   }, [isControlled]);
 
@@ -64,9 +100,10 @@ export const ModeToggle: FC<ModeToggleProps> = ({
       return;
     }
 
-    if (typeof document === "undefined") return;
-    document.documentElement.classList.toggle("dark", next === "dark");
-    setInternalIsDark(next === "dark");
+    const isDarkNext = next === "dark";
+    applyDarkClass(isDarkNext);
+    writeStoredTheme(isDarkNext ? "dark" : "light");
+    setInternalIsDark(isDarkNext);
   }, [isDark, setTheme]);
 
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import type { FC, InputHTMLAttributes, ReactNode } from "react";
+import { useId, type FC, type InputHTMLAttributes, type ReactNode } from "react";
 
 import {
   appFieldClass,
@@ -59,7 +59,8 @@ export const FieldInput: FC<FieldInputProps> = ({
   id,
   ...inputProps
 }) => {
-  const inputId = id ?? inputProps.name;
+  const autoId = useId();
+  const inputId = id ?? inputProps.name ?? autoId;
   return (
     <Field
       label={label}

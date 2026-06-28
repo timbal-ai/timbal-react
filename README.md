@@ -2,15 +2,16 @@
 
 React components and runtime for building Timbal chat UIs and studio apps. Drop in a single component to get a fully-featured streaming chat interface connected to a Timbal workforce agent, or compose dashboards with the **app kit**.
 
-## Package structure (0.6+)
+## Package structure (1.0)
 
 | Subpath | Use when |
 |---------|----------|
 | `@timbal-ai/timbal-react` | Full surface (chat shells, auth, artifacts, app kit) |
 | `@timbal-ai/timbal-react/chat` | Chat-only apps — `Thread`, `Composer`, runtime, layout helpers |
 | `@timbal-ai/timbal-react/studio` | Studio chrome — `TimbalChatShell`, `TimbalStudioShell`, sidebar |
-| `@timbal-ai/timbal-react/ui` | Primitives — `Button`, `Dialog`, `Avatar`, `Shimmer` |
+| `@timbal-ai/timbal-react/ui` | Primitives — `Button`, `Dialog`, `DropdownMenu`, `Popover`, `Select`, `Tooltip`, `Avatar`, `Shimmer` |
 | `@timbal-ai/timbal-react/app` | Dashboards — `AppShell`, `Page`, `DataTable`, `StatTile`, … |
+| `@timbal-ai/timbal-react/site` | Marketing/brand motion — `Reveal`, `TextReveal`, `Parallax`, `Marquee`, `Magnetic` |
 | `@timbal-ai/timbal-react/styles.css` | Theme tokens (required once) |
 
 ### API tiers
@@ -35,8 +36,18 @@ bun add @timbal-ai/timbal-react
 **Peer dependencies:**
 
 ```bash
-npm install react react-dom @assistant-ui/react @timbal-ai/timbal-sdk
+npm install react react-dom react-is @assistant-ui/react @timbal-ai/timbal-sdk
 ```
+
+> The app-kit charts are built on [recharts](https://recharts.org) (installed automatically). `react-is` is a recharts peer and **must match your React version** — install it explicitly if your package manager doesn't hoist peers.
+>
+> **Required for React 19:** pin `immer` to ≥ 11.0.1 in your app. recharts stores React elements in a Redux-Toolkit/immer store, and immer **11.0.0** freezes React 19's Fiber internals — charts crash with `Cannot assign to read only property 'lanes'` (a blank route). Add an override so a stale lockfile can't reintroduce it:
+>
+> ```json
+> { "overrides": { "immer": ">=11.0.1" } }
+> ```
+>
+> Yarn uses `"resolutions"`. Fresh installs already resolve a safe immer; the override just makes it durable.
 
 ### Tailwind setup
 
@@ -49,7 +60,7 @@ The package ships pre-built Tailwind class names **plus a complete light + dark 
 @source "../node_modules/@timbal-ai/timbal-react/dist";
 ```
 
-That's it — no `@theme`, `:root`, or `.dark` blocks of your own. Toggling dark mode is a single `document.documentElement.classList.toggle("dark")` (or `next-themes` `attribute="class"`).
+That's it — no `@theme`, `:root`, or `.dark` blocks of your own. Toggling dark mode is a single `document.documentElement.classList.toggle("dark")` (or `next-themes` `attribute="class"`). The built-in `ModeToggle` (uncontrolled) persists to `localStorage` key `timbal-theme` and restores on reload.
 
 > Adjust the `@source` path if your CSS file lives at a different depth relative to `node_modules`.
 
@@ -61,15 +72,131 @@ Every token has a CSS-variable indirection in `styles.css`. Override individual 
 :root {
   --primary: oklch(0.5 0.12 265);
   --playground-from: oklch(0.95 0.04 265 / 0.6);
+  /* Chart series — override any to rebrand every dashboard chart at once */
+  --chart-1: var(--primary);
+  --chart-2: oklch(0.62 0.13 184);
 }
 
 .dark {
   --primary: oklch(0.72 0.14 265);
   --playground-from: oklch(0.27 0.04 265);
+  --chart-1: var(--primary);
 }
 ```
 
-Both light AND dark blocks must be defined for every overridden token — otherwise toggling dark mode produces an inconsistent UI. The library prints a one-time dev-only console warning when it detects a mismatch.
+Both light AND dark blocks must define every overridden token — otherwise toggling dark mode produces an inconsistent UI. The library prints a one-time dev-only console warning when it detects a mismatch.
+
+### Charts (app kit + artifacts)
+
+Dashboard and in-chat charts use the **native shadcn/recharts layer** — animated tooltips, hover crosshairs, and legends that match shadcn/ui out of the box.
+
+| Import from | Components |
+|-------------|------------|
+| `@timbal-ai/timbal-react` or `/app` | `LineAreaChart`, `PieChart`, `RadialChart`, `RadarChart`, `Sparkline`, `ChartPanel`, `MetricChartCard` |
+| `@timbal-ai/timbal-react/ui` | `ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, `ChartLegend`, `ChartLegendContent`, `ChartConfig` |
+
+**Dependencies:** `recharts` ships with the package. Install **`react-is`** alongside React (same major version) — it is a recharts peer and must match your React version.
+
+**Flush dashboards (`ChartPanel`, `MetricChartCard`, cartesian artifacts):** charts default to **`layout="flush"`** — no axis tick labels; **hover tooltips** show the category (`xKey`) and formatted value(s). Opt back in with `showXAxis` / `showYAxis` on `LineAreaChart`, or `showAxes: true` on a `ChartArtifact`. Use `layout="default"` when you want visible axes without passing extra props.
+
+**Rebrand:** override `--chart-1` … `--chart-6` in `:root` / `.dark` (series 1 defaults to `--primary`). Per-series overrides: `series[].color` on `LineAreaChart` or `colors` on pie/radial artifacts.
+
+**`ChartArtifact` kinds:** `bar`, `horizontalBar`, `line`, `area`, `pie`, `donut`, `radial`, `radar` — see `ChartPanel` + the app-kit **Chart catalog** recipe (`examples/app-kit/src/recipes/chart-catalog.tsx`).
+
+**Custom charts** (same pattern as shadcn docs):
+
+```tsx
+import { Bar, BarChart, XAxis } from "recharts";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@timbal-ai/timbal-react/ui";
+
+const config = { revenue: { label: "Revenue", color: "var(--chart-1)" } } satisfies ChartConfig;
+
+<ChartContainer config={config} className="h-[240px] w-full">
+  <BarChart data={rows} accessibilityLayer>
+    <XAxis dataKey="month" hide />
+    <ChartTooltip content={<ChartTooltipContent />} />
+    <Bar dataKey="revenue" fill="var(--color-revenue)" radius={4} />
+  </BarChart>
+</ChartContainer>
+```
+
+### Programmatic theming (no hand-authored OKLCH)
+
+Instead of hand-writing paired `:root` / `.dark` blocks, derive a complete **personality** — color, roundness, shadows, and fonts — from a single intent object. The package owns the OKLCH math for every color token (primary, foreground, ring, the full button gradient, the playground tint):
+
+```ts
+import { createTimbalTheme, themeToCss, applyTimbalTheme } from "@timbal-ai/timbal-react";
+
+const theme = createTimbalTheme({
+  brand: "#4f46e5",
+  radius: 0.875,     // corner roundness (rem) → --radius + --radius-2xl
+  shadow: "soft",    // "none" | "hairline" | "soft" | "medium" | "strong"
+  typography: {      // optional — re-skins every component's font
+    sans: '"Geist", ui-sans-serif, system-ui, sans-serif',
+    importUrl: "https://fonts.googleapis.com/css2?family=Geist:wght@400..600&display=swap",
+  },
+});
+
+// Build-time / SSR — paste into index.css (paired light + dark, always in sync):
+const css = themeToCss(theme);
+
+// Runtime — inject a managed <style> (+ font <link>), swappable, returns a disposer:
+const dispose = applyTimbalTheme(theme);
+```
+
+> **Fonts must be loaded.** `applyTimbalTheme` and `TimbalThemeStyle` inject the `<link>` for `typography.importUrl` automatically. For build-time `themeToCss`, add the `<link rel="stylesheet">` to `index.html` yourself (or pass `themeToCss(theme, { includeFontImport: true })` when the result is a standalone stylesheet).
+
+Or render it as a component near your app root:
+
+```tsx
+import { TimbalThemeStyle } from "@timbal-ai/timbal-react";
+
+<TimbalThemeStyle theme={createTimbalTheme({ brand: "#4f46e5" })} />
+// or: <TimbalThemeStyle preset="indigo" />
+```
+
+### Presets
+
+A small closed catalog (`TIMBAL_THEME_PRESETS`) lets you apply a brand by stable id. Each preset is a **full personality** (color + radius + shadows + font), not just a color: `platform` (system), `indigo` (Geist), `violet` (Sora), `forest`/`warm` (Lexend), `slate` (Inter), `folio` (Fraunces serif), `carbon` (JetBrains Mono). Choose a preset at build/config time and apply it programmatically:
+
+```tsx
+import { applyThemePreset } from "@timbal-ai/timbal-react";
+
+applyThemePreset("indigo");
+```
+
+`applyThemePreset` persists the choice to `localStorage` (`timbal-theme-preset`); `getStoredThemePreset()` restores it on reload.
+
+> The visual theme picker (`ThemePresetGallery`) is an **internal/dev tool** and is intentionally **not** part of the public API — theming is a developer/config choice, not an end-user selector in shipped apps.
+
+**For UI-generation agents:** inject `THEME_AGENT_INSTRUCTIONS` into the system prompt so the model themes via these APIs (and never emits raw OKLCH), mirroring `APP_KIT_AGENT_INSTRUCTIONS`.
+
+### Anti-slop guardrails for generated UIs
+
+When an agent composes app-kit UIs, taste is enforced — not just suggested — through three layers built on one shared vocabulary (`HOUSE_RULES`, `SEMANTIC_COLOR_TOKENS`, `SLOP_BUDGETS`):
+
+```ts
+import {
+  lintGeneratedUi,
+  reviewGeneratedUi,
+  UI_REVIEW_AGENT_INSTRUCTIONS,
+} from "@timbal-ai/timbal-react"; // or "/app"
+
+// 1. Prompt: APP_KIT_AGENT_INSTRUCTIONS renders its anti-slop checklist from
+//    HOUSE_RULES; add UI_REVIEW_AGENT_INSTRUCTIONS so the model self-reviews.
+const systemPrompt = `${basePrompt}\n\n${APP_KIT_AGENT_INSTRUCTIONS}\n\n${UI_REVIEW_AGENT_INSTRUCTIONS}`;
+
+// 2. Lint: deterministic checks reject hardcoded palette colors / hex / oklch
+//    (errors) and flag icon-spam, bold giant values, per-row dividers, and
+//    gradients on data surfaces (warnings).
+const { ok, findings } = lintGeneratedUi(generatedTsx);
+
+// 3. Critique loop: review → fix → re-review until it passes clean.
+const review = reviewGeneratedUi(generatedTsx, { strict: true });
+if (!review.passed) regenerate(review.revisionPrompt); // names the exact lines + fixes
+```
+
+Color decisions belong to the theme generator and semantic tokens, never to the per-component agent — the linter enforces exactly that.
 
 ### CSS imports
 
@@ -133,6 +260,16 @@ Suggestions also accept a function (sync or async) for per-user or server-driven
 ```
 
 Each chip supports `icon`, `description`, and `prompt` (sent instead of `title` when clicked).
+
+In `AppChatPanel` (`variant="panel"`), welcome suggestions are **off** by default. Enable them with `showWelcomeSuggestions`:
+
+```tsx
+<AppChatPanel
+  workforceId="your-workforce-id"
+  showWelcomeSuggestions
+  suggestions={[{ title: "Summarize this dashboard" }]}
+/>
+```
 
 ### Placeholder and width
 
@@ -214,12 +351,26 @@ function MyShell() {
 To inset a main column that follows the sidebar as it collapses, use `AppShell`, which wires the tracking automatically:
 
 ```tsx
-import { AppShell, StudioSidebar } from "@timbal-ai/timbal-react";
+import { AppShell, StudioSidebar, useAppShellNav } from "@timbal-ai/timbal-react";
+
+// Rendered inside AppShell, so it can read the shell's mobile-nav controls and
+// wire the drawer. The sidebar already closes itself on selection (mobile).
+function Sidebar({ agent, onSelect }: { agent: string; onSelect: (id: string) => void }) {
+  const nav = useAppShellNav();
+  return (
+    <StudioSidebar
+      selectedId={agent}
+      onSelect={onSelect}
+      mobileOpen={nav.open}
+      onMobileOpenChange={nav.setOpen}
+    />
+  );
+}
 
 function MyShell() {
   const [agent, setAgent] = useState("agent-a");
   return (
-    <AppShell sidebar={<StudioSidebar selectedId={agent} onSelect={setAgent} />}>
+    <AppShell sidebar={<Sidebar agent={agent} onSelect={setAgent} />}>
       {/* main content insets + animates with the sidebar */}
     </AppShell>
   );
@@ -227,6 +378,16 @@ function MyShell() {
 ```
 
 For a fully custom shell, drive your own offset from `StudioSidebar`'s `onInsetChange` callback, which fires with the live inset width (px) whenever the collapse state changes.
+
+The `AppShell` content region is a padded scroll area by default. For a **full-bleed page that fills the viewport** (a full-page chat, a canvas, an editor, a split master–detail view), pass `contentFill` to `AppShell` and `fill` to `Page` (omit `Page.title` for a headerless page), then give the filling child `min-h-0 flex-1` — the composer / footer stays pinned and you avoid `h-[calc(100dvh-…)]` guesses:
+
+```tsx
+<AppShell contentFill>
+  <Page fill>
+    <TimbalChat workforceId="…" className="min-h-0 flex-1" />
+  </Page>
+</AppShell>
+```
 
 ### Drop-in shell (header + agent picker)
 
@@ -605,6 +766,7 @@ import {
 | `welcome.heading` | `string` | `"How can I help you today?"` | Welcome screen heading |
 | `welcome.subheading` | `string` | `"Send a message to start a conversation."` | Welcome screen subheading |
 | `suggestions` | `{ title: string; description?: string }[]` | — | Suggestion chips on the welcome screen |
+| `showWelcomeSuggestions` | `boolean` | `true` (`default` variant), `false` (`panel`) | Show built-in welcome suggestions when `suggestions` is set |
 | `composerPlaceholder` | `string` | `"Send a message..."` | Composer input placeholder |
 | `components` | `ThreadComponents` | — | Override individual UI slots |
 | `onArtifactEvent` | `(event: UiEventEnvelope) => void` | — | Called when a `ui` artifact fires an `emit` action |
@@ -789,9 +951,68 @@ if (res.ok) {
 
 ### UI primitives
 
-Re-exported Radix UI wrappers pre-styled to match the Timbal design system:
+Radix-backed wrappers pre-styled with the design tokens (`bg-popover`, `border-border`, `shadow-card`, …) — import from `@timbal-ai/timbal-react/ui` or the root. Use these instead of `npx shadcn`; raw shadcn references token names the app doesn't define and renders unstyled.
 
-`Button` · `Tooltip` · `TooltipTrigger` · `TooltipContent` · `TooltipProvider` · `Avatar` · `AvatarImage` · `AvatarFallback` · `Dialog` · `DialogContent` · `DialogTitle` · `DialogTrigger` · `Shimmer`
+**Control-surface contract.** Every input, select / dropdown trigger, and search field shares **one** skin so they match side by side regardless of origin. Build custom controls by composing it — never hand-roll a `rounded-* border-input bg-…` surface:
+
+```tsx
+import { controlClass, overlaySurfaceClass, overlayItemClass } from "@timbal-ai/timbal-react/ui";
+
+<input className={controlClass({}, "w-full")} />            {/* field shape, h-10 */}
+<button className={controlClass({ shape: "pill", size: "sm" })} />  {/* chrome pill */}
+```
+
+`controlClass({ size, shape })` — `size`: `"sm" | "default"`; `shape`: `"field"` (rounded-lg, default) or `"pill"` (chrome rows). Floating panels (popover, menu, listbox) compose `overlaySurfaceClass` + `overlayItemClass`. Vendoring a new shadcn primitive means swapping its inline surface string for these before shipping.
+
+- **Button:** `Button`
+- **Dialog:** `Dialog` · `DialogTrigger` · `DialogContent` · `DialogTitle` · `DialogDescription` · `DialogHeader` · `DialogFooter` · `DialogClose` · `DialogOverlay` · `DialogPortal`
+- **Dropdown menu:** `DropdownMenu` · `DropdownMenuTrigger` · `DropdownMenuContent` · `DropdownMenuItem` · `DropdownMenuCheckboxItem` · `DropdownMenuRadioGroup` · `DropdownMenuRadioItem` · `DropdownMenuLabel` · `DropdownMenuSeparator` · `DropdownMenuShortcut` · `DropdownMenuGroup` · `DropdownMenuSub` · `DropdownMenuSubTrigger` · `DropdownMenuSubContent`
+- **Popover:** `Popover` · `PopoverTrigger` · `PopoverContent` · `PopoverAnchor`
+- **Select:** `Select` · `SelectTrigger` · `SelectValue` · `SelectContent` · `SelectItem` · `SelectGroup` · `SelectLabel` · `SelectSeparator` · `SelectScrollUpButton` · `SelectScrollDownButton`
+- **Tooltip:** `Tooltip` · `TooltipTrigger` · `TooltipContent` · `TooltipProvider`
+- **Avatar:** `Avatar` · `AvatarImage` · `AvatarFallback`
+- **Form:** `Input` · `Textarea` · `Label` · `Checkbox` · `Switch` · `RadioGroup` · `RadioGroupItem` · `Form` (+ field/item/label/control/message/submit)
+- **Navigation / chrome:** `Breadcrumb` (+ list/item/link/page/separator/ellipsis) · `Pagination` (+ content/item/link/previous/next/ellipsis) · `Menubar` (+ sub-parts) · `NavigationMenu` (+ sub-parts) · `Toolbar` (+ button/separator/toggle/link)
+- **Command & date:** `Command` (+ dialog/input/list/group/item/…) · `Calendar` · `Combobox` (Popover + Command) · `DatePicker` (Popover + Calendar)
+- **Input OTP:** `InputOTP` · `InputOTPGroup` · `InputOTPSlot` · `InputOTPHiddenInput` · `InputOTPSeparator` (Radix OTP field via unified `radix-ui`)
+- **Misc:** `Kbd` · `KbdGroup` · `Shimmer`
+- **Feedback / data:** `Slider` · `Progress` · `Badge`
+- **Overlays:** `Sheet` · `AlertDialog` · `HoverCard` · `ContextMenu` (+ sub-parts) · `Toast` / `Toaster` / `toast()` / `useToast`
+- **Surfaces:** `Card` (+ header/footer/title/description/content) · `Alert` · `Skeleton` · `Table` (+ header/body/row/cell)
+- **Toggles:** `Toggle` · `ToggleGroup` · `Collapsible` · `ScrollArea`
+- **Section navigation (pill switcher):** `PillSegmentedTabs` · `SubNav` (app kit) — **not** shadcn `Tabs`; Radix `Tabs` is not exported
+- **Layout / disclosure:** `Accordion` · `AccordionItem` · `AccordionTrigger` · `AccordionContent` · `Separator` · `AspectRatio`
+- **Input chrome:** `InputGroup` (+ addon/control/text) · `Spinner`
+- **More primitives:** `AvatarGroup` (overflow stack) · `Stepper` (wizard progress) · `Timeline` (event rail) · `Rating` (stars) · `NumberField` (stepper input) · `TagInput` (chips) · `Banner` (page notice) · `CopyButton` · `Snippet` (code + copy) · `CircularProgress` (SVG ring) — all dependency-free, on the shared tokens / control surface
+- **`Kanban`** (drag-and-drop board) — accessible columns + cards on `@dnd-kit` (pointer **and** keyboard sensors, cross-column moves, empty-column drop zones, drag overlay). Controlled (`columns` + `onColumnsChange`) or uncontrolled (`defaultColumns`); `onMove` reports `{ card, from, to }`. Variants: `density`, column `tone`, `cardVariant`. Requires the peer deps `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`.
+
+**Motion is built in.** Dialog, AlertDialog, Sheet, Popover, DropdownMenu, Select, Tooltip, Toast, NavigationMenu, and Accordion / Collapsible animate out of the box (fade / zoom / slide / height). The animation engine is **inlined in `styles.css`** — no `tailwindcss-animate` / `tw-animate-css` dependency and no consumer config. Duration flows from any `duration-*` utility (`--tw-duration`, default 150ms). When composing a custom overlay, reuse `overlayAnimationClass` rather than adding another animation library.
+
+All primitives are Radix-backed (via the unified `radix-ui` package) or thin wrappers (`cmdk` for Command, `react-day-picker` for Calendar) and styled with the design tokens + the control-surface contract, so a new primitive matches the rest on arrival. Browse them live in the app-kit example: the **UI primitives** library (per-family audit) and the **Blocks** library (composed sections — Project settings, Confirm flow, Detail sheet, Empty states, Sign-in).
+
+---
+
+## Site kit (`@timbal-ai/timbal-react/site`)
+
+Expressive **motion & interaction primitives** for marketing, brand, landing, and editorial pages — the counterpart to the `/app` dashboard kit. They animate whatever you put inside them (mechanics, not art direction), are **reduced-motion-aware** and **SSR-safe**, and build on the bundled `motion` engine (no extra dependencies).
+
+```tsx
+import { Reveal, TextReveal, Parallax, Marquee, Magnetic } from "@timbal-ai/timbal-react/site";
+```
+
+- **`Reveal`** — fade/slide a block in as it scrolls into view. `variant` (`fade` / `fade-up` / `fade-down` / `fade-left` / `fade-right` / `blur` / `scale` / `mask-up`), `delay`, `duration`, `distance`, `amount`, `repeat`, `as`.
+- **`TextReveal`** — editorial headline entrance; a **string** child rides up token-by-token from a clip. `splitBy` (`words` / `lines`), `stagger`, `delay`, `duration`, `amount`, `repeat`, `as` (`span` / `h1`–`h4` / `p`).
+- **`Parallax`** — translate a layer relative to scroll for depth. `speed` (-0.6…0.6), `axis` (`x` / `y`), `smooth`.
+- **`Marquee`** — seamless infinite scrolling row (logo walls, tickers). `speed`, `direction`, `pauseOnHover`, `gap`.
+- **`Magnetic`** — pointer-following affordance for a single interactive child (primary CTA / nav). `strength`, `max`, `spring`.
+
+Motion tokens `EASE`, `DURATION`, and `SPRING` are exported for custom `motion` work that should match the kit's feel. For codegen agents, inject **`SITE_AGENT_INSTRUCTIONS`** (component menu + dosing guidance) into the system prompt:
+
+```ts
+import { SITE_AGENT_INSTRUCTIONS } from "@timbal-ai/timbal-react/site";
+```
+
+Use `/site` for the marketing/brand surface — not dashboards (`/app`) or in-chat widgets (artifacts).
 
 ---
 
@@ -872,7 +1093,6 @@ Compose a data UI with a **floating** copilot — main content stays full width:
 ```tsx
 import {
   AppShell,
-  AppShellTopbar,
   AppCopilotProvider,
   AppChatPanel,
   Page,
@@ -884,7 +1104,7 @@ export function OperationsApp() {
     <AppCopilotProvider value={{ page: "Operations", tab: "overview" }}>
       <AppShell
         sidebar={<StudioSidebar /* … */ />}
-        topbar={<AppShellTopbar actions={<ModeToggle />} />}
+        topbar={<div className="flex justify-end p-4"><ModeToggle /></div>}
         chat={
           <AppChatPanel workforceId="your-workforce-id" />
         }
@@ -905,11 +1125,33 @@ The shell renders a rounded floating panel (bottom-right) and a **text-only** pi
 | `AppCopilotProvider` | Page context via `useAppCopilotContext` (not shown in UI) |
 | `AppChatPanel` | Full-height floating thread; dismiss via **X** in the corner |
 | `AppShell` `chat` | Floating overlay — `chatWidth`; optional `chatHeight` (default: stretch top–bottom) |
-| `ChartPanel` `artifact` | Built-in SVG charts without extra imports |
+| `LineAreaChart` | Cartesian engine on **recharts** — area/line/bar, stacked, horizontal bars, `layout` (`flush` hides axes; tooltips carry category + values), `showXAxis` / `showYAxis`, `monotone`/`linear`/`step`, shadcn tooltips (`dot`/`line`/`dashed`) |
+| `PieChart` / `RadialChart` / `RadarChart` | Pie & donut (center KPI), concentric progress rings, and spider charts — native shadcn/recharts charts |
+| `ChartContainer` / `ChartTooltip` / `ChartTooltipContent` / `ChartLegend` / `ChartLegendContent` (`/ui`) | shadcn chart primitives (recharts wrappers); colors flow from `ChartConfig` → `--color-*` |
+| `Sparkline` | Tiny inline trend for table cells and tiles |
+| `MetricRow` | Platform KPI strip in one card (overview metrics, no chart) |
+| `MetricChartCard` | `MetricRow` + selectable **flush** chart (no axis ticks; hover for category + value) |
+| `ChartPanel` `artifact` | Title row + flush plot around a `ChartArtifact` (`chartType`: `bar`/`horizontalBar`/`line`/`area`/`pie`/`donut`/`radial`/`radar`; optional `showAxes`) |
+| `SettingsSection` / `FieldRow` / `DangerZone` / `FloatingUnsavedChangesBar` | Two-column settings page building blocks |
+| `IntegrationCard` / `ConnectionRow` / `PlanBadge` / `IntegrationsEmptyState` | Integration catalog + connected list |
+| `InfoCard` / `DescriptionList` / `ExpandableSection` / `ResourceCard` / `StatusDot` | Surfaces & detail views |
 | `FieldTextarea` / `FieldSelect` / `FieldSwitch` | Settings forms matching `FieldInput` |
 | `AppConfirmDialog` | Delete/export confirmations |
 
-Full gallery: [`examples/app-kit`](examples/app-kit) (`bun run example:app`).
+Inject `APP_KIT_AGENT_INSTRUCTIONS` into codegen / workforce prompts (same idea as `ARTIFACT_AGENT_INSTRUCTIONS`). Agents should compose **creatively** from the component menu — not clone a single demo layout.
+
+```ts
+import { APP_KIT_AGENT_INSTRUCTIONS } from "@timbal-ai/timbal-react/app";
+
+const systemPrompt = `${basePrompt}\n\n${APP_KIT_AGENT_INSTRUCTIONS}`;
+```
+
+| Examples | Purpose |
+|----------|---------|
+| [`examples/app-kit/src/recipes/`](examples/app-kit/src/recipes/) | Short patterns (metrics, table, forms, copilot, …) — **preferred for agents** |
+| [`examples/app-kit/src/reference/`](examples/app-kit/src/reference/) | One full wired dashboard — **reference only** |
+
+Browse locally: [`examples/app-kit`](examples/app-kit) (`bun run example:app`).
 
 ---
 
@@ -946,7 +1188,7 @@ The following symbols are no longer exported. Most have no replacement because t
 
 - All `STUDIO_*` layout constants (`STUDIO_SIDEBAR_WIDTH`, `STUDIO_INSET_LEFT`, `STUDIO_SIDEBAR_COLLAPSED_STORAGE_KEY`, `STUDIO_SIDEBAR_PX_*`, …) — override the matching `--studio-*` CSS variables instead.
 - All `studio*Class` / `studioChromeShellStyle` helpers — re-create the look with normal Tailwind classes against semantic tokens (`bg-elevated-from`, `border-border`, `shadow-card`, …).
-- All `TIMBAL_V2_*` button token records and `TimbalV2Button` — use the standard `Button` export from this package; it covers the same variants.
+- All `TIMBAL_V2_*` button token records and `TimbalV2Button` — use the standard `Button` export from this package; it covers the same variants. (Note: `TimbalV2Button` and several `TIMBAL_V2_*` surface tokens were re-introduced as public exports in 0.7 for catalog/list surfaces — see the CHANGELOG.)
 - `StudioSidebarPanel`, `StudioSidebarHeader/Nav/Footer/Entries/Backdrop/Tooltip/RuntimePortal/EntryMotion`, `StudioSidebarContext`, `useStudioSidebarLayout`, `useStudioSidebarCollapsed`, `useSidebarCollapsePhase`, `workforceItemId/Label/Initial` — use `StudioSidebar` or `TimbalStudioShell` directly.
 - `runThemeSanityCheck` — `<Thread>` already schedules the dev-only check.
 - `SyntaxHighlighter`, `UserMessageAttachments`, `ComposerAttachments`, `ComposerAddAttachment`, `MessagePartPrimitive`, `ActionBarMorePrimitive`, `ErrorPrimitive`, `useAuiState`, `buttonVariants` — internal composer/markdown details. Override the `Composer` / `AssistantMessage` slot via the `components` prop if you need a custom layout.
@@ -958,7 +1200,7 @@ Everything else (the three shells, primitives, hooks, auth, artifact API, design
 ## Examples
 
 - [`examples/mock-ui`](examples/mock-ui) — chat + artifact gallery (mock `fetch`).
-- [`examples/app-kit`](examples/app-kit) — dashboard / app kit component gallery (no API).
+- [`examples/app-kit`](examples/app-kit) — app kit **recipes** + optional **reference** dashboard (see `APP_KIT_AGENT_INSTRUCTIONS`).
 
 ## Mock UI demo
 
@@ -988,7 +1230,7 @@ bun run build:watch  # rebuild on every change
 
 ### Vite apps linked with `file:../timbal-react`
 
-Without extra config, Vite pre-bundles a **cached** copy under `node_modules/.vite/deps` and your UI will look stuck on an old build.
+Without extra config, Vite pre-bundles a **cached** copy under `node_modules/.vite/deps` and your UI can look stuck on an old build.
 
 1. Add the local-dev plugin in `vite.config.ts`:
 
@@ -1000,12 +1242,16 @@ export default defineConfig({
 });
 ```
 
-2. Run dev with a watch build (from your app):
+For **`file:` / symlink** installs the plugin **aliases package entrypoints to `src/`** and watches both `src/` and `dist/`, so app-kit / blueprint dev reflects timbal-react edits without rebuilding `dist/` on every change.
+
+2. Run dev (from your app or repo root):
 
 ```bash
+bun run example:app   # timbal-react root — builds dist in watch mode + Vite
+# or
 node ../timbal-react/scripts/dev-linked.mjs vite
 ```
 
-Or use the `dev` script in `blueprint-ui-dashboard` / examples (already wired).
+Run `bun run build` in timbal-react before publishing or to verify the production bundle.
 
 One-time if you still see stale UI: `rm -rf node_modules/.vite` then restart dev.

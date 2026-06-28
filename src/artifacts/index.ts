@@ -2,6 +2,7 @@ export type {
   TimbalArtifact,
   AnyArtifact,
   ChartArtifact,
+  ChartSeriesConfig,
   QuestionArtifact,
   QuestionOption,
   HtmlArtifact,

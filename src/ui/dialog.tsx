@@ -60,7 +60,7 @@ function DialogContent({
         data-slot="dialog-content"
         className={cn(
           TIMBAL_V2_MODAL_SURFACE,
-          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-[70] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl p-6 duration-200 outline-none sm:max-w-lg",
+          "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-[70] grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-xl p-5 duration-200 outline-none sm:max-w-lg",
           className,
         )}
         {...props}
@@ -93,10 +93,49 @@ function DialogTitle({
   );
 }
 
+function DialogDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="dialog-description"
+      className={cn("text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  );
+}
+
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn("flex flex-col gap-1.5 text-center sm:text-left", className)}
+      {...props}
+    />
+  );
+}
+
+function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-footer"
+      className={cn(
+        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
   DialogOverlay,
   DialogPortal,
   DialogTitle,
