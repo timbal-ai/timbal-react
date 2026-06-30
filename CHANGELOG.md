@@ -4,6 +4,20 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+## [3.0.1] — 2026-06-30
+
+Test-only patch — no shipped runtime changes.
+
+### Fixed
+
+- **Copilot trigger tests no longer time out.** Both `AppCopilot` specs fired the
+  click on the `pointer-events-none` `.aui-app-shell-chat-trigger-fixed` wrapper
+  instead of the interactive LiquidGlass pill that owns the `onClick`, so the
+  panel never opened and the specs hit the 1s `waitFor` timeout. They now click
+  the actual pill (via a `getTriggerPill()` helper) and pass in ~20–30ms.
+- Removed `src/ui/timbal-v2-button.tsx`, which had slipped back into the tree
+  during a local baseline check. `TimbalV2Button` stays removed (see 3.0.0).
+
 ## [3.0.0] — 2026-06-30
 
 One button for the whole package. `TimbalV2Button` is gone — every chat, studio,
