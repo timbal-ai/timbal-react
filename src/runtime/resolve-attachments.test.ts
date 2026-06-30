@@ -22,8 +22,9 @@ const customAdapter: AttachmentAdapter = {
 };
 
 describe("resolveAttachmentAdapter", () => {
-  it("returns undefined when attachments is omitted and no legacy overrides", () => {
-    expect(resolveAttachmentAdapter(undefined, { baseUrl: "/api" })).toBeUndefined();
+  it("returns the default adapter when attachments is omitted (ON by default)", () => {
+    const adapter = resolveAttachmentAdapter(undefined, { baseUrl: "/api" });
+    expect(adapter?.accept).toBe(DEFAULT_UPLOAD_ACCEPT);
   });
 
   it("returns the default adapter when attachments is true", () => {

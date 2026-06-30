@@ -26,16 +26,16 @@ describe("resolveChartMargin", () => {
     });
   });
 
-  it("reserves bottom space when flush x-axis is shown", () => {
+  it("does not add a bottom inset when flush x-axis is shown (axis self-reserves)", () => {
     expect(resolveChartMargin({ flush: true, showXAxis: true, showYAxis: false })).toMatchObject({
-      bottom: 24,
+      bottom: 0,
     });
   });
 });
 
 describe("flushBarCategoryGap", () => {
-  it("only zeroes gap when flush and category axis visible", () => {
-    expect(flushBarCategoryGap(true, true)).toBe("0%");
+  it("insets flush bars when the category axis is visible", () => {
+    expect(flushBarCategoryGap(true, true)).toBe("20%");
     expect(flushBarCategoryGap(true, false)).toBeUndefined();
     expect(flushBarCategoryGap(false, true)).toBeUndefined();
   });

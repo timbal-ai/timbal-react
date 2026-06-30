@@ -102,22 +102,22 @@ const ComposerInput: FC<{ placeholder: string; autoFocus: boolean }> = ({
     }
   };
 
-  const onInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
-    const el = e.currentTarget;
-    el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
-  };
-
+  // `asChild` swaps assistant-ui's `react-textarea-autosize` for a plain
+  // `<textarea>` that grows with CSS `field-sizing: content`. No JS-driven
+  // height writes means no MutationObserver/ResizeObserver churn for the
+  // viewport to react to. Browsers without `field-sizing` degrade to a fixed
+  // `min-h`/`max-h` box that scrolls — still fully usable.
   return (
     <ComposerPrimitive.Input
+      asChild
       placeholder={placeholder}
-      className="aui-composer-input max-h-60 min-h-14 w-full resize-none bg-composer-bg px-3 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground/70 focus-visible:ring-0"
       rows={1}
       autoFocus={autoFocus}
       aria-label="Message input"
       onKeyDown={onKeyDown}
-      onInput={onInput}
-    />
+    >
+      <textarea className="aui-composer-input max-h-60 min-h-14 w-full resize-none overflow-y-auto field-sizing-content bg-composer-bg px-3 pt-3 pb-1 text-sm outline-none placeholder:text-muted-foreground/70 focus-visible:ring-0" />
+    </ComposerPrimitive.Input>
   );
 };
 

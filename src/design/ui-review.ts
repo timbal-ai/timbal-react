@@ -17,6 +17,15 @@ import {
   type LintOptions,
   type LintResult,
 } from "./ui-lint";
+import { HOUSE_RULES } from "./ui-vocabulary";
+
+/**
+ * The one-line imperatives from {@link HOUSE_RULES}, rendered as a checklist.
+ * Both the revision prompt and the self-review system prompt below read from
+ * this, so the rules a model is *told* can never drift from the rules it is
+ * *checked against* (which the linter also derives from `HOUSE_RULES`).
+ */
+const HOUSE_RULES_CHECKLIST = HOUSE_RULES.map((r) => `- ${r.rule}`).join("\n");
 
 export interface ReviewResult {
   /** Raw linter output. */
@@ -62,7 +71,10 @@ export function reviewGeneratedUi(
     "",
     report,
     "",
-    "Rules: colors come only from semantic tokens (text-primary, bg-muted, border-border, text-muted-foreground, …) — never palette colors, hex, or oklch. Icons mark actions/nav/status, not decoration. Metric values use font-normal. No gradients on data surfaces. No divider under every row. Do not change anything that already passed.",
+    "House rules (the same list the linter enforces):",
+    HOUSE_RULES_CHECKLIST,
+    "",
+    "Do not change anything that already passed.",
   ].join("\n");
 
   return { lint, passed: false, report, revisionPrompt };
@@ -76,14 +88,9 @@ export function reviewGeneratedUi(
 export const UI_REVIEW_AGENT_INSTRUCTIONS = `
 ## Self-review before returning UI (anti-slop)
 
-Before you output any generated UI code, silently re-read it and fix anything that matches the slop checklist — this is the same rubric an automated linter applies, so output that fails it will be rejected and sent back:
+Before you output any generated UI code, silently re-read it and fix anything that breaks a house rule — this is the same rubric an automated linter applies, so output that fails it will be rejected and sent back:
 
-- **No hardcoded colors.** Every color is a semantic token (\`text-primary\`, \`bg-muted\`, \`border-border\`, \`text-muted-foreground\`, \`bg-destructive\`, …). No \`text-blue-600\`, no \`#hex\`, no \`oklch(...)\`, no \`style={{ color }}\`.
-- **No decorative icons.** An icon must mark an action, nav target, or status. Remove icons that sit beside a label that already says the thing. Aim for very few icons per view.
-- **Muted, sparse trends.** No colored up/down pill on every metric. Show a trend only when the change is the point.
-- **Normal-weight values.** Metric numbers use \`font-normal\`, never \`font-bold\` at large sizes.
-- **No card-in-card, no per-row dividers, no gradients on data surfaces.** Group with spacing/Sections; reserve gradients for chrome.
-- **Compose from blocks.** Prefer \`MetricRow\` / \`MetricChartCard\` / \`DataTable\` / \`IntegrationCard\` over hand-assembled primitives.
+${HOUSE_RULES_CHECKLIST}
 
 If a check fails, fix it and re-read once more. Only return code that would pass clean.
 `.trim();

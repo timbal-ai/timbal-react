@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import type { Session } from "@timbal-ai/timbal-sdk";
@@ -12,9 +13,16 @@ import {
   clearTokens,
   setAccessToken,
   setRefreshToken,
+  setAuthBaseUrl,
   fetchCurrentUser,
   refreshAccessToken,
 } from "./tokens";
+import {
+  fetchProjectConfig,
+  type AuthProvider,
+  type ConfigResult,
+  type ProjectConfig,
+} from "./config";
 
 // ============================================
 // Iframe detection
@@ -32,12 +40,34 @@ function isInsideIframe(): boolean {
 // Session Context
 // ============================================
 
+/**
+ * Resolution state of the `GET {baseUrl}/config` call:
+ * - `loading` — request in flight (or not yet started).
+ * - `ok` — platform mode; `config` is populated.
+ * - `not-platform` — `/config` 404'd; the app runs in legacy mode.
+ * - `unavailable` — platform unreachable after retries; do NOT assume open or
+ *   authenticated. Render neither the app nor login until it resolves.
+ */
+export type ConfigStatus = "loading" | "ok" | "not-platform" | "unavailable";
+
 interface SessionContextType {
   user: Session | null;
   loading: boolean;
   isAuthenticated: boolean;
   isEmbedded: boolean;
   logout: () => void;
+  /** Normalized `/config` payload, or `null` outside platform mode. */
+  config: ProjectConfig | null;
+  /** Resolution state of the config fetch. */
+  configStatus: ConfigStatus;
+  /** Whether end users must log in. Fail-safe `true` until proven otherwise. */
+  authRequired: boolean;
+  /** The only login methods that should be rendered (server-driven). */
+  authProviders: AuthProvider[];
+  /** Whether SSO connections exist (no details exposed). */
+  ssoEnabled: boolean;
+  /** `true` only when config loaded and `auth.required === false`. */
+  isOpenProject: boolean;
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -68,24 +98,39 @@ interface SessionProviderProps {
   children: React.ReactNode;
   /** When false, session is always null and loading is false. Default: true */
   enabled?: boolean;
+  /**
+   * Base path the config + auth routes are mounted under. Default `/api`
+   * (so `/config` → `/api/config`, `/auth/login` → `/api/auth/login`). Also
+   * applied to {@link setAuthBaseUrl} so token helpers stay in sync.
+   */
+  baseUrl?: string;
 }
 
 export const SessionProvider: React.FC<SessionProviderProps> = ({
   children,
   enabled = true,
+  baseUrl = "/api",
 }) => {
   const [user, setUser] = useState<Session | null>(null);
   const [loading, setLoading] = useState(enabled);
   const [embedded] = useState(isInsideIframe);
+  const [config, setConfig] = useState<ProjectConfig | null>(null);
+  const [configStatus, setConfigStatus] = useState<ConfigStatus>(
+    enabled ? "loading" : "not-platform",
+  );
 
   useEffect(() => {
     if (!enabled) {
       setLoading(false);
+      setConfigStatus("not-platform");
       return;
     }
 
     let ignore = false;
+    setAuthBaseUrl(baseUrl);
 
+    // Restore an existing session from cookie / stored tokens. Used in both
+    // legacy mode (no `/config`) and authenticated platform projects.
     const restoreSession = async () => {
       try {
         const u = await fetchCurrentUser();
@@ -114,12 +159,47 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({
         clearTokens();
       }
 
+      // When embedded, keep loading until the parent injects credentials.
       if (!ignore && !embedded) {
         setLoading(false);
       }
     };
 
-    restoreSession();
+    const resolve = async () => {
+      let result: ConfigResult;
+      try {
+        result = await fetchProjectConfig({ baseUrl });
+      } catch {
+        // Aborted during teardown — leave state untouched.
+        return;
+      }
+      if (ignore) return;
+
+      if (result.status === "ok") {
+        setConfig(result.config);
+        setConfigStatus("ok");
+        if (!result.config.auth.required) {
+          // Open project: no login, no session restore. Just render.
+          setLoading(false);
+          return;
+        }
+        await restoreSession();
+        return;
+      }
+
+      if (result.status === "not-platform") {
+        // Legacy mode: behave exactly as before (login assumed to exist).
+        setConfigStatus("not-platform");
+        await restoreSession();
+        return;
+      }
+
+      // Platform unreachable after retries. Do NOT fall open or closed —
+      // leave `loading` true so the guard renders neither app nor login.
+      setConfigStatus("unavailable");
+    };
+
+    resolve();
 
     // When embedded in an iframe, listen for parent-injected credentials.
     // The parent sends { type: "timbal:auth", token, refreshToken? }.
@@ -150,30 +230,54 @@ export const SessionProvider: React.FC<SessionProviderProps> = ({
       ignore = true;
       messageCleanup?.();
     };
-  }, [enabled, embedded]);
+  }, [enabled, embedded, baseUrl]);
+
+  // Derived auth-mode answers. Fail-safe: anything other than a confirmed open
+  // project requires login (a malformed/unavailable config never opens access).
+  const isOpenProject =
+    configStatus === "ok" && config?.auth.required === false;
+  const authRequired = enabled ? !isOpenProject : false;
 
   const logout = useCallback(() => {
     clearTokens();
     setUser(null);
+    // Open projects have no login page to return to — just clear local state.
+    if (!authRequired) return;
     const returnTo = encodeURIComponent(
       window.location.pathname + window.location.search,
     );
-    fetch("/api/auth/logout", { method: "POST" }).finally(
-      () => (window.location.href = `/api/auth/login?return_to=${returnTo}`),
+    fetch(`${baseUrl}/auth/logout`, { method: "POST" }).finally(
+      () => (window.location.href = `${baseUrl}/auth/login?return_to=${returnTo}`),
     );
-  }, []);
+  }, [authRequired, baseUrl]);
+
+  const value = useMemo<SessionContextType>(
+    () => ({
+      user,
+      loading,
+      isAuthenticated: !!user,
+      isEmbedded: embedded,
+      logout,
+      config,
+      configStatus,
+      authRequired,
+      authProviders: config?.auth.providers ?? [],
+      ssoEnabled: config?.auth.sso?.enabled ?? false,
+      isOpenProject,
+    }),
+    [
+      user,
+      loading,
+      embedded,
+      logout,
+      config,
+      configStatus,
+      authRequired,
+      isOpenProject,
+    ],
+  );
 
   return (
-    <SessionContext.Provider
-      value={{
-        user,
-        loading,
-        isAuthenticated: !!user,
-        isEmbedded: embedded,
-        logout,
-      }}
-    >
-      {children}
-    </SessionContext.Provider>
+    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
   );
 };

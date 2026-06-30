@@ -441,7 +441,7 @@ export interface TimbalRuntimeProviderProps {
    * Enable composer attachments. `true` or `{ uploadUrl?, accept? }` uses
    * the built-in upload adapter (`POST` to `${baseUrl}/files/upload` by
    * default). Pass a custom {@link AttachmentAdapter} for full control, or
-   * `null` to disable. Omitted = off (back-compat with pre-attachment chats).
+   * `null` to disable. Omitted = ON by default (built-in upload adapter).
    */
   attachments?: TimbalAttachmentsProp;
   /**

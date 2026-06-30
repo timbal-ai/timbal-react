@@ -272,7 +272,7 @@ export const HOUSE_RULES: readonly HouseRule[] = [
   },
   {
     id: "no-chat-wrapping",
-    rule: "Never wrap TimbalChat or AppChatPanel in a Card, Section, or custom bordered/padded container, and never add custom heading/status blocks above it.",
+    rule: "Never wrap TimbalChat or the AppCopilot panel in a Card, Section, or custom bordered/padded container, and never add custom heading/status blocks above it.",
     why: "The chat component is a full-bleed, full-height surface that handles its own layout, welcome screen, and suggestions. Wrapping it or hand-rolling headers/online badges inside the page content is redundant and wastes layout space.",
     slop: `<Page title="Assistant"><Card><div className="flex justify-between"><h3>TIBA Concierge</h3><span>Online</span></div><TimbalChat /></Card></Page>`,
     good: `<Page fill><TimbalChat workforceId="..." welcome={{ heading: "Hola, soy el Concierge de TIBA", subheading: "Pregúntame sobre..." }} /></Page>`,
@@ -296,7 +296,7 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     rule: "Never hand-roll a sidebar rail or a topbar. Use AppShell with sidebar={<StudioSidebar … />}; AppShell renders the mobile menu button itself — no topbar and no AppShellSidebarTrigger needed.",
     why: "A hand-built <nav>/<aside> rail or a custom top bar drifts from the shell chrome (spacing, motion, mobile drawer, tokens) and is exactly the slop that ships. StudioSidebar takes { id, name, icon? } items + onSelect — route nav with icons is its job. Put global actions in Page.actions, not a topbar.",
     slop: `<div className="h-12 border-b"><AppShellSidebarTrigger /> … </div>`,
-    good: `<AppShell sidebar={<StudioSidebar workforces={navItems} selectedId={view} onSelect={setView} />}>`,
+    good: `<AppShell sidebar={<StudioSidebar items={navItems} selectedId={view} onSelect={setView} />}>`,
   },
   {
     id: "no-uppercase-heading",

@@ -52,6 +52,42 @@ describe("lintGeneratedUi — literals & inline styles", () => {
       expect.arrayContaining(["inline-style-color"]),
     );
   });
+
+  it("allows a brand/accent hex passed to createTimbalTheme (the sanctioned path)", () => {
+    const inline = lintGeneratedUi(
+      `const theme = createTimbalTheme({ brand: "#ff5a5f", accent: "#c19a6b" });`,
+    );
+    expect(inline.findings.some((f) => f.rule === "color-literal")).toBe(false);
+    expect(inline.ok).toBe(true);
+
+    // brand/accent on their own lines inside a multi-line call (preset shape).
+    const multiline = lintGeneratedUi(
+      [
+        `const theme = createTimbalTheme({`,
+        `  brand: "#ff5a5f",`,
+        `  accent: "#c19a6b",`,
+        `  radius: 0.875,`,
+        `});`,
+      ].join("\n"),
+    );
+    expect(multiline.findings.some((f) => f.rule === "color-literal")).toBe(false);
+  });
+
+  it("allows a preset swatch color literal", () => {
+    const res = lintGeneratedUi(`{ id: "warm", swatch: "#ea580c", label: "Warm" }`);
+    expect(res.findings.some((f) => f.rule === "color-literal")).toBe(false);
+  });
+
+  it("still blocks a hand-authored theme token with a hex (the real anti-pattern)", () => {
+    const found = rules(`  --primary: #ff5a5f;`);
+    expect(found).toEqual(expect.arrayContaining(["theme-via-generator"]));
+  });
+
+  it("still flags a stray hex that is not theme intent", () => {
+    expect(rules(`const tone = "#ff0066";`)).toEqual(
+      expect.arrayContaining(["color-literal"]),
+    );
+  });
 });
 
 describe("lintGeneratedUi — chart token color", () => {

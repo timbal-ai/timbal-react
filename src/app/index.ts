@@ -1,5 +1,14 @@
 export { APP_KIT_AGENT_INSTRUCTIONS } from "./agent-instructions";
 
+// Machine-readable catalog of every primitive + block (import paths, what each
+// composes, and a source ref to fork). Powers the agent instructions + gallery.
+export { APP_KIT_CATALOG, getCatalogEntry } from "./catalog";
+export type {
+  CatalogEntry,
+  CatalogKind,
+  CatalogImportPath,
+} from "./catalog";
+
 // Codegen guardrails — anti-slop vocabulary, linter, and critique loop
 export {
   SEMANTIC_COLOR_TOKENS,
@@ -57,8 +66,6 @@ export { AppShell } from "./layout/AppShell";
 export type { AppShellProps } from "./layout/AppShell";
 export { AppShellChatTrigger } from "./layout/AppShellChatTrigger";
 export type { AppShellChatTriggerProps } from "./layout/AppShellChatTrigger";
-export { useAppShellChat } from "./layout/app-shell-chat-context";
-export type { AppShellChatControls } from "./layout/app-shell-chat-context";
 export { useAppShellNav } from "./layout/app-shell-nav-context";
 export type { AppShellNavControls } from "./layout/app-shell-nav-context";
 export { AppShellSidebarTrigger } from "./layout/AppShellSidebarTrigger";
@@ -90,14 +97,52 @@ export {
   type AppDensityClassKey,
 } from "../design/app-density";
 
-// Copilot
-export { AppCopilotProvider, useAppCopilotContext } from "./copilot/app-copilot-context";
+// Copilot — self-contained floating assistant (drop in <AppCopilot />)
+export {
+  AppCopilot,
+  CopilotProvider,
+  CopilotPanel,
+  CopilotOverlay,
+  useCopilot,
+  AppCopilotProvider,
+  useAppCopilotContext,
+  SiriWave,
+} from "./copilot";
 export type {
-  AppCopilotProviderProps,
+  AppCopilotProps,
+  CopilotProviderProps,
+  CopilotPanelProps,
+  CopilotOverlayProps,
+  CopilotControls,
   AppCopilotContextValue,
-} from "./copilot/app-copilot-context";
-export { AppChatPanel } from "./chat/AppChatPanel";
-export type { AppChatPanelProps } from "./chat/AppChatPanel";
+  AppCopilotProviderProps,
+  SiriWaveProps,
+  SiriWaveVariant,
+} from "./copilot";
+// Deprecated aliases — removed next major.
+export { AppChatPanel, useAppShellChat } from "./copilot";
+export type { AppChatPanelProps, AppShellChatControls } from "./copilot";
+
+// Blocks — composed, prop-driven, forkable sections (indexed in APP_KIT_CATALOG)
+export {
+  FilteredDataTable,
+  StatGrid,
+  IntegrationsGrid,
+  ResourceGallery,
+  SettingsLayout,
+} from "./blocks";
+export type {
+  FilteredDataTableProps,
+  FilterCompareValue,
+  StatGridProps,
+  StatGridItem,
+  IntegrationsGridProps,
+  IntegrationsGridItem,
+  ResourceGalleryProps,
+  ResourceGalleryItem,
+  SettingsLayoutProps,
+  SettingsLayoutSection,
+} from "./blocks";
 
 // Surfaces
 export { SurfaceCard } from "./surfaces/SurfaceCard";

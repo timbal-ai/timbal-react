@@ -4,6 +4,30 @@ const ACCESS_TOKEN_KEY = "timbal_project_access_token";
 const REFRESH_TOKEN_KEY = "timbal_project_refresh_token";
 
 // ============================================
+// Configurable base path
+// ============================================
+//
+// All auth + identity routes (`/auth/*`, `/me`, `/config`) hang off a single
+// base path. Defaults to `/api` to preserve historical behavior; the host app
+// can override it once (e.g. from `SessionProvider`) so every helper stays in
+// sync without threading the value through each call site.
+
+const DEFAULT_AUTH_BASE_URL = "/api";
+
+let authBaseUrl = DEFAULT_AUTH_BASE_URL;
+
+const stripTrailingSlash = (url: string): string =>
+  url.endsWith("/") ? url.slice(0, -1) : url;
+
+/** Set the base path used to build `/auth/*` and `/me` URLs. Default `/api`. */
+export const setAuthBaseUrl = (url: string): void => {
+  authBaseUrl = stripTrailingSlash(url || DEFAULT_AUTH_BASE_URL);
+};
+
+/** Read the base path currently used for auth + identity routes. */
+export const getAuthBaseUrl = (): string => authBaseUrl;
+
+// ============================================
 // Token storage (all in localStorage)
 // ============================================
 
@@ -37,7 +61,7 @@ export const refreshAccessToken = async (): Promise<boolean> => {
 
   refreshPromise = (async () => {
     try {
-      const res = await fetch("/api/auth/refresh", {
+      const res = await fetch(`${authBaseUrl}/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -109,7 +133,7 @@ export const authFetch = async (
 export const fetchCurrentUser = async (): Promise<Session | null> => {
   try {
     const token = getAccessToken();
-    const res = await fetch("/api/me", {
+    const res = await fetch(`${authBaseUrl}/me`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) return null;

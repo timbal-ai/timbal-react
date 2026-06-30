@@ -4,6 +4,155 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-06-30
+
+A clarity + agent-reuse cleanup. The assistant is now a **self-contained drop-in
+component**, common sections ship as **importable, forkable blocks** indexed by a
+**machine-readable catalog**, and the root export is a **deterministic mirror of
+the subpaths** (no more hand-maintained drift). Chat auto-scroll no longer fights
+the composer. Breaking changes are limited to the copilot's `AppShell` coupling;
+deprecated aliases ease the migration.
+
+### Breaking
+
+- **`AppShell` is layout-only — all `chat*` props removed.** The copilot is no
+  longer wired through `AppShell`. Removed props: `chat`, `chatTriggerLabel`,
+  `chatCollapsible`, `chatWidth`, `chatHeight`, `chatExpanded`,
+  `defaultChatExpanded`, `onChatExpandedChange`, `hideChatTrigger`, and related.
+  Render `<AppCopilot />` anywhere instead (see migration below).
+
+### Added
+
+- **`<AppCopilot>` — self-contained floating copilot** (`src/app/copilot/`). Drop
+  it anywhere; it `createPortal`s its own fixed glass panel + SiriWave trigger to
+  `document.body`, owns its open/expand state (or accepts controlled
+  `open`/`onOpenChange`/`expanded` props), takes a `context` prop for agent
+  tooling, and mounts the runtime — no `AppShell` wiring. `CopilotProvider` +
+  `useCopilot()` drive custom triggers anywhere in the tree. Also exports
+  `CopilotPanel`, `CopilotOverlay`, `SiriWave`.
+- **Importable, forkable blocks** (`src/app/blocks/`, exported from `/app`):
+  `FilteredDataTable`, `StatGrid`, `IntegrationsGrid`, `ResourceGallery`,
+  `SettingsLayout` — prop-driven sections promoted from the best recipes, each
+  with a `source` ref in the catalog so agents can fork.
+- **`APP_KIT_CATALOG` + `getCatalogEntry`** (`src/app/catalog.ts`) — a
+  machine-readable index of every primitive + block with an exact `importFrom`
+  path, `exports`, and (for blocks) `composedOf` + `source`. The block/primitive
+  listing inside `APP_KIT_AGENT_INSTRUCTIONS` is now **generated from this
+  catalog**, so import paths can't drift from the prose. A contract test asserts
+  every entry resolves to a real export.
+- **Root export gaps closed** — `AlertCard`, `CatalogCard`, the density API
+  (`AppDensityProvider`, `useAppDensity`, `appDensityClass`, …), the app layout
+  class helpers (`appPageColumnClass`, …), the `/ui` chart primitives
+  (`ChartContainer`, `ChartTooltip`, …), and `TimbalV2Button` are now reachable
+  from the package root, matching the subpaths.
+- **Thread scroll knobs** — `Thread`, `TimbalChat`, and `CopilotPanel` pass
+  through `autoScroll`, `scrollToBottomOnRunStart`, `scrollToBottomOnInitialize`,
+  and `scrollToBottomOnThreadSwitch` to the underlying viewport. Defaults are
+  unchanged (auto-follow on), so this is an opt-in escape hatch.
+
+### Changed
+
+- **Deterministic root export** — `src/index.ts` now `export *`s each subpath
+  barrel (`./ui`, `./chat`, `./studio`, `./app`, `./site`, `./artifacts`) plus
+  root-only modules, with a small collision-overrides block pinning the names
+  `/app` re-exports from `/ui` · `/chat` · `/artifacts` to a single source
+  (`BreadcrumbItem` stays the `/ui` component; `/app`'s data type is
+  `AppBreadcrumbItem`). To expose a new public symbol, add it to its
+  `src/<area>/index.ts` — the root picks it up automatically.
+- **`UI_REVIEW_AGENT_INSTRUCTIONS` + the `reviewGeneratedUi` revision prompt** are
+  now generated from `HOUSE_RULES` (single source of truth), like the anti-slop
+  checklist in `APP_KIT_AGENT_INSTRUCTIONS`.
+- **`SiriWave` moved into the package** (`src/app/copilot/siri-wave.tsx`) — it
+  previously lived outside `src/` (`components/ui/`). Nothing public lives outside
+  `src/` anymore.
+- **Docs/guidance consolidated** — README copilot section rewritten around
+  `<AppCopilot>` (no topbar contradiction); recipe paths corrected to
+  `examples/app-kit/src/recipes/`; SKILL.md documents the copilot/blocks/catalog
+  subsystems + the root-as-subpaths export strategy; AGENTS.md points at the
+  catalog + blocks; the generic `spacing-system` skill was removed in favor of a
+  Timbal-token spacing note in SKILL.md.
+- **Examples migrated** — `copilot-overlay` recipe and the `operations-dashboard`
+  reference use `<AppCopilot>`.
+
+### Fixed
+
+- **Chat auto-scroll no longer fights the composer (P6).** The composer textarea
+  grows with CSS `field-sizing: content` instead of JS-driven
+  `react-textarea-autosize`, so typing/resizing it produces no JS height writes
+  for the viewport's resize/mutation observers to react to — the "scroll yanks to
+  bottom while typing" behavior is gone, with no layout change. Apps no longer
+  need a `useChatScrollLock`-style workaround.
+- **Upstream `useThreadViewportAutoScroll` patch** (`patches/`) — scrolling **up**
+  now cancels a pending auto-scroll (`scrollingToBottomBehaviorRef`) instead of
+  ignoring the scroll while one is in flight, so reading back through history no
+  longer snaps you to the bottom. Shipped as a local `bun` patch for dev/tests;
+  the same diff is intended for upstream (`@assistant-ui/react` is a peer
+  dependency).
+
+### Deprecated (removed next major)
+
+- `AppChatPanel` → use `CopilotPanel` (or just `<AppCopilot />`).
+- `useAppShellChat` → use `useCopilot`.
+- `AppShellChatControls` type → `CopilotControls`.
+- `AppCopilotProvider` page-context provider still works; for open/expand state
+  prefer `<CopilotProvider>` / `<AppCopilot context={…} />`.
+
+### Migration (1.x → 2.0)
+
+Replace the `AppShell` `chat*` wiring with a sibling `<AppCopilot>`:
+
+```diff
+- <AppCopilotProvider value={{ page: "Operations" }}>
+-   <AppShell
+-     sidebar={<StudioSidebar … />}
+-     chat={<AppChatPanel workforceId="ops" suggestions={…} />}
+-     chatTriggerLabel="Assistant"
+-     chatCollapsible
+-   >
+-     <Page title="Operations">{/* … */}</Page>
+-   </AppShell>
+- </AppCopilotProvider>
++ <>
++   <AppShell sidebar={<StudioSidebar … />}>
++     <Page title="Operations" actions={<ModeToggle />}>{/* … */}</Page>
++   </AppShell>
++   <AppCopilot
++     workforceId="ops"
++     context={{ page: "Operations" }}
++     triggerLabel="Assistant"
++     suggestions={…}
++   />
++ </>
+```
+
+- Custom triggers: wrap in `<CopilotProvider>` and call `useCopilot()?.setOpen(true)`,
+  or drive `<AppCopilot open onOpenChange hideTrigger />` directly.
+- Global actions that used a topbar move to `Page.actions`.
+- Imports keep working via deprecated aliases for one major; switch
+  `AppChatPanel`→`CopilotPanel` and `useAppShellChat`→`useCopilot` at your leisure.
+
+## [1.9.1] — 2026-06-29
+
+### Fixed
+
+- **Assistant action-bar “More” menu** — the “Export as Markdown” dropdown rendered behind the floating copilot panel (`z-50` vs shell `z-[70]`). Raised the menu to `z-[80]` so the option is visible when opened.
+
+## [1.9.0] — 2026-06-29
+
+API-naming reconciliation so codegen agents stop hitting `tsc` retry loops on the
+shapes the docs already describe. All three changes are additive and backward
+compatible.
+
+### Added
+
+- **`StudioSidebar` `items` prop** — the canonical nav prop is now `items` (`StudioSidebarItem[]`), matching `APP_KIT_AGENT_INSTRUCTIONS` and the skill docs. `workforces` is retained as a **deprecated alias** (it still works; `items` wins when both are passed), reflecting that the sidebar is general route nav, not only a workforce picker.
+- **`Section` `actions` slot** — `Section` now accepts a right-aligned `actions` node on its header row (e.g. a "Refresh" button), mirroring `Page` `actions`. Previously this content had to be placed inline in the body.
+- **`useLiveQuery().refresh`** — alias of `refetch`, matching the `refresh` naming used by the other data hooks (`useWorkforces`, `useConversations`, `useConversation`). Both names are returned.
+
+### Changed
+
+- **`APP_KIT_AGENT_INSTRUCTIONS`** — documents `StudioSidebar items` (with `workforces` noted as deprecated) and the `Section actions` slot; the embedded example uses `items`.
+
 ## [1.8.0] — 2026-06-28
 
 Conversation history for app runs, a glass copilot shell, and sidebar + anti-slop

@@ -69,6 +69,20 @@ const COLOR_LITERAL_RE =
   /#[0-9a-fA-F]{3,8}\b|\b(?:oklch|rgba?|hsla?)\s*\(/g;
 
 /**
+ * The one sanctioned place a raw color literal belongs: as *intent* fed to the
+ * theme generator. `createTimbalTheme({ brand: "#4f46e5", accent: "#10b981" })`
+ * is the documented branding path (see `theme-instructions.ts` /
+ * `theme-presets.ts`), and a `swatch:` is a preset's representative chip color.
+ * Flagging the brand hex here is a false positive — it punishes the exact API
+ * the `color-literal` message tells the agent to use. We allow a color literal
+ * on a line that either calls `createTimbalTheme(`/`createTimbalTheme<…>(` or
+ * assigns one of the intent keys (`brand`/`accent`/`swatch`). Hand-authored
+ * theme *tokens* (`--primary: #…`) stay blocked by `HAND_AUTHORED_TOKEN_RE`.
+ */
+const THEME_INTENT_COLOR_RE =
+  /\bcreateTimbalTheme\b|(?:^|[\s,{(])(?:brand|accent|swatch)\s*:/;
+
+/**
  * A CSS color function wrapping a CSS variable — `hsl(var(--chart-1))`,
  * `rgb(var(--primary))`, etc. The design tokens are already full OKLCH colors,
  * so wrapping them in `hsl()` / `rgb()` produces **invalid CSS** and a silently
@@ -339,8 +353,13 @@ export function lintGeneratedUi(
 
     // ── hex / oklch / rgb literals (skip the gradient-token allowlist) ──
     // Suppressed when the line already triggered the more specific
-    // `chart-token-color-fn` rule so the agent gets one clear message.
-    const literals = wrapsTokenInColorFn ? null : line.match(COLOR_LITERAL_RE);
+    // `chart-token-color-fn` rule so the agent gets one clear message, and when
+    // the literal is brand *intent* fed to createTimbalTheme (the sanctioned
+    // path) rather than a hardcoded color in markup.
+    const literals =
+      wrapsTokenInColorFn || THEME_INTENT_COLOR_RE.test(line)
+        ? null
+        : line.match(COLOR_LITERAL_RE);
     if (literals) {
       findings.push({
         rule: "color-literal",
@@ -421,7 +440,7 @@ export function lintGeneratedUi(
         severity: "error",
         line: lineNo,
         message:
-          "Hand-rolled sidebar rail. Don't build a custom <nav>/<aside> navigation column — use AppShell sidebar={<StudioSidebar workforces={items} selectedId={…} onSelect={…} />}. StudioSidebar nav items take an optional `icon`, so icon nav is no reason to go custom.",
+          "Hand-rolled sidebar rail. Don't build a custom <nav>/<aside> navigation column — use AppShell sidebar={<StudioSidebar items={navItems} selectedId={…} onSelect={…} />}. StudioSidebar nav items take an optional `icon`, so icon nav is no reason to go custom.",
         snippet: line.trim().slice(0, 120),
       });
     }

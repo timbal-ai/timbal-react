@@ -2,7 +2,7 @@
 
 React components and runtime for building Timbal chat UIs and studio apps. Drop in a single component to get a fully-featured streaming chat interface connected to a Timbal workforce agent, or compose dashboards with the **app kit**.
 
-## Package structure (1.0)
+## Package structure (2.0)
 
 | Subpath | Use when |
 |---------|----------|
@@ -60,7 +60,7 @@ The package ships pre-built Tailwind class names **plus a complete light + dark 
 @source "../node_modules/@timbal-ai/timbal-react/dist";
 ```
 
-That's it — no `@theme`, `:root`, or `.dark` blocks of your own. Toggling dark mode is a single `document.documentElement.classList.toggle("dark")` (or `next-themes` `attribute="class"`). The built-in `ModeToggle` (uncontrolled) persists to `localStorage` key `timbal-theme` and restores on reload.
+That's it — no `@theme`, `:root`, or `.dark` blocks of your own. Toggling dark mode is a single `document.documentElement.classList.toggle("dark")` (or `next-themes` `attribute="class"`). Wire `next-themes` with **`defaultTheme="light"`** and **`enableSystem={false}`** so new apps ship in light mode; dark appears only when the user toggles. The built-in `ModeToggle` (uncontrolled) persists to `localStorage` key `timbal-theme` and restores on reload.
 
 > Adjust the `@source` path if your CSS file lives at a different depth relative to `node_modules`.
 
@@ -261,10 +261,10 @@ Suggestions also accept a function (sync or async) for per-user or server-driven
 
 Each chip supports `icon`, `description`, and `prompt` (sent instead of `title` when clicked).
 
-In `AppChatPanel` (`variant="panel"`), welcome suggestions are **off** by default. Enable them with `showWelcomeSuggestions`:
+In the floating copilot panel (`Thread variant="panel"`), welcome suggestions are **off** by default. Enable them with `showWelcomeSuggestions` (forwarded by `AppCopilot` to the panel):
 
 ```tsx
-<AppChatPanel
+<AppCopilot
   workforceId="your-workforce-id"
   showWelcomeSuggestions
   suggestions={[{ title: "Summarize this dashboard" }]}
@@ -281,6 +281,27 @@ In `AppChatPanel` (`variant="panel"`), welcome suggestions are **off** by defaul
   className="my-custom-class"
 />
 ```
+
+### Scroll behavior
+
+The composer textarea grows with CSS `field-sizing`, so typing a long message
+never triggers an auto-scroll. The conversation auto-follows the stream by
+default; tune that with these `Thread` / `TimbalChat` / `CopilotPanel` props (all
+default `true`):
+
+```tsx
+<TimbalChat
+  workforceId="your-workforce-id"
+  autoScroll                       // follow new content as it streams (default true)
+  scrollToBottomOnRunStart         // jump to bottom when you send a message
+  scrollToBottomOnInitialize       // jump to bottom after history loads
+  scrollToBottomOnThreadSwitch     // jump to bottom when switching threads
+/>
+```
+
+Set any to `false` to opt out — e.g. `autoScroll={false}` keeps your scroll
+position pinned while a response streams in (the scroll-to-bottom button still
+works).
 
 ### Switching agents dynamically
 
@@ -1167,45 +1188,38 @@ For a fully custom header, combine `useWorkforces` with `TimbalChat` instead of 
 
 ---
 
-## Dashboard + side copilot (`./app`)
+## Dashboard + floating copilot (`./app`)
 
-Compose a data UI with a **floating** copilot — main content stays full width:
+`AppCopilot` is a **self-contained, drop-in** assistant. Render it anywhere inside your app — it portals a fixed glass panel + trigger to `document.body`, owns its own open/expand state, and mounts the conversation runtime. `AppShell` is layout-only and has **no `chat*` props**; the two are independent.
 
 ```tsx
-import {
-  AppShell,
-  AppCopilotProvider,
-  AppChatPanel,
-  Page,
-  Section,
-} from "@timbal-ai/timbal-react/app";
+import { AppShell, AppCopilot, Page, StudioSidebar } from "@timbal-ai/timbal-react/app";
 
 export function OperationsApp() {
   return (
-    <AppCopilotProvider value={{ page: "Operations", tab: "overview" }}>
-      <AppShell
-        sidebar={<StudioSidebar /* … */ />}
-        topbar={<div className="flex justify-end p-4"><ModeToggle /></div>}
-        chat={
-          <AppChatPanel workforceId="your-workforce-id" />
-        }
-        chatTriggerLabel="Assistant"
-        chatCollapsible
-      >
-        <Page title="Operations">{/* dashboard */}</Page>
+    <>
+      <AppShell sidebar={<StudioSidebar /* … */ />}>
+        <Page title="Operations" actions={<ModeToggle />}>{/* dashboard */}</Page>
       </AppShell>
-    </AppCopilotProvider>
+
+      {/* Floating copilot — no AppShell wiring. */}
+      <AppCopilot
+        workforceId="your-workforce-id"
+        context={{ page: "Operations", tab: "overview" }}
+      />
+    </>
   );
 }
 ```
 
-The shell renders a rounded floating panel (bottom-right) and a **text-only** pill trigger — no sidebar column, no chat icons. Use `useAppShellChat()` for a custom trigger; set `hideChatTrigger` if you provide your own.
+`AppCopilot` renders a rounded floating panel (bottom-right) and a **text-only** pill trigger — no sidebar column, no chat icons. Global actions like the theme toggle go in `Page.actions`, not a hand-rolled topbar.
+
+**Custom trigger** — drive open state via props (`open` / `onOpenChange` + `hideTrigger`), or wrap the app in `<CopilotProvider>` and call `useCopilot()` from any button.
 
 | Piece | Role |
 |-------|------|
-| `AppCopilotProvider` | Page context via `useAppCopilotContext` (not shown in UI) |
-| `AppChatPanel` | Full-height floating thread; dismiss via **X** in the corner |
-| `AppShell` `chat` | Floating overlay — `chatWidth`; optional `chatHeight` (default: stretch top–bottom) |
+| `AppCopilot` | Drop-in floating copilot — portals its own overlay + trigger; `context` prop feeds `useAppCopilotContext` for agent tooling |
+| `CopilotProvider` / `useCopilot()` | Optional app-level open/expand state for custom triggers anywhere in the tree |
 | `LineAreaChart` | Cartesian engine on **recharts** — area/line/bar, stacked, horizontal bars, `layout` (`flush` hides axes; tooltips carry category + values), `showXAxis` / `showYAxis`, `monotone`/`linear`/`step`, shadcn tooltips (`dot`/`line`/`dashed`) |
 | `PieChart` / `RadialChart` / `RadarChart` | Pie & donut (center KPI), concentric progress rings, and spider charts — native shadcn/recharts charts |
 | `ChartContainer` / `ChartTooltip` / `ChartTooltipContent` / `ChartLegend` / `ChartLegendContent` (`/ui`) | shadcn chart primitives (recharts wrappers); colors flow from `ChartConfig` → `--color-*` |
@@ -1219,7 +1233,17 @@ The shell renders a rounded floating panel (bottom-right) and a **text-only** pi
 | `FieldTextarea` / `FieldSelect` / `FieldSwitch` | Settings forms matching `FieldInput` |
 | `AppConfirmDialog` | Delete/export confirmations |
 
-Inject `APP_KIT_AGENT_INSTRUCTIONS` into codegen / workforce prompts (same idea as `ARTIFACT_AGENT_INSTRUCTIONS`). Agents should compose **creatively** from the component menu — not clone a single demo layout.
+### Importable blocks + machine-readable catalog
+
+Common sections ship as **importable, prop-driven blocks** so agents reuse them instead of rebuilding: `FilteredDataTable`, `StatGrid`, `IntegrationsGrid`, `ResourceGallery`, `SettingsLayout` (from `/app`). Every primitive **and** block is indexed in **`APP_KIT_CATALOG`** — each entry carries an exact `importFrom` path, what it `composedOf`, and a `source` reference to fork when a block doesn't quite fit:
+
+```ts
+import { APP_KIT_CATALOG, getCatalogEntry, FilteredDataTable } from "@timbal-ai/timbal-react/app";
+
+getCatalogEntry("filtered-data-table")?.importFrom; // "@timbal-ai/timbal-react/app"
+```
+
+Inject `APP_KIT_AGENT_INSTRUCTIONS` into codegen / workforce prompts (same idea as `ARTIFACT_AGENT_INSTRUCTIONS`). Its block/primitive listing is **generated from `APP_KIT_CATALOG`**, so the import paths it gives agents never drift. Agents should compose **creatively** from the component menu — not clone a single demo layout.
 
 ```ts
 import { APP_KIT_AGENT_INSTRUCTIONS } from "@timbal-ai/timbal-react/app";

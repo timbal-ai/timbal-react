@@ -61,14 +61,21 @@ export const ChartPanel: FC<ChartPanelProps> = ({
   const resolvedTitle = title ?? artifact?.title;
   const hasHeader = Boolean(resolvedTitle || description || actions);
 
+  // Treat non-renderable children (null/undefined/false/true) as "absent" so a
+  // caller's `{cond && <X/>}` guard — which yields `false`, not `undefined` —
+  // falls through to the built-in `artifact` instead of clobbering it. Using
+  // `children ?? artifact` here would let a `false`-valued child block the
+  // artifact (false is not nullish), rendering an empty card with no fallback.
+  const hasRenderableChildren =
+    children != null && children !== false && children !== true;
+
   const body = loading ? (
     <Skeleton className="w-full rounded-lg" style={{ height }} aria-hidden />
-  ) : (
-    children ??
-    (artifact ? (
-      <ChartArtifactView artifact={artifact} embedded height={height} />
-    ) : null)
-  );
+  ) : hasRenderableChildren ? (
+    children
+  ) : artifact ? (
+    <ChartArtifactView artifact={artifact} embedded height={height} />
+  ) : null;
 
   return (
     <section

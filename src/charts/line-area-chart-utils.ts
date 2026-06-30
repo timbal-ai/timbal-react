@@ -19,17 +19,25 @@ export function resolveChartMargin(options: {
   if (!anyAxis) {
     return { top: 8, right: 0, bottom: 0, left: 0 };
   }
+  // Recharts already reserves height/width for visible axes, so we keep the
+  // category-axis side at 0 — an extra inset there only renders a dead band of
+  // empty space between the tick labels and the plot edge.
   return {
     top: 8,
     right: showYAxis ? 12 : 0,
-    bottom: showXAxis ? 24 : 0,
+    bottom: 0,
     left: showYAxis ? 8 : 0,
   };
 }
 
-/** Whether flush bar charts should use zero category gap (edge labels visible). */
+/**
+ * Bar category gap for flush layouts. Flush bars still need breathing room so
+ * they read as distinct columns inset from the card edges (rather than one
+ * glued-together block running wall to wall) — especially once category labels
+ * are shown beneath them.
+ */
 export function flushBarCategoryGap(flush: boolean, showCategoryAxis: boolean): string | undefined {
-  return flush && showCategoryAxis ? "0%" : undefined;
+  return flush && showCategoryAxis ? "20%" : undefined;
 }
 
 /** Whether flush line/area should use point scale + no-gap (edge-to-edge stroke, labeled x-axis). */

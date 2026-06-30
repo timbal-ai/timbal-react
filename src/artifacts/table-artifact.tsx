@@ -17,7 +17,7 @@ export const TableArtifactView: FC<{ artifact: TableArtifact }> = ({ artifact })
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                  className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground"
                 >
                   {col.label ?? col.key}
                 </th>
