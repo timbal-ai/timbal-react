@@ -205,6 +205,13 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     good: `<Cell fill="var(--chart-1)" />`,
   },
   {
+    id: "chart-data-key",
+    rule: "Chart series dataKeys must be safe identifiers (letters, digits, _ or -) — no spaces, %, or punctuation. Put the human-readable name in a separate `label`.",
+    why: "The chart layer maps each series dataKey to a CSS variable --color-<dataKey>. A key like \"Water %\" or \"Sleep hours\" produces an invalid variable (--color-Water %), color resolution fails, and recharts falls back to black/foreground. Use a safe key + a `label` for display.",
+    slop: `series={[{ dataKey: "Water %" }, { dataKey: "Sleep hours" }]}`,
+    good: `series={[{ dataKey: "waterPct", label: "Water %" }, { dataKey: "sleepHours", label: "Sleep hours" }]}`,
+  },
+  {
     id: "no-decorative-icons",
     rule: "Icons must earn their place (action, nav, or status). Never add an icon beside a label that already says the thing.",
     why: "An icon on every tile/card is the #1 tell of generated slop.",

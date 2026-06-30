@@ -4,6 +4,54 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+## [2.0.1] — 2026-06-30
+
+Codegen guardrails and agent guidance to stop recurring dashboard anti-patterns
+(hand-rolled topbars, coach panels, and broken chart colors), plus a Sheet
+mobile-scroll polish.
+
+### Added
+
+- **`no-custom-shell-chrome` now rejects `AppShell topbar={…}`** — the linter
+  previously only caught hand-rolled `<nav>`/`<aside>` rails and
+  `AppShellSidebarTrigger`. Passing a global topbar (e.g. an "AI Coach" button +
+  theme toggle) now hard-fails with a message pointing to `Page.actions` and
+  `<AppCopilot>`.
+- **`chart-data-key` lint rule** — flags a chart series `dataKey` containing a
+  space or `%`. The chart layer maps each `dataKey` to `--color-<dataKey>`, so an
+  unsafe key (`"Water %"`) produces invalid CSS and the series renders black. The
+  fix is a safe identifier key + a separate `label`
+  (`{ dataKey: "waterPct", label: "Water %" }`). Added as a `HOUSE_RULE`, so it
+  also appears in `APP_KIT_AGENT_INSTRUCTIONS` / `UI_REVIEW_AGENT_INSTRUCTIONS`.
+- **Agent-instruction guards for recurring runtime bugs** — `APP_KIT_AGENT_INSTRUCTIONS`
+  now documents: import-subpath verification (app-kit surfaces like `StatusBadge`
+  are `/app`, not `/ui` — a wrong subpath is a runtime blank-page crash);
+  the `AppCopilotProvider` prop contract (`value`, not `context`, and redundant
+  when `<AppCopilot>` is already mounted); the chart `dataKey` safe-identifier
+  rule; and a "never swallow fetch errors / verify queries return rows" data-loading
+  note.
+- **`APP_KIT_AGENT_INSTRUCTIONS` — copilot + chart recipes** — documents the
+  self-mounting `<AppCopilot>` pattern (`CopilotProvider` + `useCopilot()` +
+  `hideTrigger`, `suggestions` for quick-action chips) so agents stop hand-rolling
+  `Sheet` + `TimbalChat` coach panels; adds dual-metric/correlation chart
+  guidance (multi-series `ChartArtifact` / `LineAreaChart`, normalize + tooltip —
+  not raw recharts dual axes); and surfaces the **chart color-token contract**
+  (`var(--chart-N)` directly — never `hsl(var(--chart-N))`, which renders
+  black/empty charts).
+- **`APP_KIT_CATALOG` — `AppShell` description** no longer advertises a topbar.
+
+### Changed
+
+- **Topbar guidance is now "never"** — agent instructions and catalog prose
+  aligned with the linter: global actions belong in `Page.actions` or the
+  sidebar; an in-app assistant is `<AppCopilot>`, not a topbar button.
+
+### Fixed
+
+- **`SheetContent` mobile scroll** — drawer body is now `min-h-0 flex-col
+  overflow-y-auto` with scrollbar chrome hidden on small viewports so touch
+  scrolling works without a visible track.
+
 ## [2.0.0] — 2026-06-30
 
 A clarity + agent-reuse cleanup. The assistant is now a **self-contained drop-in

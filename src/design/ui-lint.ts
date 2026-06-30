@@ -93,6 +93,16 @@ const THEME_INTENT_COLOR_RE =
 const COLOR_FN_WRAPPING_VAR_RE =
   /\b(?:hsl|hsla|rgb|rgba|oklch|oklab|lab|lch|hwb|color)\s*\(\s*var\(\s*--/i;
 
+/**
+ * A chart series `dataKey` string literal containing a space or `%` — an unsafe
+ * key. The chart layer maps each `dataKey` to a CSS variable `--color-<dataKey>`,
+ * so `"Water %"` becomes `--color-Water %` (invalid CSS) and the series renders
+ * black/uncolored. The fix is a safe identifier key + a separate `label`. Only
+ * whitespace and `%` are flagged (unambiguously CSS-breaking); other punctuation
+ * is left alone to stay high-precision.
+ */
+const UNSAFE_DATA_KEY_RE = /\bdataKey\s*[:=]\s*\{?\s*["'][^"']*[ \t%][^"']*["']/;
+
 /** Inline color via the style prop: style={{ color: ... }} / backgroundColor. */
 const INLINE_STYLE_COLOR_RE =
   /style=\{\{[^}]*\b(?:color|background|backgroundColor|borderColor|fill|stroke)\b/;
@@ -143,6 +153,15 @@ const GLOW_SHADOW_RE = /\b(?:drop-)?shadow-\[0(?:px)?_0(?:px)?_/;
  * the agent built a custom topbar (the thing we never want).
  */
 const APP_SHELL_TRIGGER_RE = /\bAppShellSidebarTrigger\b/;
+
+/**
+ * Any `AppShell topbar={…}` (or `topbar="…"`) usage. `AppShell` renders its own
+ * mobile menu button, so a topbar is never needed — global actions belong in
+ * `Page.actions` and an in-app assistant is a self-mounting `<AppCopilot>`, not a
+ * topbar button. Matches the JSX prop form to avoid flagging an unrelated
+ * identifier named `topbar`.
+ */
+const APP_SHELL_TOPBAR_RE = /\btopbar\s*=\s*[{"]/;
 
 /**
  * Hand-rolled sidebar rail signature: a `<nav>` / `<aside>` element, laid out
@@ -351,6 +370,18 @@ export function lintGeneratedUi(
       });
     }
 
+    // ── unsafe chart dataKey (space / % → broken --color-<key>) ─────────
+    if (UNSAFE_DATA_KEY_RE.test(line)) {
+      findings.push({
+        rule: "chart-data-key",
+        severity: "error",
+        line: lineNo,
+        message:
+          "Unsafe chart dataKey (contains a space or %). The chart layer maps each dataKey to a CSS variable --color-<dataKey>, so a key like \"Water %\" yields invalid CSS and the series renders black/uncolored. Use a safe identifier key and put the human name in a separate `label` — e.g. { dataKey: \"waterPct\", label: \"Water %\" }.",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+
     // ── hex / oklch / rgb literals (skip the gradient-token allowlist) ──
     // Suppressed when the line already triggered the more specific
     // `chart-token-color-fn` rule so the agent gets one clear message, and when
@@ -427,6 +458,16 @@ export function lintGeneratedUi(
         line: lineNo,
         message:
           "Custom topbar. AppShell renders the mobile menu button itself — you do not need AppShellSidebarTrigger or a top bar. Default to no global topbar; put global actions in Page.actions or the sidebar.",
+        snippet: line.trim().slice(0, 120),
+      });
+    }
+    if (APP_SHELL_TOPBAR_RE.test(line)) {
+      findings.push({
+        rule: "no-custom-shell-chrome",
+        severity: "error",
+        line: lineNo,
+        message:
+          "No global topbar. Don't pass AppShell topbar={…} — AppShell renders its own mobile menu button, so a topbar is never needed. Put global actions (theme, account) in Page.actions or the sidebar; an in-app assistant is a self-mounting <AppCopilot> (suggestions for quick actions), never a topbar button.",
         snippet: line.trim().slice(0, 120),
       });
     }

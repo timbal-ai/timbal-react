@@ -121,6 +121,30 @@ describe("lintGeneratedUi — chart token color", () => {
   });
 });
 
+describe("lintGeneratedUi — chart data key", () => {
+  it("errors on a series dataKey containing a space", () => {
+    const src = `series={[{ dataKey: "Sleep hours", label: "Sleep" }]}`;
+    expect(rules(src)).toEqual(expect.arrayContaining(["chart-data-key"]));
+  });
+
+  it("errors on a dataKey containing a percent sign", () => {
+    expect(rules(`<Area dataKey="Water %" />`)).toEqual(
+      expect.arrayContaining(["chart-data-key"]),
+    );
+  });
+
+  it("accepts a safe identifier dataKey with a separate label", () => {
+    const src = `series={[{ dataKey: "waterPct", label: "Water %" }]}`;
+    expect(rules(src).includes("chart-data-key")).toBe(false);
+  });
+
+  it("does not flag a plain identifier dataKey prop", () => {
+    expect(rules(`<Line dataKey="sleepHours" />`).includes("chart-data-key")).toBe(
+      false,
+    );
+  });
+});
+
 describe("lintGeneratedUi — input guards", () => {
   it("throws a TypeError with the correct signature when given a non-string", () => {
     // The classic misuse: passing { filename, source } instead of the string.
@@ -443,8 +467,32 @@ describe("lintGeneratedUi — custom shell chrome", () => {
     );
   });
 
+  it("errors when AppShell is given a topbar prop", () => {
+    const src = `
+      <AppShell
+        sidebar={<StudioSidebar items={nav} selectedId={v} onSelect={set} />}
+        topbar={
+          <div className="flex items-center gap-2">
+            <Button onClick={openCoach}>AI Coach</Button>
+            <ModeToggle theme={theme} setTheme={setTheme} />
+          </div>
+        }
+      >
+        {main}
+      </AppShell>
+    `;
+    expect(rules(src)).toEqual(
+      expect.arrayContaining(["no-custom-shell-chrome"]),
+    );
+  });
+
   it("does not flag using StudioSidebar in AppShell.sidebar", () => {
     const src = `<AppShell sidebar={<StudioSidebar workforces={items} selectedId={v} onSelect={set} />}>{main}</AppShell>`;
+    expect(rules(src).includes("no-custom-shell-chrome")).toBe(false);
+  });
+
+  it("does not flag global actions placed in Page.actions", () => {
+    const src = `<Page title="Billing" actions={<ModeToggle theme={theme} setTheme={setTheme} />}>{content}</Page>`;
     expect(rules(src).includes("no-custom-shell-chrome")).toBe(false);
   });
 });
@@ -505,6 +553,7 @@ describe("HOUSE_RULES lint coverage", () => {
   const LINT_COVERAGE: Record<string, string[]> = {
     "semantic-color": ["raw-color", "color-literal", "inline-style-color"],
     "chart-token-color": ["chart-token-color-fn"],
+    "chart-data-key": ["chart-data-key"],
     "no-decorative-icons": ["icon-spam"],
     "neutral-trend": ["neutral-trend"],
     "values-normal-weight": ["bold-metric"],

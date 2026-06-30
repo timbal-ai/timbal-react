@@ -113,7 +113,7 @@ const PRIMITIVES: CatalogEntry[] = [
     name: "AppShell",
     kind: "primitive",
     category: "Layout",
-    description: "Sidebar + topbar + main layout shell. Layout-only (the copilot is separate).",
+    description: "Sidebar + main layout shell (no topbar — global actions go in Page.actions). Layout-only (the copilot is separate).",
     whenToUse: "The root of any dashboard/operations app. Pair with StudioSidebar for nav.",
     importFrom: "@timbal-ai/timbal-react/app",
     exports: ["AppShell"],

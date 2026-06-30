@@ -16,6 +16,20 @@ import {
   DialogTitle,
 } from "./dialog";
 
+describe("SheetContent mobile scroll chrome", () => {
+  it("hides scrollbars on small viewports while keeping overflow-y-auto", () => {
+    render(
+      <Sheet defaultOpen>
+        <SheetContent>Scrollable drawer body</SheetContent>
+      </Sheet>,
+    );
+    const content = document.querySelector('[data-slot="sheet-content"]');
+    expect(content?.className).toContain("overflow-y-auto");
+    expect(content?.className).toContain("max-sm:[scrollbar-width:none]");
+    expect(content?.className).toContain("max-sm:[&_*::-webkit-scrollbar]:hidden");
+  });
+});
+
 describe("SheetDescription DOM nesting", () => {
   it("renders as a <div> so block children are valid HTML (no <div> in <p>)", () => {
     render(
