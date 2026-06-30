@@ -12,6 +12,18 @@ import { AppCopilot, CopilotProvider } from "./app-copilot";
 import { CopilotOverlay } from "./copilot-overlay";
 import { useCopilot } from "./context";
 
+/**
+ * The closed-state trigger is a `pointer-events-none` fixed layer whose only
+ * interactive child is the LiquidGlass pill (it carries the overlay's
+ * `pointer-events-auto` class and owns the `onClick`). Click the pill, not the
+ * wrapper — a click on the wrapper never reaches the descendant's handler.
+ */
+function getTriggerPill(): Element | null {
+  return document.querySelector(
+    ".aui-app-shell-chat-trigger-fixed .pointer-events-auto",
+  );
+}
+
 function TriggerProbe() {
   const controls = useCopilot();
   return (
@@ -64,11 +76,11 @@ describe("AppCopilot", () => {
     );
 
     await waitFor(() => {
-      expect(document.querySelector(".aui-app-shell-chat-trigger-fixed")).not.toBeNull();
+      expect(getTriggerPill()).not.toBeNull();
     });
 
     act(() => {
-      fireEvent.click(document.querySelector(".aui-app-shell-chat-trigger-fixed")!);
+      fireEvent.click(getTriggerPill()!);
     });
 
     await waitFor(() => {
@@ -80,11 +92,11 @@ describe("AppCopilot", () => {
     render(<AppCopilot workforceId="test" triggerLabel="Concierge" fetch={async () => new Response("{}", { status: 200 })} />);
 
     await waitFor(() => {
-      expect(document.querySelector(".aui-app-shell-chat-trigger-fixed")).not.toBeNull();
+      expect(getTriggerPill()).not.toBeNull();
     });
 
     act(() => {
-      fireEvent.click(document.querySelector(".aui-app-shell-chat-trigger-fixed")!);
+      fireEvent.click(getTriggerPill()!);
     });
 
     expect(await screen.findByRole("dialog", { name: "Concierge" })).toBeTruthy();
