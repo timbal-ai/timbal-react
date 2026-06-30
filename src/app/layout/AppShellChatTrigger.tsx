@@ -2,7 +2,7 @@
 
 import type { FC } from "react";
 
-import { TimbalV2Button } from "../../ui/timbal-v2-button";
+import { Button } from "../../ui/button";
 import { cn } from "../../utils";
 import { useCopilot } from "../copilot/context";
 
@@ -34,10 +34,11 @@ export const AppShellChatTrigger: FC<AppShellChatTriggerProps> = ({
   if (!shellChat || shellChat.open) return null;
 
   return (
-    <TimbalV2Button
+    <Button
       type="button"
-      variant={placement === "floating" ? "primary" : "secondary"}
+      color={placement === "floating" ? "primary" : "secondary"}
       size="sm"
+      shape="pill"
       className={cn(
         "aui-app-shell-chat-trigger",
         placement === "floating" && floatingPositionClass,
@@ -48,6 +49,6 @@ export const AppShellChatTrigger: FC<AppShellChatTriggerProps> = ({
       aria-expanded={false}
     >
       {label}
-    </TimbalV2Button>
+    </Button>
   );
 };

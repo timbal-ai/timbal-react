@@ -5,7 +5,7 @@ import { useThreadRuntime } from "@assistant-ui/react";
 import { CheckIcon } from "lucide-react";
 
 import type { QuestionArtifact, QuestionOption } from "./types";
-import { TimbalV2Button } from "../ui/timbal-v2-button";
+import { Button } from "../ui/button";
 import {
   studioArtifactShellClass,
   studioQuestionOptionClass,
@@ -134,15 +134,16 @@ export const QuestionArtifactView: FC<{ artifact: QuestionArtifact }> = ({
 
         {isMulti && !submittedIds ? (
           <div className="mt-2 flex justify-end">
-            <TimbalV2Button
+            <Button
               type="button"
-              variant="primary"
+              color="primary"
               size="sm"
+              shape="pill"
               disabled={selected.length === 0}
               onClick={onConfirm}
             >
               Confirm
-            </TimbalV2Button>
+            </Button>
           </div>
         ) : null}
       </div>

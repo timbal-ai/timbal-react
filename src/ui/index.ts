@@ -281,7 +281,6 @@ export { toast, useToast } from "./use-toast";
 export type { ToastProps } from "./use-toast";
 export { Shimmer } from "./shimmer";
 export type { TextShimmerProps } from "./shimmer";
-export { TimbalV2Button } from "./timbal-v2-button";
 export {
   PillSegmentedTabs,
   MemoPillSegmentedTabs,

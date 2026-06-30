@@ -25,7 +25,7 @@ import {
   studioTopbarPillHeightClass,
 } from "../../design/classes";
 import { studioSidebarWidthTransition } from "../../design/sidebar-motion";
-import { TimbalV2Button } from "../../ui/timbal-v2-button";
+import { Button } from "../../ui/button";
 import { TimbalChat, type TimbalChatProps } from "../../chat/chat";
 import { Composer } from "../../chat/composer";
 import { useWorkforces } from "../../hooks/use-workforces";
@@ -308,17 +308,17 @@ export const TimbalStudioShell: FC<TimbalStudioShellProps> = ({
             )}
           >
             {isMobile && !mobileSidebarOpen ? (
-              <TimbalV2Button
+              <Button
                 variant="secondary"
-                size="sm"
-                isIconOnly
+                size="icon-sm"
+                shape="pill"
                 className={studioTopbarIconPillClass}
                 onClick={() => setMobileSidebarOpen(true)}
                 aria-label="Open menu"
                 aria-expanded={false}
               >
                 <Menu className="size-4" />
-              </TimbalV2Button>
+              </Button>
             ) : null}
             {headerStart}
           </div>

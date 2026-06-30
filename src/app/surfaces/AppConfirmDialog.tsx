@@ -7,7 +7,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "../../ui/dialog";
-import { TimbalV2Button } from "../../ui/timbal-v2-button";
+import { Button } from "../../ui/button";
 import { cn } from "../../utils";
 
 export interface AppConfirmDialogProps {
@@ -51,25 +51,27 @@ export const AppConfirmDialog: FC<AppConfirmDialogProps> = ({
             <p className="text-sm text-muted-foreground">{description}</p>
           ) : null}
           <div className={actionsClass}>
-            <TimbalV2Button
+            <Button
               type="button"
               variant="secondary"
               size="sm"
+              shape="pill"
               onClick={() => onOpenChange(false)}
             >
               {cancelLabel}
-            </TimbalV2Button>
-            <TimbalV2Button
+            </Button>
+            <Button
               type="button"
-              variant={destructive ? "destructive" : "primary"}
+              color={destructive ? "primary-destructive" : "primary"}
               size="sm"
+              shape="pill"
               onClick={() => {
                 onConfirm();
                 onOpenChange(false);
               }}
             >
               {confirmLabel}
-            </TimbalV2Button>
+            </Button>
           </div>
         </div>
       </DialogContent>

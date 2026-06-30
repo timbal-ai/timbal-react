@@ -27,7 +27,10 @@ export { ToolFallback, useToolRunning } from "./tool-fallback";
 export { WorkforceSelector } from "./workforce-selector";
 export type { WorkforceSelectorProps } from "./workforce-selector";
 export { TooltipIconButton } from "./tooltip-icon-button";
-export type { TooltipIconButtonProps } from "./tooltip-icon-button";
+export type {
+  TooltipIconButtonProps,
+  TooltipIconButtonVariant,
+} from "./tooltip-icon-button";
 export {
   ComposerAttachments,
   ComposerAddAttachment,

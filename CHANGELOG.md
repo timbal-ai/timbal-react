@@ -4,6 +4,48 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-06-30
+
+One button for the whole package. `TimbalV2Button` is gone — every chat, studio,
+and app-kit surface now renders the single `Button` component, so generated apps
+can no longer accidentally mix two button systems (the bug that produced
+mismatched "Cancel" / "Save" footers).
+
+### Breaking
+
+- **Removed `TimbalV2Button`** (and its internal `TimbalV2ButtonProps`). It is no
+  longer exported from the package root or `/ui`. Migrate to `Button`:
+  - `variant="primary"` → `color="primary"` (or `variant="default"`)
+  - `variant="secondary"` → `variant="secondary"`
+  - `variant="ghost"` → `variant="ghost"`
+  - `variant="destructive"` → `color="primary-destructive"`
+  - `isIconOnly` + `size="sm"` → `size="icon-sm"` (use `icon-xs` / `icon` / `icon-lg` for other sizes)
+  - `fullWidth` → `className="w-full"`
+  - For the fully-rounded pill look (chat/studio chrome), add `shape="pill"`.
+  `Button` keeps `isLoading`, `asChild`, `iconLeading`/`iconTrailing`, and the
+  legacy `variant` aliases.
+
+### Changed
+
+- **All internal `TimbalV2Button` usages migrated to `Button`** with `shape="pill"`
+  to preserve the rounded chat/studio chrome: composer send/cancel and the
+  message edit-composer, the studio mode toggle and mobile menu trigger,
+  `AppShellChatTrigger`, `AppConfirmDialog`, the multi-select question artifact
+  confirm, and `TooltipIconButton`.
+- **`TooltipIconButton`** now wraps `Button` (as a `size="icon-sm"`,
+  `shape="pill"` button) and exposes a stable `variant` union
+  (`TooltipIconButtonVariant`: `primary | secondary | ghost | informative |
+  destructive`) mapped onto `Button`'s color system — existing
+  `variant="primary"` / `"secondary"` call sites keep working.
+
+### Kept
+
+- The `TIMBAL_V2_*` **surface** token records (modal/card/switch/avatar chrome,
+  e.g. `TIMBAL_V2_MODAL_SURFACE`, `TIMBAL_V2_ELEVATED_SURFACE`,
+  `TIMBAL_V2_SECONDARY_PILL_ROOT`) remain public — only the button component was
+  removed. They are still used by `Dialog`, `Card`, `Switch`, `Avatar`, and the
+  integration/catalog surfaces.
+
 ## [2.0.1] — 2026-06-30
 
 Codegen guardrails and agent guidance to stop recurring dashboard anti-patterns

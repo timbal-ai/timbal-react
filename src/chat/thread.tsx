@@ -34,7 +34,7 @@ import {
   type SuggestionsComponent,
   type SuggestionsSource,
 } from "./suggestions";
-import { TimbalV2Button } from "../ui/timbal-v2-button";
+import { Button } from "../ui/button";
 import { scheduleThemeSanityCheck } from "../design/theme-sanity";
 import { luxuryEase } from "./motion";
 import {
@@ -600,14 +600,14 @@ const EditComposer: FC = () => {
         />
         <div className="aui-edit-composer-footer mx-3 mb-3 flex items-center gap-2 self-end">
           <ComposerPrimitive.Cancel asChild>
-            <TimbalV2Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" shape="pill">
               Cancel
-            </TimbalV2Button>
+            </Button>
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send asChild>
-            <TimbalV2Button variant="primary" size="sm">
+            <Button color="primary" size="sm" shape="pill">
               Update
-            </TimbalV2Button>
+            </Button>
           </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>

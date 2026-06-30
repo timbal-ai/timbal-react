@@ -3,25 +3,41 @@
 import { forwardRef } from "react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import {
-  TimbalV2Button,
-  type TimbalV2ButtonProps,
-} from "../ui/timbal-v2-button";
+import { Button, type ButtonColor, type ButtonProps } from "../ui/button";
+
+/** Pill-button intents kept stable for chat-surface toolbars. */
+export type TooltipIconButtonVariant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "informative"
+  | "destructive";
+
+const VARIANT_TO_COLOR: Record<TooltipIconButtonVariant, ButtonColor> = {
+  primary: "primary",
+  informative: "primary",
+  secondary: "secondary",
+  ghost: "tertiary",
+  destructive: "primary-destructive",
+};
 
 export interface TooltipIconButtonProps
-  extends Omit<TimbalV2ButtonProps, "isIconOnly"> {
+  extends Omit<ButtonProps, "variant" | "color" | "size" | "shape"> {
   /** Visible tooltip + accessible label. Always required. */
   tooltip: string;
   /** Tooltip placement. Default: "bottom". */
   side?: "top" | "bottom" | "left" | "right";
+  /** Pill intent. Default: "secondary". */
+  variant?: TooltipIconButtonVariant;
 }
 
 /**
- * Icon-only Timbal pill button with a tooltip. Used by every chat-surface
- * toolbar (composer send/cancel, message action bar, scroll-to-bottom).
+ * Icon-only pill button with a tooltip. Used by every chat-surface toolbar
+ * (composer send/cancel, message action bar, scroll-to-bottom).
  *
  * Defaults to a soft `secondary` variant so it sits cleanly inside composers,
- * message bubbles, and the action bar. Override via `variant`.
+ * message bubbles, and the action bar. Override via `variant`. Renders the
+ * shared {@link Button} as a fully-rounded `icon-sm` pill.
  */
 export const TooltipIconButton = forwardRef<
   HTMLButtonElement,
@@ -33,10 +49,16 @@ export const TooltipIconButton = forwardRef<
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <TimbalV2Button ref={ref} variant={variant} size="sm" isIconOnly {...props}>
+        <Button
+          ref={ref}
+          color={VARIANT_TO_COLOR[variant]}
+          size="icon-sm"
+          shape="pill"
+          {...props}
+        >
           {children}
           <span className="sr-only">{tooltip}</span>
-        </TimbalV2Button>
+        </Button>
       </TooltipTrigger>
       <TooltipContent side={side}>{tooltip}</TooltipContent>
     </Tooltip>
