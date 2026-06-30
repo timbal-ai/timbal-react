@@ -1,9 +1,9 @@
 import { cn } from "../utils";
 
 /**
- * Timbal V2 button design tokens.
+ * Timbal pill / elevated-surface design tokens.
  *
- * Mirrors the `timbal-platform` design language (`TimbalV2Button`) so chat
+ * Mirrors the `timbal-platform` design language so chat, studio, and app-kit
  * surfaces built with the SDK feel identical to the Timbal Studio. Each record
  * is keyed by variant or size and ships only Tailwind utility classes — no
  * runtime JS — so consumers can compose them with `cn(...)` and add their own
@@ -155,7 +155,7 @@ export const TIMBAL_V2_PRIMARY_SURFACE = cn(
 );
 
 /**
- * Primary pill shell — same root chrome as `TimbalV2Button` (border, shadow, overflow).
+ * Primary pill shell — full pill root chrome (border, shadow, overflow).
  * Pair with {@link TIMBAL_V2_PRIMARY_PILL_FILL_LAYER} + {@link TIMBAL_V2_LABEL}.primary.
  */
 export const TIMBAL_V2_PRIMARY_PILL_ROOT = cn(

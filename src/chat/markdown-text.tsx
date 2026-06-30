@@ -12,7 +12,8 @@ import {
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { type FC, memo, useState } from "react";
+import { type ComponentPropsWithoutRef, type FC, memo, useState } from "react";
+import { motion } from "motion/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "./tooltip-icon-button";
@@ -83,6 +84,45 @@ const useCopyToClipboard = ({
   };
 
   return { isCopied, copyToClipboard };
+};
+
+/**
+ * Glass blockquote. Reads as a frosted glass card (translucent fill, bright top
+ * rim, soft inner glow + backdrop blur) and "sculpts" itself into view on first
+ * paint — scaling up out of a heavy blur, as if forming out of glass.
+ *
+ * The reveal animates `filter: blur()`, which would otherwise leave the element
+ * a backdrop root forever (disabling its own `backdrop-filter`). So once the
+ * animation settles we drop the inline filter entirely, handing the glass back
+ * to `backdrop-filter`.
+ */
+const GlassBlockquote: FC<ComponentPropsWithoutRef<"blockquote">> = ({
+  className,
+  children,
+  ...props
+}) => {
+  const [sculpted, setSculpted] = useState(false);
+
+  return (
+    <motion.blockquote
+      className={cn(
+        "aui-md-blockquote relative my-4 overflow-hidden rounded-2xl border border-white/15 bg-white/[0.06] px-5 py-3.5 text-foreground/85 backdrop-blur-xl backdrop-saturate-150",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.28),inset_0_-1px_0_rgba(255,255,255,0.05),0_10px_30px_rgba(0,0,0,0.25)]",
+        "[&>p]:my-1.5 [&>p:first-child]:mt-0 [&>p:last-child]:mb-0",
+        className,
+      )}
+      initial={{ opacity: 0, scale: 0.9, y: 10, filter: "blur(16px)" }}
+      animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
+      transition={{ duration: 0.62, ease: [0.22, 1, 0.36, 1] }}
+      onAnimationComplete={() => setSculpted(true)}
+      // After the morph, clear the filter so the live `backdrop-filter` (glass)
+      // is no longer suppressed by the element being a backdrop root.
+      style={sculpted ? { filter: "none" } : undefined}
+      {...(props as ComponentPropsWithoutRef<typeof motion.blockquote>)}
+    >
+      {children}
+    </motion.blockquote>
+  );
 };
 
 const defaultComponents = memoizeMarkdownComponents({
@@ -160,15 +200,7 @@ const defaultComponents = memoizeMarkdownComponents({
       {...props}
     />
   ),
-  blockquote: ({ className, ...props }) => (
-    <blockquote
-      className={cn(
-        "aui-md-blockquote my-3 border-l-[3px] border-primary/30 bg-muted/30 py-1 pl-4 pr-2 text-muted-foreground italic [&>p]:my-1",
-        className,
-      )}
-      {...props}
-    />
-  ),
+  blockquote: GlassBlockquote,
   ul: ({ className, ...props }) => (
     <ul
       className={cn(
@@ -207,7 +239,7 @@ const defaultComponents = memoizeMarkdownComponents({
   th: ({ className, ...props }) => (
     <th
       className={cn(
-        "aui-md-th border-b border-border/50 bg-muted/60 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground [[align=center]]:text-center [[align=right]]:text-right",
+        "aui-md-th border-b border-border/50 bg-muted/60 px-3 py-2 text-left text-xs font-semibold text-muted-foreground [[align=center]]:text-center [[align=right]]:text-right",
         className,
       )}
       {...props}
@@ -265,6 +297,18 @@ const defaultComponents = memoizeMarkdownComponents({
       />
     );
   },
+  img: ({ className, alt, ...props }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      className={cn(
+        "aui-md-img my-3 h-auto max-w-full rounded-lg border border-border/50",
+        className,
+      )}
+      alt={alt ?? ""}
+      loading="lazy"
+      {...props}
+    />
+  ),
   strong: ({ className, ...props }) => (
     <strong className={cn("font-semibold text-foreground", className)} {...props} />
   ),

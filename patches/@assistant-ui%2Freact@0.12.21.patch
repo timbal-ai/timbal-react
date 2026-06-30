@@ -1,0 +1,26 @@
+diff --git a/dist/primitives/thread/useThreadViewportAutoScroll.js b/dist/primitives/thread/useThreadViewportAutoScroll.js
+index 047bbc2652f662c7d57bab3ddcb59209739b041d..dabf76ec71d8b4990cb1088b66692b9c7b1b67aa 100644
+--- a/dist/primitives/thread/useThreadViewportAutoScroll.js
++++ b/dist/primitives/thread/useThreadViewportAutoScroll.js
+@@ -32,6 +32,7 @@ export const useThreadViewportAutoScroll = ({ autoScroll, scrollToBottomOnRunSta
+         const isAtBottom = threadViewportStore.getState().isAtBottom;
+         const newIsAtBottom = Math.abs(div.scrollHeight - div.scrollTop - div.clientHeight) < 1 ||
+             div.scrollHeight <= div.clientHeight;
++        const scrolledUp = div.scrollTop < lastScrollTop.current;
+         if (!newIsAtBottom && lastScrollTop.current < div.scrollTop) {
+             // ignore scroll down
+         }
+@@ -39,6 +40,13 @@ export const useThreadViewportAutoScroll = ({ autoScroll, scrollToBottomOnRunSta
+             if (newIsAtBottom) {
+                 scrollingToBottomBehaviorRef.current = null;
+             }
++            else if (scrolledUp) {
++                // The user is scrolling up. Cancel any pending auto-scroll so it
++                // can't yank them back to the bottom while they read. Without
++                // this, an in-flight scrollingToBottomBehaviorRef makes
++                // shouldUpdate false and the upward scroll is ignored.
++                scrollingToBottomBehaviorRef.current = null;
++            }
+             const shouldUpdate = newIsAtBottom || scrollingToBottomBehaviorRef.current === null;
+             if (shouldUpdate && newIsAtBottom !== isAtBottom) {
+                 writableStore(threadViewportStore).setState({

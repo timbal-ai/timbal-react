@@ -4,6 +4,7 @@ import {
   AttachmentPrimitive,
   AuiIf,
   ComposerPrimitive,
+  useAuiState,
   useComposerRuntime,
   useThreadRuntime,
 } from "@assistant-ui/react";
@@ -14,8 +15,6 @@ import {
   PlusIcon,
   ArrowUpIcon,
   SquareIcon,
-  MicIcon,
-  FileTextIcon,
   SearchIcon,
   ChevronDownIcon,
   Menu,
@@ -23,7 +22,8 @@ import {
   Loader2Icon,
   MessagesSquareIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useState, type FC } from "react";
+import { useShallow } from "zustand/shallow";
+import { useCallback, useEffect, useState, type CSSProperties, type FC } from "react";
 import { motion, AnimatePresence } from "motion/react";
 
 import { Thread, type ThreadProps } from "../../chat/thread";
@@ -47,23 +47,65 @@ import { conversationRunsToMessages } from "../../runtime/trace-to-messages";
 import { useConversations } from "../../hooks/use-conversations";
 import { useTimbalAttachmentsEnabled } from "../../runtime/attachments-context";
 import { cn } from "../../utils";
-import { useAppShellChat } from "../layout/app-shell-chat-context";
+import { useCopilot } from "./context";
 
 /** Panel root — relative so the corner controls float over the conversation. */
-const shellClass =
-  "aui-app-chat-panel relative flex h-full min-h-0 flex-col overflow-hidden";
+const shellClass = cn(
+  "aui-app-chat-panel relative flex h-full min-h-0 flex-col overflow-hidden",
+  // Hide every scrollbar in the assistant panel — content stays scrollable.
+  "[&_*]:![scrollbar-width:none] [&_*]:![-ms-overflow-style:none]",
+  "[&_*::-webkit-scrollbar]:!hidden [&_*::-webkit-scrollbar]:!w-0 [&_*::-webkit-scrollbar]:!h-0",
+);
+
+/**
+ * GLOBAL liquid-glass fix. Every inner surface here (composer pill, history
+ * dropdown, round controls, attachment chips) is rendered INSIDE the floating
+ * chat panel, which already owns a `backdrop-filter` (`SIRI_GLASS_STYLE`).
+ * Browsers do NOT reliably apply a second `backdrop-filter` nested under an
+ * already-backdrop-filtered ancestor — so any `backdrop-blur-*` on these inner
+ * surfaces is a silent no-op and the scrolling content shows straight through.
+ *
+ * The fix is to occlude with a real frosted *fill* (an opaque-enough neutral
+ * base) plus a top-down white sheen so the surface still reads as glass rather
+ * than a flat panel. Reuse these tokens for every inner glass surface so the
+ * whole panel stays consistent.
+ */
+const SIRI_INNER_GLASS_STYLE: CSSProperties = {
+  backgroundColor: "rgba(40,40,50,0.42)",
+  backgroundImage:
+    "linear-gradient(to bottom, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.05) 45%, rgba(255,255,255,0.02) 100%)",
+  backdropFilter: "blur(22px) saturate(180%)",
+  WebkitBackdropFilter: "blur(22px) saturate(180%)",
+};
+
+/** Slightly lighter inner-glass fill for small round controls. */
+const SIRI_INNER_GLASS_CONTROL_STYLE: CSSProperties = {
+  backgroundColor: "rgba(56,56,66,0.4)",
+  backgroundImage:
+    "linear-gradient(to bottom, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.06) 100%)",
+  backdropFilter: "blur(16px) saturate(170%)",
+  WebkitBackdropFilter: "blur(16px) saturate(170%)",
+};
+
+/** History dropdown — translucent frost + real blur of the content behind it. */
+const SIRI_MENU_GLASS_STYLE: CSSProperties = {
+  backgroundColor: "rgba(34,34,42,0.46)",
+  backgroundImage:
+    "linear-gradient(to bottom, rgba(255,255,255,0.13) 0%, rgba(255,255,255,0.045) 45%, rgba(255,255,255,0.015) 100%)",
+  backdropFilter: "blur(28px) saturate(180%)",
+  WebkitBackdropFilter: "blur(28px) saturate(180%)",
+};
 
 /**
  * One shared circular glass button — close, expand, attach. `size-9` (36px),
- * clean frosted glass (translucent fill + thin rim + soft drop shadow) for an
- * Apple-style control. No inset highlight line. The heavy liquid-glass
- * refraction is reserved for the chunky launcher pill, where the library
- * composes correctly; on 36px circles it degrades into a distorted ellipse.
+ * frosted-glass *fill* (see `SIRI_INNER_GLASS_CONTROL_STYLE`) so it occludes
+ * the scrolling content behind it; live backdrop-blur can't be used here (it is
+ * nested inside the panel's own backdrop-filter).
  */
 const siriGlassButtonClass = cn(
   "flex size-9 shrink-0 items-center justify-center rounded-full text-white",
-  "bg-white/12 hover:bg-white/20 border border-white/20 backdrop-blur-xl",
-  "shadow-[0_4px_16px_rgba(0,0,0,0.22)]",
+  "hover:brightness-125 border border-white/20",
+  "shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_4px_16px_rgba(0,0,0,0.3)]",
   "transition-all duration-200 active:scale-90 hover:scale-105",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
 );
@@ -89,10 +131,8 @@ const siriCancelButtonClass = cn(
 const bodyClass = cn(
   "aui-app-chat-panel-body relative min-h-0 flex-1 overflow-hidden",
   "[&_.aui-thread-root]:h-full [&_.aui-thread-root]:!bg-transparent",
-  // Auto (not always-on) thin scrollbar so no gutter is reserved when there's
-  // nothing to scroll — otherwise the reserved strip pushes the composer left of
-  // the floating expand button.
-  "[&_.aui-thread-viewport]:!overflow-y-auto [&_.aui-thread-viewport]:scrollbar-thin [&_.aui-thread-viewport]:[scrollbar-color:rgba(255,255,255,0.18)_transparent]",
+  // Auto overflow only — scrollbars are hidden on the panel shell.
+  "[&_.aui-thread-viewport]:!overflow-y-auto",
   // Clear the corner controls (top) without a chrome bar / divider.
   "[&_.aui-thread-viewport]:!px-3 [&_.aui-thread-viewport]:!pt-16",
   "[&_.aui-thread-viewport-footer]:!bg-transparent",
@@ -104,27 +144,96 @@ const bodyClass = cn(
   "[&_.aui-assistant-message-content_a]:!text-sky-300 hover:[&_.aui-assistant-message-content_a]:!underline",
   "[&_.aui-assistant-action-bar-root_button]:!text-white/40 hover:[&_.aui-assistant-action-bar-root_button]:!text-white/80",
   "[&_.aui-user-message-content]:!bg-white/12 [&_.aui-user-message-content]:!text-white [&_.aui-user-message-content]:!border [&_.aui-user-message-content]:!border-white/10 [&_.aui-user-message-content]:backdrop-blur-md",
+  // Artifacts (charts, tables, json, html, ui) + markdown images read as glass
+  // tiles on the dark panel instead of opaque light cards.
+  "[&_.aui-artifact-root]:!border-white/15 [&_.aui-artifact-root]:!bg-white/[0.06] [&_.aui-artifact-root]:backdrop-blur-md",
+  "[&_.aui-artifact-header]:!border-white/10 [&_.aui-artifact-header]:!bg-white/[0.04]",
+  "[&_.aui-artifact-title]:!text-white/80",
+  "[&_.aui-md-img]:!rounded-xl [&_.aui-md-img]:!border [&_.aui-md-img]:!border-white/10",
 );
 
-export interface AppChatPanelProps
+export interface CopilotPanelProps
   extends Omit<TimbalRuntimeProviderProps, "children">,
     Omit<ThreadProps, "variant" | "maxWidth"> {
   className?: string;
 }
 
 /**
- * Craft-style attached-document chip — icon box, title + "Attachment" subtitle,
- * and a corner X. Dark-glass colors so it sits on the liquid-glass panel.
+ * Apple-style document glyph — a rounded page with a folded top-right corner.
+ * Replaces the generic file-text icon for a softer, more native feel.
+ */
+const AppleDocGlyph: FC<{ className?: string }> = ({ className }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.6}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden
+  >
+    <path d="M13.4 3H7.8A1.8 1.8 0 0 0 6 4.8v14.4A1.8 1.8 0 0 0 7.8 21h8.4a1.8 1.8 0 0 0 1.8-1.8V7.6Z" />
+    <path d="M13.2 3v3.4a1.8 1.8 0 0 0 1.8 1.8h3" />
+  </svg>
+);
+
+/** Object-URL preview for an image attachment (composer), else its remote src. */
+const useChipImageSrc = (): string | undefined => {
+  const { file, src } = useAuiState(
+    useShallow((s): { file?: File; src?: string } => {
+      if (s.attachment.type !== "image") return {};
+      if (s.attachment.file) return { file: s.attachment.file };
+      const img = s.attachment.content?.filter((c) => c.type === "image")[0]
+        ?.image;
+      return img ? { src: img } : {};
+    }),
+  );
+
+  const [objectUrl, setObjectUrl] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (!file) {
+      setObjectUrl(undefined);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setObjectUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  return objectUrl ?? src;
+};
+
+/**
+ * Craft-style attached-document chip — preview/icon box, title + type subtitle,
+ * and a corner X. Dark-glass colors so it sits on the liquid-glass panel. The
+ * preview box is a rounded square that matches the chip's holder (never a
+ * circle) and shows a real image thumbnail when the attachment is an image.
  */
 const SiriAttachmentChip: FC = () => {
+  const imageSrc = useChipImageSrc();
+
   return (
-    <div className="relative shrink-0">
-      <AttachmentPrimitive.Root className="relative shrink-0">
-        <div className="flex items-center gap-3 rounded-2xl border border-white/12 bg-white/8 py-2.5 pl-2.5 pr-9 backdrop-blur-md">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/10">
-            <FileTextIcon className="size-4 text-white/70" />
+    <motion.div
+      className="relative min-w-0 max-w-full"
+      initial={{ opacity: 0, scale: 0.8, y: 8 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ type: "spring", stiffness: 460, damping: 28, mass: 0.6 }}
+    >
+      <AttachmentPrimitive.Root className="relative min-w-0 max-w-full">
+        <div className="flex max-w-full items-center gap-3 rounded-2xl border border-white/12 bg-white/8 py-2.5 pl-2.5 pr-9 backdrop-blur-md">
+          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-white/10 bg-white/10">
+            {imageSrc ? (
+              <img
+                src={imageSrc}
+                alt=""
+                className="size-full object-cover"
+              />
+            ) : (
+              <AppleDocGlyph className="size-[18px] text-white/75" />
+            )}
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold text-white">
               <AttachmentPrimitive.Name />
             </div>
@@ -141,7 +250,7 @@ const SiriAttachmentChip: FC = () => {
           </button>
         </AttachmentPrimitive.Remove>
       </AttachmentPrimitive.Root>
-    </div>
+    </motion.div>
   );
 };
 
@@ -255,12 +364,13 @@ const SiriComposer: FC<{ placeholder?: string; autoFocus?: boolean }> = ({
   };
 
   return (
-    <ComposerPrimitive.Root className="relative flex w-full flex-col pb-3">
-      <div className="flex items-end gap-2.5">
+    <ComposerPrimitive.Root className="relative flex w-full min-w-0 flex-col pb-3">
+      <div className="flex w-full min-w-0 items-end gap-2.5">
         {attachmentsEnabled ? (
           <button
             type="button"
             className={siriGlassButtonClass}
+            style={SIRI_INNER_GLASS_CONTROL_STYLE}
             onClick={openAttachmentPicker}
             aria-label="Add attachment"
           >
@@ -271,27 +381,33 @@ const SiriComposer: FC<{ placeholder?: string; autoFocus?: boolean }> = ({
         <ComposerPrimitive.AttachmentDropzone asChild disabled={!attachmentsEnabled}>
           <div
             className={cn(
-              // Frosted-glass capsule (no inset highlight). The heavy liquid-glass
-              // refraction is reserved for the chunky controls (launcher pill +
-              // round buttons); a thin text field reads best as a clean frost.
-              "group/drop relative flex flex-col min-h-9 flex-1 rounded-3xl border border-white/15 bg-white/10 backdrop-blur-xl transition-all duration-200",
-              "focus-within:border-white/25 focus-within:ring-2 focus-within:ring-white/10",
+              // Liquid-glass capsule. The panel ancestor already owns a
+              // `backdrop-filter`, and browsers won't reliably apply a second
+              // nested one — so we occlude the scrolling content behind the pill
+              // with an opaque frosted *fill* (set via inline style below) plus a
+              // bright top rim + inner glow so it still reads as glass, not flat.
+              "group/drop relative flex flex-col min-h-9 min-w-0 flex-1 overflow-hidden rounded-3xl border border-white/20 backdrop-blur-3xl backdrop-saturate-150 transition-all duration-200",
+              "shadow-[inset_0_1px_0_rgba(255,255,255,0.35),inset_0_-1px_0_rgba(255,255,255,0.06),0_8px_24px_rgba(0,0,0,0.25)]",
+              "focus-within:border-white/35 focus-within:ring-2 focus-within:ring-white/15",
               // Drag-over: highlight the box itself.
               "data-[dragging=true]:border-sky-400/60 data-[dragging=true]:bg-sky-400/5 data-[dragging=true]:ring-2 data-[dragging=true]:ring-sky-400/30",
             )}
+            style={SIRI_INNER_GLASS_STYLE}
           >
             {attachmentsEnabled ? <SiriComposerAttachments /> : null}
             <div className="relative flex w-full items-center">
+              {/* `asChild` + CSS `field-sizing: content` replaces assistant-ui's
+                  JS textarea-autosize so composer growth never feeds the
+                  viewport's resize observers. */}
               <ComposerPrimitive.Input
+                asChild
                 placeholder={placeholder}
-                className="max-h-32 w-full resize-none overflow-y-auto bg-transparent py-2 pl-4 pr-9 text-sm leading-5 text-white outline-none placeholder:text-white/35 focus-visible:ring-0 scrollbar-none"
                 rows={1}
                 autoFocus={autoFocus}
                 aria-label="Message input"
-              />
-              <div className="pointer-events-none absolute bottom-2.5 right-3.5 text-white/30">
-                <MicIcon className="size-4" />
-              </div>
+              >
+                <textarea className="max-h-32 w-full resize-none overflow-y-auto field-sizing-content bg-transparent py-2 px-4 text-sm leading-5 text-white outline-none placeholder:text-white/35 focus-visible:ring-0" />
+              </ComposerPrimitive.Input>
             </div>
 
             {attachmentsEnabled ? (
@@ -347,8 +463,8 @@ const HISTORY_MAX_TURNS = 60;
 /** Dark frosted-glass menu surface — heavy blur for legibility on the liquid bg. */
 const siriMenuClass = cn(
   "aui-app-chat-history-menu absolute left-3 top-14 z-50 w-72 origin-top-left overflow-hidden",
-  "rounded-2xl border border-white/15 bg-neutral-900/55 backdrop-blur-2xl",
-  "shadow-[0_16px_48px_rgba(0,0,0,0.5)]",
+  "rounded-2xl border border-white/15",
+  "shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_16px_48px_rgba(0,0,0,0.5)]",
 );
 
 const siriMenuRowClass = cn(
@@ -391,7 +507,7 @@ function runSubtitle(run: RunPreview): string {
     : `${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })} · ${time}`;
 }
 
-interface AppChatHistoryProps {
+interface CopilotHistoryProps {
   workforceId: string;
   baseUrl?: string;
   fetch?: FetchFn;
@@ -405,7 +521,7 @@ interface AppChatHistoryProps {
  * the live runtime (`loadMessages`), and starts a fresh thread (`clear`).
  * Renders inside `TimbalRuntimeProvider` so it can drive the active thread.
  */
-const AppChatHistory: FC<AppChatHistoryProps> = ({
+const CopilotHistory: FC<CopilotHistoryProps> = ({
   workforceId,
   baseUrl,
   fetch: fetchFn,
@@ -493,6 +609,7 @@ const AppChatHistory: FC<AppChatHistoryProps> = ({
           "absolute top-3 z-50",
           collapsible ? "left-14" : "left-3",
         )}
+        style={SIRI_INNER_GLASS_CONTROL_STYLE}
         onClick={() => setOpen((v) => !v)}
         aria-label="Conversation history"
         aria-expanded={open}
@@ -516,6 +633,7 @@ const AppChatHistory: FC<AppChatHistoryProps> = ({
               role="menu"
               aria-label="Conversation history"
               className={siriMenuClass}
+              style={SIRI_MENU_GLASS_STYLE}
               initial={{ opacity: 0, scale: 0.95, y: -6 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -6 }}
@@ -527,7 +645,7 @@ const AppChatHistory: FC<AppChatHistoryProps> = ({
                 </span>
               </div>
 
-              <div className="max-h-80 overflow-y-auto scrollbar-thin [scrollbar-color:rgba(255,255,255,0.18)_transparent] p-1.5 pt-0">
+              <div className="max-h-80 overflow-y-auto p-1.5 pt-0">
                 <button
                   type="button"
                   role="menuitem"
@@ -628,9 +746,9 @@ const AppChatHistory: FC<AppChatHistoryProps> = ({
 
 /**
  * Floating copilot body — `TimbalRuntimeProvider` + compact `Thread`.
- * Render inside `AppShell` `chat`; open/close via shell trigger or `useAppShellChat`.
+ * Rendered inside `AppCopilot`'s glass panel; reads open/expand from `useCopilot`.
  */
-export const AppChatPanel: FC<AppChatPanelProps> = ({
+export const CopilotPanel: FC<CopilotPanelProps> = ({
   className,
   workforceId,
   baseUrl,
@@ -648,29 +766,31 @@ export const AppChatPanel: FC<AppChatPanelProps> = ({
   onArtifactEvent,
   ...rest
 }) => {
-  const shellChat = useAppShellChat();
+  const copilot = useCopilot();
 
   return (
     <div className={cn(shellClass, className)}>
       {/* Floating corner controls — no chrome bar, no divider. */}
-      {shellChat?.collapsible ? (
+      {copilot?.collapsible ? (
         <button
           type="button"
           className={cn(siriGlassButtonClass, "absolute left-3 top-3 z-30")}
-          onClick={() => shellChat.setOpen(false)}
+          style={SIRI_INNER_GLASS_CONTROL_STYLE}
+          onClick={() => copilot.setOpen(false)}
           aria-label="Close assistant"
         >
           <XIcon className="size-4.5 stroke-[2.25]" />
         </button>
       ) : null}
-      {shellChat?.collapsible && shellChat?.setExpanded ? (
+      {copilot?.collapsible && copilot?.setExpanded ? (
         <button
           type="button"
           className={cn(siriGlassButtonClass, "absolute right-3 top-3 z-30")}
-          onClick={() => shellChat.setExpanded!(!shellChat.expanded)}
-          aria-label={shellChat.expanded ? "Collapse assistant" : "Expand assistant"}
+          style={SIRI_INNER_GLASS_CONTROL_STYLE}
+          onClick={() => copilot.setExpanded(!copilot.expanded)}
+          aria-label={copilot.expanded ? "Collapse assistant" : "Expand assistant"}
         >
-          {shellChat.expanded ? (
+          {copilot.expanded ? (
             <Minimize2Icon className="size-4.5 stroke-[2.25]" />
           ) : (
             <Maximize2Icon className="size-4.5 stroke-[2.25]" />
@@ -688,18 +808,18 @@ export const AppChatPanel: FC<AppChatPanelProps> = ({
           attachmentsAccept={attachmentsAccept}
           debug={debug}
         >
-          <AppChatHistory
+          <CopilotHistory
             workforceId={workforceId}
             baseUrl={baseUrl}
             fetch={fetch}
-            collapsible={shellChat?.collapsible}
+            collapsible={copilot?.collapsible}
           />
           <Thread
             variant="panel"
             // Collapsed panel is already narrow → fill it. Expanded/full-screen
             // must not stretch messages + composer edge-to-edge, so scope the
             // conversation to a centered, readable column.
-            maxWidth={shellChat?.expanded ? "48rem" : "100%"}
+            maxWidth={copilot?.expanded ? "48rem" : "100%"}
             className="aui-app-chat-panel-thread"
             welcome={welcome}
             suggestions={suggestions}

@@ -76,5 +76,6 @@ Each preset is a **full personality** (color + radius + shadows + font), not jus
 
 - Generated pages use **semantic Tailwind tokens only** — never literal colors or per-element \`style={{ color }}\`.
 - Light/dark mode stays the \`.dark\` class (\`next-themes attribute="class"\` or \`ModeToggle\`). Presets are **brand**, not a second dark-mode system.
+- **Scaffold default is light.** Wire \`next-themes\` with \`defaultTheme="light"\` and \`enableSystem={false}\` (\`storageKey="timbal-theme"\`). Apps ship in white/light mode; dark appears only when the user explicitly toggles (\`ModeToggle\` / \`setTheme("dark")\`). Never \`defaultTheme="system"\` (follows OS dark) or \`forcedTheme="dark"\`.
 - Override individual tokens only for one-offs the generator doesn't cover; if you must, set the variable in **both** \`:root\` and \`.dark\` (a dev-only warning fires otherwise).
 `.trim();

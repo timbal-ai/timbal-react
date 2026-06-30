@@ -44,10 +44,19 @@ function SheetOverlay({
   );
 }
 
+/** Touch scroll on small viewports without a visible scrollbar track. */
+const sheetMobileScrollbarHideClass = cn(
+  "max-sm:[scrollbar-width:none] max-sm:[-ms-overflow-style:none]",
+  "max-sm:[&_*]:[scrollbar-width:none] max-sm:[&_*]:[-ms-overflow-style:none]",
+  "max-sm:[&::-webkit-scrollbar]:hidden max-sm:[&::-webkit-scrollbar]:w-0 max-sm:[&::-webkit-scrollbar]:h-0",
+  "max-sm:[&_*::-webkit-scrollbar]:hidden max-sm:[&_*::-webkit-scrollbar]:w-0 max-sm:[&_*::-webkit-scrollbar]:h-0",
+);
+
 const sheetContentVariants = cva(
   cn(
     TIMBAL_V2_MODAL_SURFACE,
-    "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 fixed z-[70] flex flex-col gap-4 shadow-card-elevated duration-300",
+    "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 fixed z-[70] flex min-h-0 flex-col gap-4 overflow-y-auto shadow-card-elevated duration-300",
+    sheetMobileScrollbarHideClass,
   ),
   {
     variants: {

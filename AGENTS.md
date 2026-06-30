@@ -19,11 +19,19 @@ import { APP_KIT_AGENT_INSTRUCTIONS } from "@timbal-ai/timbal-react/app";
 
 That string documents the component menu, design rules, accessibility, and **recipe index**. Prefer composing from it creatively — do not clone layouts wholesale.
 
+Better still, import the ready-made blocks directly and discover them programmatically via **`APP_KIT_CATALOG`** (each entry carries an exact `importFrom` path + a `source` ref to fork):
+
+```ts
+import { APP_KIT_CATALOG, FilteredDataTable, StatGrid } from "@timbal-ai/timbal-react/app";
+```
+
 | Resource | Purpose |
 |----------|---------|
-| [`examples/app-kit/recipes/`](examples/app-kit/recipes/) | One pattern per file (~20–80 lines) — grammar for agents |
+| `APP_KIT_CATALOG` (`src/app/catalog.ts`) | Machine-readable index of every primitive + block (import paths, composition, source) |
+| `src/app/blocks/` | Importable, forkable section blocks (`FilteredDataTable`, `StatGrid`, `IntegrationsGrid`, `ResourceGallery`, `SettingsLayout`) |
+| [`examples/app-kit/src/recipes/`](examples/app-kit/src/recipes/) | One pattern per file (~20–80 lines) — grammar for agents |
 | [`examples/app-kit/README.md`](examples/app-kit/README.md) | How to run the gallery locally |
-| [`examples/app-kit/reference/operations-dashboard.tsx`](examples/app-kit/reference/operations-dashboard.tsx) | **Reference only** — not a default template |
+| [`examples/app-kit/src/reference/operations-dashboard.tsx`](examples/app-kit/src/reference/operations-dashboard.tsx) | **Reference only** — not a default template |
 
 **Browse locally:** `bun run build` at repo root, then `cd examples/app-kit && npm run dev` → http://localhost:5175/ (or `bun run example:app` from root if Vite is on PATH).
 

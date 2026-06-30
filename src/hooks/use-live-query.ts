@@ -48,6 +48,11 @@ export interface UseLiveQueryResult<T> {
   lastUpdated: number | null;
   /** Manually trigger a refetch (e.g. a "Refresh" button). */
   refetch: () => void;
+  /**
+   * Alias for `refetch`, matching the `refresh` naming used by the other data
+   * hooks (`useWorkforces`, `useConversations`, `useConversation`).
+   */
+  refresh: () => void;
 }
 
 /**
@@ -165,5 +170,13 @@ export function useLiveQuery<T>(
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [enabled, refetchOnFocus, run]);
 
-  return { data, error, loading, refreshing, lastUpdated, refetch };
+  return {
+    data,
+    error,
+    loading,
+    refreshing,
+    lastUpdated,
+    refetch,
+    refresh: refetch,
+  };
 }

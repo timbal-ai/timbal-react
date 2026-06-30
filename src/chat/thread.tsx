@@ -27,13 +27,14 @@ import { UserMessageAttachments } from "./attachment";
 import { MarkdownText } from "./markdown-text";
 import { ToolArtifactFallback } from "../artifacts/tool-artifact";
 import { TooltipIconButton } from "./tooltip-icon-button";
+import { TooltipProvider } from "../ui/tooltip";
 import { Composer, type ComposerProps } from "./composer";
 import {
   Suggestions,
   type SuggestionsComponent,
   type SuggestionsSource,
 } from "./suggestions";
-import { TimbalV2Button } from "../ui/timbal-v2-button";
+import { Button } from "../ui/button";
 import { scheduleThemeSanityCheck } from "../design/theme-sanity";
 import { luxuryEase } from "./motion";
 import {
@@ -151,6 +152,27 @@ export interface ThreadProps {
    * message).
    */
   onArtifactEvent?: (event: UiEventEnvelope) => void;
+  /**
+   * Auto-scroll the conversation to the bottom as new content streams in.
+   * Default: `true`. Set `false` to never auto-follow the stream (the
+   * scroll-to-bottom button still works).
+   */
+  autoScroll?: boolean;
+  /**
+   * Scroll to the bottom when a new run starts (you send a message). Default:
+   * `true`.
+   */
+  scrollToBottomOnRunStart?: boolean;
+  /**
+   * Scroll to the bottom instantly when the thread is first initialized (its
+   * history finishes loading). Default: `true`.
+   */
+  scrollToBottomOnInitialize?: boolean;
+  /**
+   * Scroll to the bottom instantly when switching to a different thread.
+   * Default: `true`.
+   */
+  scrollToBottomOnThreadSwitch?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +190,10 @@ export const Thread: FC<ThreadProps> = ({
   components,
   artifacts,
   onArtifactEvent,
+  autoScroll,
+  scrollToBottomOnRunStart,
+  scrollToBottomOnInitialize,
+  scrollToBottomOnThreadSwitch,
 }) => {
   const isPanel = variant === "panel";
   const maxWidth = maxWidthProp ?? (isPanel ? "100%" : "44rem");
@@ -193,6 +219,10 @@ export const Thread: FC<ThreadProps> = ({
         override={artifacts?.override}
       >
         <UiEventProvider onEvent={onArtifactEvent ?? (() => {})}>
+          {/* Thread owns TooltipIconButtons (scroll-to-bottom, copy, edit…), so it
+              must supply the Radix TooltipProvider. Nesting under an app-level
+              provider is harmless. Without this, the panel throws on open. */}
+          <TooltipProvider>
           <ThreadPrimitive.Root
             className={cn(
               "aui-root aui-thread-root @container flex h-full flex-col bg-transparent",
@@ -204,44 +234,55 @@ export const Thread: FC<ThreadProps> = ({
           >
             <ThreadPrimitive.Viewport
               turnAnchor="bottom"
+              autoScroll={autoScroll}
+              scrollToBottomOnRunStart={scrollToBottomOnRunStart}
+              scrollToBottomOnInitialize={scrollToBottomOnInitialize}
+              scrollToBottomOnThreadSwitch={scrollToBottomOnThreadSwitch}
               className={cn(
                 "aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-pb-28",
                 isPanel ? "px-2 pt-2" : "px-4 pt-4",
               )}
             >
-            <WelcomeSlot
-              config={welcome}
-              suggestions={suggestions}
-              showWelcomeSuggestions={showWelcomeSuggestions}
-              Suggestions={SuggestionsSlot}
-            />
+              <WelcomeSlot
+                config={welcome}
+                suggestions={suggestions}
+                showWelcomeSuggestions={showWelcomeSuggestions}
+                Suggestions={SuggestionsSlot}
+              />
 
-            <ThreadPrimitive.Messages
-              components={{
-                UserMessage: UserMessageSlot,
-                EditComposer: EditComposerSlot,
-                AssistantMessage: AssistantMessageSlot,
-              }}
-            />
+              <ThreadPrimitive.Messages
+                components={{
+                  UserMessage: UserMessageSlot,
+                  EditComposer: EditComposerSlot,
+                  AssistantMessage: AssistantMessageSlot,
+                }}
+              />
 
-            <ThreadPrimitive.ViewportFooter
-              className={cn(
-                "aui-thread-viewport-footer sticky bottom-0 z-10 mt-auto w-full isolate pt-2",
-                isPanel ? "bg-card pb-2" : "bg-background pb-4 md:pb-6",
-              )}
-            >
-              <div
+              {/* Sticky composer — overlaps the messages at the bottom edge so
+                  the conversation scrolls *under* it (no separate background
+                  band). Composer auto-resize no longer yanks the scroll because
+                  the textarea uses CSS `field-sizing` (no JS height writes) and
+                  the upstream auto-scroll patch lets an upward scroll cancel a
+                  pending auto-scroll. */}
+              <ThreadPrimitive.ViewportFooter
                 className={cn(
-                  "mx-auto flex w-full max-w-(--thread-max-width) flex-col",
-                  isPanel ? "gap-2" : "gap-4",
+                  "aui-thread-viewport-footer sticky bottom-0 z-10 mt-auto w-full isolate pt-2",
+                  isPanel ? "bg-card pb-2" : "bg-background pb-4 md:pb-6",
                 )}
               >
-                <ScrollToBottomSlot />
-                <ComposerSlot placeholder={placeholder} />
-              </div>
-            </ThreadPrimitive.ViewportFooter>
-          </ThreadPrimitive.Viewport>
-        </ThreadPrimitive.Root>
+                <div
+                  className={cn(
+                    "mx-auto flex w-full max-w-(--thread-max-width) flex-col",
+                    isPanel ? "gap-2" : "gap-4",
+                  )}
+                >
+                  <ScrollToBottomSlot />
+                  <ComposerSlot placeholder={placeholder} />
+                </div>
+              </ThreadPrimitive.ViewportFooter>
+            </ThreadPrimitive.Viewport>
+          </ThreadPrimitive.Root>
+          </TooltipProvider>
       </UiEventProvider>
     </ArtifactRegistryProvider>
     </ThreadVariantProvider>
@@ -465,7 +506,7 @@ const AssistantActionBar: FC = () => {
         <ActionBarMorePrimitive.Content
           side="bottom"
           align="start"
-          className="aui-action-bar-more-content z-50 min-w-36 overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-card-elevated"
+          className="aui-action-bar-more-content z-[80] min-w-36 overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-card-elevated"
         >
           <ActionBarPrimitive.ExportMarkdown asChild>
             <ActionBarMorePrimitive.Item className="aui-action-bar-more-item flex cursor-pointer select-none items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none hover:bg-muted focus:bg-muted">
@@ -559,14 +600,14 @@ const EditComposer: FC = () => {
         />
         <div className="aui-edit-composer-footer mx-3 mb-3 flex items-center gap-2 self-end">
           <ComposerPrimitive.Cancel asChild>
-            <TimbalV2Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" shape="pill">
               Cancel
-            </TimbalV2Button>
+            </Button>
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send asChild>
-            <TimbalV2Button variant="primary" size="sm">
+            <Button color="primary" size="sm" shape="pill">
               Update
-            </TimbalV2Button>
+            </Button>
           </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>

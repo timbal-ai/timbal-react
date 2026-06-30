@@ -678,14 +678,8 @@
   transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
-/* ── Blockquote gradient border ── */
-.aui-md-blockquote {
-  border-image: linear-gradient(
-    to bottom,
-    oklch(0.488 0.243 264.376 / 0.6),
-    oklch(0.627 0.265 303.9 / 0.3)
-  ) 1;
-}
+/* Blockquote glass styling + morph-in animation are component-owned
+   (see `GlassBlockquote` in `chat/markdown-text.tsx`). */
 
 /* ── GFM task list checkboxes ── */
 .aui-md-li input[type="checkbox"] {

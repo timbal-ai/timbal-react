@@ -2,9 +2,9 @@
 
 import type { FC } from "react";
 
-import { TimbalV2Button } from "../../ui/timbal-v2-button";
+import { Button } from "../../ui/button";
 import { cn } from "../../utils";
-import { useAppShellChat } from "./app-shell-chat-context";
+import { useCopilot } from "../copilot/context";
 
 export interface AppShellChatTriggerProps {
   className?: string;
@@ -19,20 +19,26 @@ export interface AppShellChatTriggerProps {
 const floatingPositionClass =
   "fixed bottom-6 right-6 z-50 max-sm:bottom-4 max-sm:right-4";
 
-/** Opens the floating copilot. Text only — no icons. */
+/**
+ * Text-only custom trigger that opens the copilot. Requires an app-level
+ * `<CopilotProvider>` ancestor so it shares state with `<AppCopilot>`.
+ * `AppCopilot` ships its own SiriWave trigger, so this is only for bespoke
+ * triggers (e.g. in a topbar).
+ */
 export const AppShellChatTrigger: FC<AppShellChatTriggerProps> = ({
   className,
   label = "Assistant",
   placement = "inline",
 }) => {
-  const shellChat = useAppShellChat();
+  const shellChat = useCopilot();
   if (!shellChat || shellChat.open) return null;
 
   return (
-    <TimbalV2Button
+    <Button
       type="button"
-      variant={placement === "floating" ? "primary" : "secondary"}
+      color={placement === "floating" ? "primary" : "secondary"}
       size="sm"
+      shape="pill"
       className={cn(
         "aui-app-shell-chat-trigger",
         placement === "floating" && floatingPositionClass,
@@ -43,6 +49,6 @@ export const AppShellChatTrigger: FC<AppShellChatTriggerProps> = ({
       aria-expanded={false}
     >
       {label}
-    </TimbalV2Button>
+    </Button>
   );
 };

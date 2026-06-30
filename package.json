@@ -1,6 +1,6 @@
 {
   "name": "@timbal-ai/timbal-react",
-  "version": "1.8.0",
+  "version": "3.0.0",
   "description": "React components and runtime for building Timbal chat and studio apps",
   "type": "module",
   "main": "dist/index.cjs",
@@ -145,5 +145,8 @@
   "bugs": {
     "url": "https://github.com/timbal-ai/timbal-react/issues"
   },
-  "homepage": "https://github.com/timbal-ai/timbal-react#readme"
+  "homepage": "https://github.com/timbal-ai/timbal-react#readme",
+  "patchedDependencies": {
+    "@assistant-ui/react@0.12.21": "patches/@assistant-ui%2Freact@0.12.21.patch"
+  }
 }

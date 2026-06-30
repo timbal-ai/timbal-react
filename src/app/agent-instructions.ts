@@ -1,4 +1,5 @@
 import { HOUSE_RULES, SLOP_BUDGETS } from "../design/ui-vocabulary";
+import { APP_KIT_CATALOG, type CatalogEntry } from "./catalog";
 
 /**
  * Anti-slop checklist rendered from the shared `HOUSE_RULES` vocabulary so the
@@ -13,6 +14,41 @@ const ANTI_SLOP_CHECKLIST = HOUSE_RULES.map((r) => {
       : "";
   return `- **${r.id}** — ${r.rule} (${r.why})${pair}`;
 }).join("\n");
+
+/**
+ * Block + primitive listings rendered **from `APP_KIT_CATALOG`** so the import
+ * paths the model sees never drift from what the package actually exports (a
+ * contract test asserts every entry resolves). Blocks lead — agents should
+ * import them, not rebuild — and each carries its exact import + a source path
+ * to fork. Primitives follow, grouped by category.
+ */
+const importLine = (entry: CatalogEntry) =>
+  `import { ${entry.exports.join(", ")} } from "${entry.importFrom}";`;
+
+const BLOCK_CATALOG_LISTING = APP_KIT_CATALOG.filter((e) => e.kind === "block")
+  .map(
+    (e) =>
+      `- **${e.name}** — ${e.description}\n  - \`${importLine(e)}\`\n  - composes: ${e.composedOf?.join(", ") ?? "—"}\n  - when: ${e.whenToUse}\n  - fork: \`${e.source}\``,
+  )
+  .join("\n");
+
+const PRIMITIVE_CATALOG_LISTING = [
+  ...new Set(
+    APP_KIT_CATALOG.filter((e) => e.kind === "primitive").map((e) => e.category),
+  ),
+]
+  .map((category) => {
+    const rows = APP_KIT_CATALOG.filter(
+      (e) => e.kind === "primitive" && e.category === category,
+    )
+      .map(
+        (e) =>
+          `- \`${e.exports.join(", ")}\` (\`${e.importFrom}\`) — ${e.description}`,
+      )
+      .join("\n");
+    return `**${category}**\n${rows}`;
+  })
+  .join("\n\n");
 
 /**
  * Copy-paste into a workforce agent system prompt (or codegen tool context) so the
@@ -38,14 +74,26 @@ You are **not** required to copy any example layout, page title, section order, 
 - **Do** invent layouts that fit the user's domain (CRM, inventory, billing, internal tools, etc.).
 - **Do** pick only the components you need; skip shell, sidebar, or copilot when the task does not need them.
 - **Do** vary density, grid columns, navigation patterns, and copy — as long as you follow the **design guidelines** below.
-- **Do not** treat \`examples/app-kit/reference/\` as a template to clone (no default "Operations" dashboard with sidebar + three KPI tiles + SubNav + table unless the user asked for that).
-- **Do** use \`examples/app-kit/recipes/\` as **short grammar examples** (one concern per file), not as a full app blueprint.
+- **Do not** treat \`examples/app-kit/src/reference/\` as a template to clone (no default "Operations" dashboard with sidebar + three KPI tiles + SubNav + table unless the user asked for that).
+- **Do** use \`examples/app-kit/src/recipes/\` as **short grammar examples** (one concern per file), not as a full app blueprint.
 
 When in doubt: compose from the **component menu** + **guidelines**, then adapt creatively to the request.
 
+### Importable catalog — import, don't rebuild
+
+This listing is generated from \`APP_KIT_CATALOG\` (exported from \`@timbal-ai/timbal-react/app\` — read it programmatically for the same data). Every entry's import path is guaranteed to resolve. **Blocks** are composed sections: prefer importing a block over re-assembling its parts. Each block names a \`fork\` source path you can copy and adapt when no prop fits.
+
+#### Blocks (composed sections — reach for these first)
+
+${BLOCK_CATALOG_LISTING}
+
+#### Primitives & surfaces
+
+${PRIMITIVE_CATALOG_LISTING}
+
 ### Layout archetypes — pick the shape that fits (don't default to one)
 
-The most common failure is shipping the **same** layout every time: sidebar + topbar + \`Page\` + one \`MetricRow\` + one full-width \`DataTable\`. That is *one* archetype, not *the* layout. Choose deliberately — different domains want different shapes, and varying the shell/page composition is encouraged.
+The most common failure is shipping the **same** layout every time: sidebar + \`Page\` + one \`MetricRow\` + one full-width \`DataTable\`. That is *one* archetype, not *the* layout. Choose deliberately — different domains want different shapes, and varying the shell/page composition is encouraged.
 
 | Archetype | When | Compose |
 |-----------|------|---------|
@@ -54,17 +102,17 @@ The most common failure is shipping the **same** layout every time: sidebar + to
 | **Bento overview** | Home / at-a-glance dashboards | \`Page\` + an **asymmetric grid** of \`SurfaceCard\` / \`ChartPanel\` / \`StatTile\` spanning different widths (not a uniform row + table) |
 | **Split master–detail** | Inbox, triage queue, record browser, log explorer | \`AppShell contentFill\` + \`Page fill\` + a two-column flex row, each pane \`min-h-0 overflow-y-auto\` |
 | **Full-page chat / canvas** | Chat-first app, editor, map, single full-bleed surface | \`AppShell contentFill\` + headerless \`Page fill\` + a \`min-h-0 flex-1\` child (e.g. \`TimbalChat\`) |
-| **Copilot overlay** | A data app that also wants an assistant | any of the above + \`AppShell chat={<AppChatPanel />}\` (floating, never a second column) |
+| **Copilot overlay** | A data app that also wants an assistant | any of the above + a self-mounting \`<AppCopilot workforceId="…" />\` dropped anywhere (floating overlay, never a second column) |
 | **Section-switcher** | One page, several views | \`SubNav\` / \`PillSegmentedTabs\` (\`trackVariant="flush"\`) switching panels with state/router |
 
-Mix them: vary the grid columns, density, header placement (\`Page\` actions vs. a global topbar), and whether there's a sidebar at all. Two dashboards for two domains should not look identical.
+Mix them: vary the grid columns, density, \`Page\` actions placement, and whether there's a sidebar at all (never a global topbar — that's a lint error). Two dashboards for two domains should not look identical.
 
 ### Shell & navigation (don't hand-roll this)
 
 The sidebar and the mobile menu are **solved** — use them, don't rebuild them.
 
-- **Sidebar = \`StudioSidebar\`.** It's the canonical app nav. Pass \`workforces\` (nav items), \`selectedId\`, and \`onSelect\`. Each item is \`{ id, name, icon? }\` — **icons are a built-in optional slot**, so wanting a per-item icon is **never** a reason to build a custom rail. Pass a \`brand\` node for the product name/logo.
-- **No topbar by default.** \`AppShell\` renders its own floating mobile menu button when a sidebar is present — you do **not** need a top bar or \`AppShellSidebarTrigger\` to open the drawer. Put global actions in \`Page.actions\` or the sidebar. Add \`AppShell topbar={…}\` **only** when the user explicitly asks for a persistent global bar — never just to hold a mobile menu, a status banner, or a theme toggle (status → dashboard content via \`StatusBadge\`/\`MetricRow\`; theme is configured by the developer, not an end-user switch).
+- **Sidebar = \`StudioSidebar\`.** It's the canonical app nav. Pass \`items\` (nav items), \`selectedId\`, and \`onSelect\`. Each item is \`{ id, name, icon? }\` — **icons are a built-in optional slot**, so wanting a per-item icon is **never** a reason to build a custom rail. Pass a \`brand\` node for the product name/logo. (\`workforces\` is a deprecated alias for \`items\`.)
+- **No topbar — ever.** Do **not** pass \`AppShell topbar={…}\`; it is a hard lint error (\`no-custom-shell-chrome\`). \`AppShell\` renders its own floating mobile menu button when a sidebar is present, so you never need a top bar to open the drawer. Put global actions (account, theme, export) in \`Page.actions\` or the sidebar; surface status as dashboard content (\`StatusBadge\`/\`MetricRow\`), not a bar. An in-app assistant is a self-mounting \`<AppCopilot>\` (with \`suggestions\` for quick actions) — **never** a topbar button that opens a hand-rolled panel.
 - **Never** hand-roll a \`<nav>\`/\`<aside>\` rail or a custom \`<div className="h-12 border-b">\` topbar. The linter rejects both (\`no-custom-shell-chrome\`).
 
 \`\`\`tsx
@@ -75,7 +123,7 @@ import { StudioSidebar } from "@timbal-ai/timbal-react/studio";
   sidebar={
     <StudioSidebar
       brand={<span className="text-sm font-semibold">SOC Dashboard</span>}
-      workforces={[
+      items={[
         { id: "dashboard", name: "Dashboard", icon: <LayoutDashboard /> },
         { id: "inbox", name: "Alert inbox", icon: <Inbox /> },
         { id: "assets", name: "Asset inventory", icon: <Boxes /> },
@@ -91,6 +139,37 @@ import { StudioSidebar } from "@timbal-ai/timbal-react/studio";
   </Page>
 </AppShell>
 \`\`\`
+
+### In-app assistant = \`AppCopilot\` (don't hand-roll a coach/chat panel)
+
+When a data app also needs an assistant reachable from anywhere, drop in a **self-mounting** \`<AppCopilot>\`. Do **not** build a \`Sheet\` + \`TimbalChat\` + custom \`Composer\` "coach panel", and do **not** add a topbar button to open it — \`AppCopilot\` portals its own floating glass panel + pill trigger to \`document.body\`.
+
+- **Quick-action chips** are the \`suggestions\` prop (a \`{ title, prompt }[]\`), **not** a custom composer. Page awareness is the \`context\` prop (or \`AppCopilotProvider\`).
+- **Custom open trigger** (e.g. your own button): wrap the app in \`CopilotProvider\` and call \`useCopilot()\` to open it, with \`hideTrigger\` to suppress the built-in pill — never a topbar.
+
+\`\`\`tsx
+import { AppCopilot, CopilotProvider, useCopilot } from "@timbal-ai/timbal-react/app";
+
+function OpenCoachButton() {
+  const copilot = useCopilot(); // null when no CopilotProvider is mounted
+  return <Button variant="secondary" onClick={() => copilot?.setOpen(true)}>Ask the coach</Button>;
+}
+
+<CopilotProvider>
+  {/* place <OpenCoachButton /> anywhere in your content (e.g. Page.actions) */}
+  <AppCopilot
+    workforceId="coach"
+    hideTrigger
+    context={{ page: pathname }}
+    suggestions={[
+      { title: "Weekly correlation", prompt: "Analyze my sleep vs focus correlation this week" },
+      { title: "Log 500ml water", prompt: "Log 500ml of water" },
+    ]}
+  />
+</CopilotProvider>
+\`\`\`
+
+If the default floating pill is fine, skip \`CopilotProvider\`/\`hideTrigger\` and just drop \`<AppCopilot workforceId="…" suggestions={…} context={…} />\` anywhere.
 
 ### Full-height pages (chat, canvas, split views)
 
@@ -111,8 +190,8 @@ The content region is a **padded scroll area** by default — great for stacked 
 **Don't** size full-height content with \`h-[calc(100dvh-…)]\` (guesses chrome height → spurious scrollbar) or \`min-h-[…]\` (free-growing floor → a pinned footer like the chat composer rides down on scroll). Let \`contentFill\` + \`fill\` provide the bounded height. \`Page\` with no \`title\` renders **no header** — you don't need to abandon \`Page\` to drop a heading.
 
 **Full-page Assistant Guidelines (Hardened Layout):**
-When creating a full-page assistant/chat page, let the chat component own the layout and welcome state completely.
-- **Never wrap** \`<TimbalChat>\` or \`<AppChatPanel>\` inside standard card or section elements (like \`<Card>\`, \`<Section>\`, or custom bordered/padded panels). Wrapping degrades the viewport height calculations and wastes valuable layout estate.
+When creating a full-page assistant/chat page, let the chat component own the layout and welcome state completely. (A *floating* copilot over a page is a different thing — that's the self-mounting \`<AppCopilot />\`, which needs no layout wiring at all.)
+- **Never wrap** \`<TimbalChat>\` inside standard card or section elements (like \`<Card>\`, \`<Section>\`, or custom bordered/padded panels). Wrapping degrades the viewport height calculations and wastes valuable layout estate.
 - **Never add custom headings, titles, descriptions, or status badges** (e.g., "Asistente Virtual", "Online", or subtitle text blocks) inside the page. The assistant page context is already implicit. If you need a customized title or greeting, pass it through the \`welcome\` prop config: e.g., \`<TimbalChat welcome={{ heading: "Hola, soy el Concierge de TIBA", subheading: "Pregúntame sobre..." }} />\`.
 
 ### Module layout (source folders)
@@ -125,7 +204,9 @@ Presentational groups — import from the package root, not from these paths:
 | \`integrations/\` | \`IntegrationCard\`, \`ConnectionRow\`, \`ConnectionRowList\`, \`IntegrationsEmptyState\`, \`PlanBadge\` |
 | \`settings/\` | \`SettingsSection\`, \`FieldRow\`, \`DangerZone\`, \`FloatingUnsavedChangesBar\` |
 | \`surfaces/\` | \`StatTile\`, \`InfoCard\`, \`AlertCard\`, \`CatalogCard\`, \`ResourceCard\`, \`DescriptionList\`, \`ExpandableSection\`, \`StatusDot\`, \`StatusBadge\`, \`EmptyState\` |
-| \`layout/\` | \`AppShell\`, \`Page\` (auto-stacks children; \`width\` ladder), \`Section\`, \`Stack\` |
+| \`layout/\` | \`AppShell\` (layout-only), \`Page\` (auto-stacks children; \`width\` ladder), \`Section\`, \`Stack\` |
+| \`blocks/\` | \`FilteredDataTable\`, \`StatGrid\`, \`IntegrationsGrid\`, \`ResourceGallery\`, \`SettingsLayout\` (composed, forkable sections) |
+| \`copilot/\` | \`AppCopilot\` (self-mounting floating assistant), \`CopilotProvider\`, \`useCopilot\`, \`AppCopilotProvider\` |
 | \`charts\` (re-exported) | \`LineAreaChart\`, \`PieChart\`, \`RadialChart\`, \`RadarChart\`, \`Sparkline\`, \`CHART_PALETTE\` |
 
 Also re-exported from \`/app\`: \`Button\`, \`Avatar\` / \`AvatarImage\` / \`AvatarFallback\`, \`Banner\`, \`Timeline\`, \`Kanban\` (drag-and-drop board), \`TimbalChat\`, \`ChartArtifactView\`, \`APP_KIT_AGENT_INSTRUCTIONS\`. Other UI primitives used in block recipes (\`Card\`, \`Input\`, \`Label\`, \`Sheet\`, \`Separator\`, \`AlertDialog\`, \`Badge\`, \`Select\`, …) import from \`@timbal-ai/timbal-react/ui\` or the package root — **not** from \`/app\`.
@@ -136,16 +217,18 @@ Theming helpers (import from the package root or \`/app\`): \`createTimbalTheme\
 
 | Area | Rule |
 |------|------|
-| **Copilot** | Use \`AppCopilotProvider\` for page context (\`useAppCopilotContext\`). Copilot is a **floating overlay** via \`AppShell\` \`chat={<AppChatPanel />}\` — not a sidebar column that shrinks main content. |
-| **Chat panel** | \`AppChatPanel\` only; \`Thread\` uses \`variant="panel"\` internally. Dismiss with **X**; trigger is a **text-only** pill (e.g. "Assistant") — **no** MessageSquare or chat icons on the shell trigger. |
-| **Context** | Do not show raw JSON context in the panel header; keep context in \`AppCopilotProvider\` only. |
+| **Copilot** | Drop in a self-mounting \`<AppCopilot workforceId="…" />\` — it portals its own floating glass panel + trigger to \`document.body\`, so it needs **no** \`AppShell\` wiring and is never a sidebar column that shrinks main content. Pass page context via the \`context\` prop (or \`AppCopilotProvider\` / \`useAppCopilotContext\`). For a custom open trigger, use controlled \`open\`/\`onOpenChange\` + \`hideTrigger\`, or wrap the app in \`CopilotProvider\` and call \`useCopilot()\`. |
+| **Chat panel** | \`AppCopilot\` owns the panel (\`Thread variant="panel"\` internally). Dismiss with **X**; the built-in trigger is a SiriWave pill (label e.g. "Assistant") — **no** MessageSquare or chat icons. |
+| **Context** | Do not show raw JSON context in the panel header; pass it via \`AppCopilot\`'s \`context\` prop / \`AppCopilotProvider\`. |
 | **Theming** | Use semantic Tailwind tokens (\`bg-background\`, \`text-foreground\`, \`border-border\`, \`bg-elevated-from\`, etc.) from the host app's \`styles.css\`. To rebrand, **never hand-author OKLCH** — call \`createTimbalTheme({ brand })\` + \`themeToCss\`/\`applyTimbalTheme\`, or apply a catalog preset (\`TIMBAL_THEME_PRESETS\` / \`applyThemePreset\`). Apply the theme **programmatically** — do **not** add an end-user theme selector to generated apps. See \`THEME_AGENT_INSTRUCTIONS\`. |
-| **Layout chrome** | \`Page\` → \`Section\` for main content hierarchy. **No global topbar by default** — \`AppShell\` renders the mobile menu button itself, so never add a topbar (or \`AppShellSidebarTrigger\`) just to open the sidebar. Put account/theme/global actions in the \`Page\` \`actions\` slot or the sidebar. Add \`topbar\` only when a full-width global bar is **explicitly requested**. Never hand-roll a \`<nav>\`/\`<aside>\` rail or a custom topbar \`<div>\` — use \`StudioSidebar\` (linted: \`no-custom-shell-chrome\`). |
+| **Layout chrome** | \`Page\` → \`Section\` for main content hierarchy. **No global topbar — ever.** \`AppShell topbar={…}\` is a hard lint error (\`no-custom-shell-chrome\`); \`AppShell\` renders the mobile menu button itself, so a topbar is never needed. Put account/theme/global actions in the \`Page\` \`actions\` slot or the sidebar. Never hand-roll a \`<nav>\`/\`<aside>\` rail or a custom topbar \`<div>\` — use \`StudioSidebar\`. |
 | **Theme** | Apply the brand once with \`createTimbalTheme({ brand })\` + \`applyTimbalTheme\`. **Never** hand-author token values (\`.dark { --background: oklch(…) }\`, \`--sidebar-bg\`, \`--primary\`) or pass \`forcedTheme\` — that punches through the generator and breaks dark mode/rebranding (linted: \`theme-via-generator\`). A "cyberpunk/glowing" brief means *pick a brand color*, not *hand-paint tokens and add neon glows*. |
 | **Spacing / gaps** | \`Page\` **auto-stacks its direct children with a vertical gap** — drop blocks straight in (e.g. \`Page\` → \`FilterBar\` + \`DataTable\`, or \`MetricRow\` + \`ChartPanel\`) and they breathe; do **not** wrap every block in an extra \`<div>\` (that collapses the gap). For ad-hoc clusters inside a card/row use \`Stack\` (\`gap\`, \`direction\`) instead of bare flex with no gap. Grids still need their own \`gap-*\`. |
 | **Width** | \`Page\` defaults to a wide centered column. For focused / reading / form pages pass \`width\` (\`default\`, \`centered\`, \`narrow\`, \`prose\`) instead of always running full-bleed — not everything needs the full width. \`width="full"\` opts into edge-to-edge. For full-height pages that should stay centered use \`fill\` + \`fillPadded\`. |
 | **Density** | Set \`density="compact"\` on \`Page\` for tighter dashboards (full-width column, smaller section gaps, card padding, metric tiles, default chart height 220). Default is \`"default"\` (platform spacing). Wrap custom layouts with \`AppDensityProvider\` when not using \`Page\`. Per-section override: \`Section density="compact"\`. Do **not** hand-tune five layers of \`className\` padding when density covers the need. |
-| **Data** | Prefer \`DataTable\` with typed \`columns\` / \`rows\` / \`getRowKey\`; use \`ChartPanel\` with a \`ChartArtifact\` for charts (set \`chartType\` + options — see the chart catalog). Chart colors come from the theme \`--chart-1..6\` tokens; pass \`series[].color\` / \`colors\` only to override, never raw hex on every series. |
+| **Data** | Prefer \`DataTable\` with typed \`columns\` / \`rows\` / \`getRowKey\`; use \`ChartPanel\` with a \`ChartArtifact\` for charts (set \`chartType\` + options — see the chart catalog). Chart colors come from the theme \`--chart-1..6\` tokens **automatically** — usually pass nothing. **Token color contract:** \`--chart-N\` (and all kit tokens) are already full **OKLCH** colors, so reference them **directly** — \`color: "var(--chart-3)"\`, or the \`bg-chart-3\` / \`bg-[var(--chart-3)]\` utilities. **Never** wrap a token in a color function (\`hsl(var(--chart-3))\`, \`rgb(var(--primary))\`) — that's invalid CSS that \`tsc\`/build won't catch and renders a **black/empty chart** (lint: \`chart-token-color-fn\`). Pass \`series[].color\` / \`colors\` only to override, never raw hex on every series. |
+| **Chart dataKeys** | Series \`dataKey\`s must be **safe identifiers** (letters/digits/\`_\`/\`-\`, no spaces or \`%\`). The chart layer maps each \`dataKey\` to a CSS var \`--color-<dataKey>\`, so \`"Water %"\` → \`--color-Water %\` (invalid) and the series renders **black** (lint: \`chart-data-key\`). Put the human name in a separate \`label\`: \`{ dataKey: "waterPct", label: "Water %" }\`. |
+| **Data loading** | Wire the data, not just the layout. Use the \`loading\` prop on \`DataTable\`/\`MetricRow\`/\`ChartPanel\` for skeletons. **Never swallow fetch errors** — \`.catch(() => {})\` turns a failed request into a permanent empty skeleton with no diagnostic; at minimum log the error (and surface an \`EmptyState\`/\`Banner\`). Verify any non-trivial query returns rows before wiring it to a route. |
 | **Boards** | For status/triage workflows (pipelines, sprint boards, review queues) use \`Kanban\` — pass \`columns\` (each with \`cards\`) + \`renderCard\`; handle \`onColumnsChange\`/\`onMove\` to persist. It's drag-and-drop **and** keyboard accessible; don't hand-roll columns of cards. |
 | **Modals** | Use \`AppConfirmDialog\` for destructive/export confirmations. |
 | **Metrics** | Overview KPIs → \`MetricRow\` or \`MetricChartCard\` (not four separate heavy cards). Values use **normal** font weight, not bold. |
@@ -177,13 +260,13 @@ The cause of slop is dropping **below** the curated block layer into raw primiti
 
 | Component | Use for |
 |-----------|---------|
-| \`AppShell\` | Shell: optional \`sidebar\` (use \`StudioSidebar\`), main \`children\`, optional floating \`chat\`. Renders its **own** floating mobile menu button when \`sidebar\` is set — no topbar needed. \`topbar\` is **opt-in** (explicit global-bar requests only). Props: \`chatTriggerLabel\`, \`chatCollapsible\`, \`chatWidth\`, \`chatHeight\`, controlled \`chatOpen\`, **\`contentFill\`** (bounded non-scrolling content region for full-bleed pages — chat/canvas/split view). |
-| \`StudioSidebar\` | Canonical app nav (import from \`/studio\`). \`workforces\`: \`{ id, name, icon? }[]\`, \`selectedId\`, \`onSelect\`, \`brand\`. Optional per-item \`icon\` (lucide) for route nav — so you never hand-roll a rail. Collapsible + mobile drawer + shell sync are automatic. |
-| \`AppCopilotProvider\` | React context for copilot-aware tools (page, filters, selection, etc.). |
-| \`AppChatPanel\` | Floating thread: \`workforceId\`, \`welcome\`, \`debug\`. |
-| \`useAppShellChat\` | Custom open/close trigger when \`hideChatTrigger\` on shell. |
+| \`AppShell\` | **Layout-only** shell: optional \`sidebar\` (use \`StudioSidebar\`) + main \`children\`. Renders its **own** floating mobile menu button when \`sidebar\` is set, so a topbar is **never** needed — **do not pass \`topbar\`** (hard lint error \`no-custom-shell-chrome\`); global actions go in \`Page.actions\`. Key prop: **\`contentFill\`** (bounded non-scrolling content region for full-bleed pages — chat/canvas/split view). The copilot is **not** a prop here — drop \`<AppCopilot>\` separately. |
+| \`StudioSidebar\` | Canonical app nav (import from \`/studio\`). \`items\`: \`{ id, name, icon? }[]\` (\`workforces\` is a deprecated alias), \`selectedId\`, \`onSelect\`, \`brand\`. Optional per-item \`icon\` (lucide) for route nav — so you never hand-roll a rail. Collapsible + mobile drawer + shell sync are automatic. |
+| \`AppCopilot\` | Self-mounting floating assistant: \`workforceId\`, \`welcome\`, \`suggestions\`, \`triggerLabel\`, \`context\`, controlled \`open\`/\`onOpenChange\`, \`hideTrigger\`, \`debug\`. Portals its own overlay — drop it anywhere, no shell wiring. |
+| \`AppCopilotProvider\` / \`useAppCopilotContext\` | Page context for copilot-aware tools (page, filters, selection). **Prop is \`value\`, not \`context\`** (\`<AppCopilotProvider value={{ page }}>\`). You **rarely need it** — if \`<AppCopilot>\` is already mounted (e.g. in your layout), just pass its \`context\` prop; **do not** also wrap pages in \`AppCopilotProvider\` (redundant, and a wrong \`context=\` prop is a TS error). |
+| \`useCopilot\` | Read/drive copilot open+expand state from a custom trigger (wrap the app in \`CopilotProvider\`). |
 | \`Page\` | Page title, description, \`breadcrumbs\`, \`actions\`, \`density\` (\`"default"\` \| \`"compact"\`), children. **\`title\` is optional** — omit it for a headerless page (no \`<h1>\`). **\`fill\`** makes it a \`min-h-0 flex-1\` column for full-height content (pair with \`AppShell contentFill\`). |
-| \`Section\` | Titled block inside a page. Optional \`density\` overrides inherited page density. |
+| \`Section\` | Titled block inside a page: \`title\`, \`description\`, right-aligned \`actions\` (e.g. a Refresh button), children. Optional \`density\` overrides inherited page density. |
 | \`SubNav\` | **Section switcher** (Overview / Reports pill bar): \`items\`, \`activeId\`, \`onChange\`. Never use Radix/shadcn \`Tabs\` — it is not in this package. Switch panels with state or the router. |
 | **Menus** | **Select** = short list, no search. **Combobox** = searchable (same trigger as Select). **Command** only inside \`PopoverContent variant=\"list\"\` or Combobox — never padded default Popover. See \`examples/app-kit/src/recipes/primitives-catalog.ts\`. |
 | \`Breadcrumbs\` | Trail: \`items: [{ label, href? }]\`. |
@@ -272,22 +355,23 @@ Studio chrome (\`StudioSidebar\`, \`ModeToggle\`, …) lives in \`@timbal-ai/tim
 
 ### Block recipes — compose these (don't clone wholesale)
 
-Ready-made **section patterns** assembled from the components above. Each is a composition to rebuild in your own domain with your data — **not** an importable component. Reach for a block before dropping to raw primitives.
+Some section patterns are now **importable blocks** (see the **Importable catalog** above): \`FilteredDataTable\`, \`StatGrid\`, \`IntegrationsGrid\`, \`ResourceGallery\`, \`SettingsLayout\`. Prefer importing those over rebuilding. The patterns below that have no block are compositions to assemble in your own domain with your data. Reach for a block before dropping to raw primitives.
 
 **Settings**
-- **Project settings** — General / Usage / Danger sections; the floating save bar appears on first edit. Compose \`SettingsSection\` + \`FieldInput\`/\`FieldSwitch\` + \`FieldRow\` + \`InfoCard\` + \`DangerZone\` + \`FloatingUnsavedChangesBar\`.
+- **Project settings** — prefer the **\`SettingsLayout\`** block (stacked \`SettingsSection\`s + \`dangerZone\` + a \`dirty\`-driven floating save bar). Fill sections with \`FieldInput\`/\`FieldSwitch\`/\`FieldRow\`.
 - **Settings form** — compact stacked form for one concern (profile, billing). Compose \`FormSection\` + \`FieldInput\`/\`FieldSelect\`/\`FieldTextarea\`.
 
 **Data & metrics**
-- **Metrics row** — KPI strip in one elevated card. Compose \`MetricRow\` + \`MetricTile\`.
+- **Metrics row** — KPI strip in one elevated card. Compose \`MetricRow\` + \`MetricTile\`. For individual elevated KPI tiles, use the **\`StatGrid\`** block.
 - **Analytics card** — selectable KPI tiles driving a shared chart. Compose \`MetricChartCard\` + \`LineAreaChart\`.
 - **Charts panel** — embedded chart artifact. Compose \`ChartPanel\` + \`ChartArtifactView\`.
-- **Chart catalog** — every chart kind (stacked area, multi-line, step, bar, stacked + horizontal bar, donut, radial, radar) in \`ChartPanel\` cards. Pick a \`chartType\` + options on a \`ChartArtifact\`; theme via \`--chart-N\`.
-- **Table + filters** — \`FilterBar\` above a sortable \`DataTable\` (+ \`StatusBadge\` in cells).
+- **Chart catalog** — every chart kind (stacked area, multi-line, step, bar, stacked + horizontal bar, donut, radial, radar) in \`ChartPanel\` cards. Pick a \`chartType\` + options on a \`ChartArtifact\`; theme via \`--chart-N\` (reference tokens **directly** — \`var(--chart-N)\` — never \`hsl(var(--chart-N))\`; they're OKLCH, and wrapping renders a black/empty chart).
+- **Two metrics / correlation on one plot** — use a **multi-series** \`ChartArtifact\` (\`series: [{ dataKey: "focus" }, { dataKey: "sleep" }]\` or \`dataKey: ["focus", "sleep"]\`) in a \`ChartPanel\`, or \`LineAreaChart\` with two series. The kit charts share **one** axis — if the metrics have very different ranges (e.g. focus minutes vs. sleep hours), **normalize the values to a common scale (0–1 or 0–100) and pass the real numbers through the tooltip** (label/formatter), rather than reaching for two Y-axes. **Do NOT** drop to raw recharts (\`ComposedChart\`, \`<YAxis>\`, etc.) to fake a dual axis — that abandons the kit's theming, tooltips, and flush layout.
+- **Table + filters** — prefer the **\`FilteredDataTable\`** block (search + faceted filters + sortable \`DataTable\` wired for you). Drop to \`FilterBar\` + \`DataTable\` only for bespoke toolbars.
 
 **Collections**
-- **Integrations grid** — connector catalog + connected list. Compose \`IntegrationCard\` + \`PlanBadge\` + \`ConnectionRowList\` (\`IntegrationsEmptyState\` when empty).
-- **Resource gallery** — project / agent / dataset cards. Compose \`ResourceCard\` + \`StatusDot\` + \`Sparkline\`.
+- **Integrations grid** — prefer the **\`IntegrationsGrid\`** block (\`IntegrationCard\` grid + \`ConnectionRowList\`). Pass \`emptyState={<IntegrationsEmptyState … />}\` when empty.
+- **Resource gallery** — prefer the **\`ResourceGallery\`** block (\`ResourceCard\` grid). Cards can carry \`StatusDot\` / \`Sparkline\` slots.
 
 **Overlays & flows** (animate automatically)
 - **Confirm & destructive** — confirm/cancel modal or destructive alert. Compose \`AppConfirmDialog\` (or \`AlertDialog\`) + \`Button\`; never hand-roll a \`Dialog\` for confirms.
@@ -302,7 +386,7 @@ Ready-made **section patterns** assembled from the components above. Each is a c
 - **Bento dashboard** — \`Page\` + an asymmetric grid of \`SurfaceCard\` / \`ChartPanel\` / \`StatTile\` (varied spans) for overview/home screens.
 - **Split view** — master–detail: \`AppShell contentFill\` + \`Page fill\` + a two-pane flex row (list + detail), each pane \`min-h-0 overflow-y-auto\`.
 - **Full-page chat** — \`AppShell contentFill\` + headerless \`Page fill\` + \`TimbalChat className="min-h-0 flex-1"\` (composer pinned; no \`h-[calc(...)]\`).
-- **Copilot overlay** — \`AppShell\` + floating \`AppChatPanel\`.
+- **Copilot overlay** — drop a self-mounting \`<AppCopilot workforceId="…" />\` anywhere (no \`AppShell\` wiring).
 - **Theme presets** — apply a brand preset programmatically (\`applyThemePreset\` / \`applyTimbalTheme\`); never hand-author OKLCH and don't expose a theme picker to end users.
 
 ### Typical compositions
@@ -313,7 +397,7 @@ Ready-made **section patterns** assembled from the components above. Each is a c
 - **Settings** — \`Page\` + \`SettingsSection\`s + \`DangerZone\` + \`FloatingUnsavedChangesBar\`.
 - **Integrations** — grid of \`IntegrationCard\`; \`ConnectionRowList\` for connected providers; \`IntegrationsEmptyState\` when empty.
 - **Resource gallery** — grid of \`ResourceCard\`.
-- **Copilot-assisted app** — \`AppCopilotProvider\` + \`AppShell\` with \`chat={<AppChatPanel workforceId="…" />}\`.
+- **Copilot-assisted app** — any layout + a self-mounting \`<AppCopilot workforceId="…" context={pageContext} />\`.
 - **Motion is automatic** — Dialog, AlertDialog, Sheet, Popover, DropdownMenu, Select, Tooltip, Toast, and Accordion/Collapsible animate out of the box (fade/zoom/slide/height) via the engine inlined in \`styles.css\`. Do not add a separate animation library or hand-write \`@keyframes\`.
 
 ### Example imports
@@ -321,19 +405,19 @@ Ready-made **section patterns** assembled from the components above. Each is a c
 \`\`\`tsx
 import {
   AppShell,
-  AppCopilotProvider,
-  AppChatPanel,
+  AppCopilot,
   Page,
   Section,
   MetricRow,
   MetricChartCard,
+  FilteredDataTable,
+  IntegrationsGrid,
   IntegrationCard,
   ConnectionRow,
   ConnectionRowList,
   Button,
   DataTable,
   FilterBar,
-  FilterField,
   FilterDropdown,
   AlertCard,
   CatalogCard,
@@ -344,8 +428,8 @@ import {
 
 | Path | Purpose |
 |------|---------|
-| \`examples/app-kit/recipes/*\` | **Recipes** — one pattern each (~20–80 lines). Use for capability, not layout. |
-| \`examples/app-kit/reference/operations-dashboard.tsx\` | **Reference only** — full wired app; do not treat as the default generated layout. |
+| \`examples/app-kit/src/recipes/*\` | **Recipes** — one pattern each (~20–80 lines). Use for capability, not layout. |
+| \`examples/app-kit/src/reference/operations-dashboard.tsx\` | **Reference only** — full wired app; do not treat as the default generated layout. |
 
 ### API gotchas — props that do NOT exist (don't guess, don't retry variations)
 
@@ -353,9 +437,10 @@ The compiler rejects these every time; write against the documented shapes above
 
 - \`FieldInput\` / \`FieldTextarea\` / \`FieldSelect\` / \`FieldSwitch\` **require \`label\`** — TS2741 if omitted. Label-less control → \`FilterField\` or \`SearchInput\`.
 - Full-height layout: \`fill\` lives on \`Page\` (paired with \`AppShell contentFill\`) — there is no \`fill\` on \`Section\` or \`AppShell\`.
-- \`WorkforceSelector\` (chat subpath / root) is a **controlled** picker: \`workforces\` (e.g. from \`useWorkforces()\`), \`value\`, \`onChange(id)\`, optional \`hideWhenSingle\` / \`placeholder\`. It does **not** fetch and has no \`workforceId\` prop — for an embedded assistant use \`AppChatPanel workforceId="…"\`.
+- \`WorkforceSelector\` (chat subpath / root) is a **controlled** picker: \`workforces\` (e.g. from \`useWorkforces()\`), \`value\`, \`onChange(id)\`, optional \`hideWhenSingle\` / \`placeholder\`. It does **not** fetch and has no \`workforceId\` prop — for a floating assistant use \`AppCopilot workforceId="…"\`.
 - There is **no \`Tabs\` export** — section switching uses \`SubNav\` or \`PillSegmentedTabs\`.
 - \`Banner\` and \`Timeline\` exist (see menu) — import them from \`/app\`, \`/ui\`, or the root.
+- **Import from the right subpath — verify, don't guess.** App-kit **surfaces** (\`StatusBadge\`, \`StatusDot\`, \`EmptyState\`, \`StatTile\`, \`MetricRow\`, \`DataTable\`, \`Page\`, \`Section\`, \`AppShell\`, the blocks) live in **\`/app\`** (or the root), **not** \`/ui\`. \`/ui\` is base primitives (\`Button\`, \`Input\`, \`Select\`, \`Dialog\`, \`Sheet\`, \`Badge\`, …). A wrong subpath import (e.g. \`StatusBadge\` from \`/ui\`) is a runtime "does not provide an export" crash → blank page. When unsure, use the package **root** (\`@timbal-ai/timbal-react\`) which re-exports everything, or check the exact \`importFrom\` in \`APP_KIT_CATALOG\` before writing the import.
 - If a prop still type-errors, read the actual definitions in \`node_modules/@timbal-ai/timbal-react/dist/app.d.ts\` once instead of retrying guessed prop names.
 
 ### Rules

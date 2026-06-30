@@ -57,6 +57,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@assistant-ui/react@0.12.21": "patches/@assistant-ui%2Freact@0.12.21.patch",
+  },
   "overrides": {
     "immer": ">=11.0.1",
   },

@@ -19,7 +19,7 @@ import type { WorkforceItem } from "@timbal-ai/timbal-sdk";
  *   { id: "settings", name: "Settings", icon: <Settings /> },
  * ];
  *
- * <StudioSidebar workforces={items} selectedId={view} onSelect={setView} />
+ * <StudioSidebar items={items} selectedId={view} onSelect={setView} />
  * ```
  */
 export type StudioSidebarItem = WorkforceItem & { icon?: ReactNode };

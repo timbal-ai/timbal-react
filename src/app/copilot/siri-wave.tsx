@@ -2,9 +2,7 @@
 
 import * as React from "react"
 
-// In a standard shadcn project, this imports from "@/lib/utils". 
-// For this project, we can import from the relative path to utils.
-import { cn } from "../../src/utils"
+import { cn } from "../../utils"
 
 /**
  * Siri-style GLSL shaders rendered on a raw WebGL canvas.

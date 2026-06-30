@@ -9,7 +9,7 @@ import {
   studioTopbarPillHeightClass,
 } from "../../design/classes";
 import { STORAGE_KEYS } from "../../design/tokens";
-import { TimbalV2Button } from "../../ui/timbal-v2-button";
+import { Button } from "../../ui/button";
 
 type StoredTheme = "light" | "dark";
 
@@ -107,10 +107,10 @@ export const ModeToggle: FC<ModeToggleProps> = ({
   }, [isDark, setTheme]);
 
   return (
-    <TimbalV2Button
+    <Button
       variant="secondary"
-      size="sm"
-      isIconOnly
+      size="icon-sm"
+      shape="pill"
       onClick={onClick}
       className={cn(
         studioTopbarPillHeightClass,
@@ -124,6 +124,6 @@ export const ModeToggle: FC<ModeToggleProps> = ({
       <Sun className="size-3.5 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
       <Moon className="absolute size-3.5 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
       <span className="sr-only">{label}</span>
-    </TimbalV2Button>
+    </Button>
   );
 };

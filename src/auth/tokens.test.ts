@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { describe, it, expect, beforeEach, afterEach, mock } from "bun:test";
 import {
   getAccessToken,
   setAccessToken,
@@ -7,11 +7,18 @@ import {
   clearTokens,
   authFetch,
   refreshAccessToken,
+  setAuthBaseUrl,
+  getAuthBaseUrl,
 } from "./tokens";
 
 beforeEach(() => {
   clearTokens();
   localStorage.clear();
+});
+
+afterEach(() => {
+  // Reset the module-level base so tests stay isolated.
+  setAuthBaseUrl("/api");
 });
 
 // ---------------------------------------------------------------------------
@@ -179,5 +186,35 @@ describe("refreshAccessToken", () => {
     const result = await refreshAccessToken();
     expect(result).toBe(false);
     expect(getAccessToken()).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Configurable base path
+// ---------------------------------------------------------------------------
+
+describe("setAuthBaseUrl / getAuthBaseUrl", () => {
+  it("defaults to /api", () => {
+    expect(getAuthBaseUrl()).toBe("/api");
+  });
+
+  it("strips a trailing slash", () => {
+    setAuthBaseUrl("/custom/");
+    expect(getAuthBaseUrl()).toBe("/custom");
+  });
+
+  it("routes refresh through the configured base", async () => {
+    setAuthBaseUrl("/custom");
+    localStorage.setItem("timbal_project_refresh_token", "refresh");
+
+    let calledUrl = "";
+    globalThis.fetch = mock(async (url: string | URL | Request) => {
+      calledUrl = String(url);
+      return new Response(JSON.stringify({ access_token: "fresh" }), { status: 200 });
+    });
+
+    await refreshAccessToken();
+
+    expect(calledUrl).toBe("/custom/auth/refresh");
   });
 });

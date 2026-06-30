@@ -235,7 +235,7 @@ export interface StudioSidebarProps {
    *   sidebar={
    *     <StudioSidebar
    *       brand={<span className="text-sm font-semibold">SOC</span>}
-   *       workforces={[
+   *       items={[
    *         { id: "dashboard", name: "Dashboard", icon: <LayoutDashboard /> },
    *         { id: "inbox", name: "Alert inbox", icon: <Inbox /> },
    *         { id: "assets", name: "Asset inventory", icon: <Boxes /> },
@@ -248,6 +248,12 @@ export interface StudioSidebarProps {
    *   …
    * </AppShell>
    * ```
+   */
+  items?: StudioSidebarItem[];
+  /**
+   * @deprecated Use `items`. Retained for back-compat — `items` takes
+   * precedence when both are supplied. The sidebar is general nav now, not
+   * only a workforce picker.
    */
   workforces?: StudioSidebarItem[];
   selectedId?: string;
@@ -287,6 +293,7 @@ export interface StudioSidebarProps {
  * `TimbalStudioShell`.
  */
 export const StudioSidebar: FC<StudioSidebarProps> = ({
+  items: itemsProp,
   workforces: workforcesProp,
   selectedId: selectedIdProp,
   onSelect,
@@ -302,8 +309,10 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
 }) => {
   const reducedMotion = useReducedMotion();
 
-  const fetched = useWorkforces({ enabled: workforcesProp === undefined });
-  const workforces = workforcesProp ?? fetched.workforces;
+  // `items` is the canonical prop; `workforces` is a deprecated alias.
+  const providedItems = itemsProp ?? workforcesProp;
+  const fetched = useWorkforces({ enabled: providedItems === undefined });
+  const workforces = providedItems ?? fetched.workforces;
 
   const [internalSelected, setInternalSelected] = useState<string>(
     selectedIdProp ?? "",

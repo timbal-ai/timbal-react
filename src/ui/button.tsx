@@ -144,9 +144,9 @@ export interface ButtonProps
  * "link" | "destructive" …), `iconLeading`/`iconTrailing`, `isLoading`, and
  * `asChild` (render as a link).
  *
- * Prefer `Button` over the specialized variants: `TimbalV2Button` is the
- * pill/gradient button used by chat & studio chrome, and `UntitledButton` is a
- * lower-level skin — reach for those only when matching that specific chrome.
+ * This is the single button for the whole package — chat, studio, and app-kit
+ * surfaces all use it. For a fully-rounded pill (chat/studio chrome) pass
+ * `shape="pill"`; for an icon-only button use `size="icon" | "icon-sm" | …`.
  *
  * @example
  * ```tsx
@@ -155,22 +155,26 @@ export interface ButtonProps
  * <Button asChild><a href="/docs">Docs</a></Button>
  * ```
  */
-export function Button({
-  className,
-  variant,
-  color,
-  size,
-  shape,
-  iconLeading,
-  iconTrailing,
-  isLoading = false,
-  asChild = false,
-  disabled,
-  type = "button",
-  children,
-  ...props
-}: ButtonProps) {
-  const isDisabled = disabled || isLoading;
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  function Button(
+    {
+      className,
+      variant,
+      color,
+      size,
+      shape,
+      iconLeading,
+      iconTrailing,
+      isLoading = false,
+      asChild = false,
+      disabled,
+      type = "button",
+      children,
+      ...props
+    },
+    ref,
+  ) {
+    const isDisabled = disabled || isLoading;
 
   // Resolve color variant
   let resolvedColor: ButtonColor = "primary";
@@ -197,6 +201,7 @@ export function Button({
   if (asChild) {
     return (
       <Slot.Root
+        ref={ref}
         className={classes}
         aria-disabled={isDisabled ? true : undefined}
         data-slot="button"
@@ -210,6 +215,7 @@ export function Button({
 
   return (
     <button
+      ref={ref}
       type={type}
       disabled={isDisabled}
       data-slot="button"
@@ -229,4 +235,5 @@ export function Button({
       {!isLoading ? iconTrailing : null}
     </button>
   );
-}
+  },
+);

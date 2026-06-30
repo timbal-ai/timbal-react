@@ -4,31 +4,287 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
-## [1.8.0] — 2026-06-28
+## [3.0.0] — 2026-06-30
 
-Sidebar + anti-slop hardening: close the gap that let a codegen agent ship a
-hand-rolled neon "SOC" dashboard (custom nav rail, a topbar it was told not to
-add, glow shadows, hand-painted dark tokens, UPPERCASE chrome). The package now
-makes the canonical path the *only* easy path and rejects the slop with the lint
-gate instead of relying on prose the agent skipped.
+One button for the whole package. `TimbalV2Button` is gone — every chat, studio,
+and app-kit surface now renders the single `Button` component, so generated apps
+can no longer accidentally mix two button systems (the bug that produced
+mismatched "Cancel" / "Save" footers).
 
-### Added
+### Breaking
 
-- **`StudioSidebar` nav items take an optional `icon`** — items are now `{ id, name, icon? }` (new exported `StudioSidebarItem` type). The icon renders inline when expanded and as the rail glyph when collapsed (falling back to the initial). This removes the only real reason agents hand-rolled a custom sidebar: "I need per-item icons." `StudioSidebar` is now a first-class app route-nav sidebar, not just an agent picker. Fully backward compatible — existing `WorkforceItem[]` callers are unchanged.
-- **Four hard-error lint rules** (`lintGeneratedUi`), each mirrored in `HOUSE_RULES` so the prompt teaches what the gate enforces:
-  - `no-glow` — neon/glow shadows (`shadow-[0_0_…]`, `drop-shadow-[0_0_…]`), the canonical "cyberpunk AI dashboard" tell. Offset drop shadows and `shadow-card` are unaffected.
-  - `no-custom-shell-chrome` — a hand-rolled topbar (`AppShellSidebarTrigger` is unnecessary — `AppShell` renders the mobile menu itself) or a hand-rolled `<nav>`/`<aside>` rail (`flex-col` + fixed rail width). Use `AppShell sidebar={<StudioSidebar … />}`.
-  - `no-uppercase-heading` — `uppercase` on `<h1>`–`<h3>` or large text. Small `text-xs uppercase tracking-wide` eyebrows are intentionally allowed.
-  - `theme-via-generator` — `forcedTheme` or hand-authored theme token values (`--background: oklch(…)`, `--sidebar-bg: #…`). Brand via `createTimbalTheme({ brand })` instead.
+- **Removed `TimbalV2Button`** (and its internal `TimbalV2ButtonProps`). It is no
+  longer exported from the package root or `/ui`. Migrate to `Button`:
+  - `variant="primary"` → `color="primary"` (or `variant="default"`)
+  - `variant="secondary"` → `variant="secondary"`
+  - `variant="ghost"` → `variant="ghost"`
+  - `variant="destructive"` → `color="primary-destructive"`
+  - `isIconOnly` + `size="sm"` → `size="icon-sm"` (use `icon-xs` / `icon` / `icon-lg` for other sizes)
+  - `fullWidth` → `className="w-full"`
+  - For the fully-rounded pill look (chat/studio chrome), add `shape="pill"`.
+  `Button` keeps `isLoading`, `asChild`, `iconLeading`/`iconTrailing`, and the
+  legacy `variant` aliases.
 
 ### Changed
 
-- **`APP_KIT_AGENT_INSTRUCTIONS` rewired around the shell** — new **Shell & navigation** section: sidebar = `StudioSidebar` with `{ id, name, icon? }` items + a copyable example; **no topbar by default** (AppShell renders the mobile menu); never hand-roll a rail or topbar. The "Sidebar dashboard" archetype, the Layout-chrome rule, the new Theme rule, and the `AppShell`/`StudioSidebar` menu entries all state this explicitly and name the linting rule that enforces it.
-- **Recipes + reference model the pattern** — `sidebar-dashboard` recipe, the `operations-dashboard` reference, and the blueprint `AppKitDemo` now pass icon nav items (and a `brand`), demonstrating route nav with icons and zero topbar.
+- **All internal `TimbalV2Button` usages migrated to `Button`** with `shape="pill"`
+  to preserve the rounded chat/studio chrome: composer send/cancel and the
+  message edit-composer, the studio mode toggle and mobile menu trigger,
+  `AppShellChatTrigger`, `AppConfirmDialog`, the multi-select question artifact
+  confirm, and `TooltipIconButton`.
+- **`TooltipIconButton`** now wraps `Button` (as a `size="icon-sm"`,
+  `shape="pill"` button) and exposes a stable `variant` union
+  (`TooltipIconButtonVariant`: `primary | secondary | ghost | informative |
+  destructive`) mapped onto `Button`'s color system — existing
+  `variant="primary"` / `"secondary"` call sites keep working.
+
+### Kept
+
+- The `TIMBAL_V2_*` **surface** token records (modal/card/switch/avatar chrome,
+  e.g. `TIMBAL_V2_MODAL_SURFACE`, `TIMBAL_V2_ELEVATED_SURFACE`,
+  `TIMBAL_V2_SECONDARY_PILL_ROOT`) remain public — only the button component was
+  removed. They are still used by `Dialog`, `Card`, `Switch`, `Avatar`, and the
+  integration/catalog surfaces.
+
+## [2.0.1] — 2026-06-30
+
+Codegen guardrails and agent guidance to stop recurring dashboard anti-patterns
+(hand-rolled topbars, coach panels, and broken chart colors), plus a Sheet
+mobile-scroll polish.
+
+### Added
+
+- **`no-custom-shell-chrome` now rejects `AppShell topbar={…}`** — the linter
+  previously only caught hand-rolled `<nav>`/`<aside>` rails and
+  `AppShellSidebarTrigger`. Passing a global topbar (e.g. an "AI Coach" button +
+  theme toggle) now hard-fails with a message pointing to `Page.actions` and
+  `<AppCopilot>`.
+- **`chart-data-key` lint rule** — flags a chart series `dataKey` containing a
+  space or `%`. The chart layer maps each `dataKey` to `--color-<dataKey>`, so an
+  unsafe key (`"Water %"`) produces invalid CSS and the series renders black. The
+  fix is a safe identifier key + a separate `label`
+  (`{ dataKey: "waterPct", label: "Water %" }`). Added as a `HOUSE_RULE`, so it
+  also appears in `APP_KIT_AGENT_INSTRUCTIONS` / `UI_REVIEW_AGENT_INSTRUCTIONS`.
+- **Agent-instruction guards for recurring runtime bugs** — `APP_KIT_AGENT_INSTRUCTIONS`
+  now documents: import-subpath verification (app-kit surfaces like `StatusBadge`
+  are `/app`, not `/ui` — a wrong subpath is a runtime blank-page crash);
+  the `AppCopilotProvider` prop contract (`value`, not `context`, and redundant
+  when `<AppCopilot>` is already mounted); the chart `dataKey` safe-identifier
+  rule; and a "never swallow fetch errors / verify queries return rows" data-loading
+  note.
+- **`APP_KIT_AGENT_INSTRUCTIONS` — copilot + chart recipes** — documents the
+  self-mounting `<AppCopilot>` pattern (`CopilotProvider` + `useCopilot()` +
+  `hideTrigger`, `suggestions` for quick-action chips) so agents stop hand-rolling
+  `Sheet` + `TimbalChat` coach panels; adds dual-metric/correlation chart
+  guidance (multi-series `ChartArtifact` / `LineAreaChart`, normalize + tooltip —
+  not raw recharts dual axes); and surfaces the **chart color-token contract**
+  (`var(--chart-N)` directly — never `hsl(var(--chart-N))`, which renders
+  black/empty charts).
+- **`APP_KIT_CATALOG` — `AppShell` description** no longer advertises a topbar.
+
+### Changed
+
+- **Topbar guidance is now "never"** — agent instructions and catalog prose
+  aligned with the linter: global actions belong in `Page.actions` or the
+  sidebar; an in-app assistant is `<AppCopilot>`, not a topbar button.
+
+### Fixed
+
+- **`SheetContent` mobile scroll** — drawer body is now `min-h-0 flex-col
+  overflow-y-auto` with scrollbar chrome hidden on small viewports so touch
+  scrolling works without a visible track.
+
+## [2.0.0] — 2026-06-30
+
+A clarity + agent-reuse cleanup. The assistant is now a **self-contained drop-in
+component**, common sections ship as **importable, forkable blocks** indexed by a
+**machine-readable catalog**, and the root export is a **deterministic mirror of
+the subpaths** (no more hand-maintained drift). Chat auto-scroll no longer fights
+the composer. Breaking changes are limited to the copilot's `AppShell` coupling;
+deprecated aliases ease the migration.
+
+### Breaking
+
+- **`AppShell` is layout-only — all `chat*` props removed.** The copilot is no
+  longer wired through `AppShell`. Removed props: `chat`, `chatTriggerLabel`,
+  `chatCollapsible`, `chatWidth`, `chatHeight`, `chatExpanded`,
+  `defaultChatExpanded`, `onChatExpandedChange`, `hideChatTrigger`, and related.
+  Render `<AppCopilot />` anywhere instead (see migration below).
+
+### Added
+
+- **`<AppCopilot>` — self-contained floating copilot** (`src/app/copilot/`). Drop
+  it anywhere; it `createPortal`s its own fixed glass panel + SiriWave trigger to
+  `document.body`, owns its open/expand state (or accepts controlled
+  `open`/`onOpenChange`/`expanded` props), takes a `context` prop for agent
+  tooling, and mounts the runtime — no `AppShell` wiring. `CopilotProvider` +
+  `useCopilot()` drive custom triggers anywhere in the tree. Also exports
+  `CopilotPanel`, `CopilotOverlay`, `SiriWave`.
+- **Importable, forkable blocks** (`src/app/blocks/`, exported from `/app`):
+  `FilteredDataTable`, `StatGrid`, `IntegrationsGrid`, `ResourceGallery`,
+  `SettingsLayout` — prop-driven sections promoted from the best recipes, each
+  with a `source` ref in the catalog so agents can fork.
+- **`APP_KIT_CATALOG` + `getCatalogEntry`** (`src/app/catalog.ts`) — a
+  machine-readable index of every primitive + block with an exact `importFrom`
+  path, `exports`, and (for blocks) `composedOf` + `source`. The block/primitive
+  listing inside `APP_KIT_AGENT_INSTRUCTIONS` is now **generated from this
+  catalog**, so import paths can't drift from the prose. A contract test asserts
+  every entry resolves to a real export.
+- **Root export gaps closed** — `AlertCard`, `CatalogCard`, the density API
+  (`AppDensityProvider`, `useAppDensity`, `appDensityClass`, …), the app layout
+  class helpers (`appPageColumnClass`, …), the `/ui` chart primitives
+  (`ChartContainer`, `ChartTooltip`, …), and `TimbalV2Button` are now reachable
+  from the package root, matching the subpaths.
+- **Thread scroll knobs** — `Thread`, `TimbalChat`, and `CopilotPanel` pass
+  through `autoScroll`, `scrollToBottomOnRunStart`, `scrollToBottomOnInitialize`,
+  and `scrollToBottomOnThreadSwitch` to the underlying viewport. Defaults are
+  unchanged (auto-follow on), so this is an opt-in escape hatch.
+
+### Changed
+
+- **Deterministic root export** — `src/index.ts` now `export *`s each subpath
+  barrel (`./ui`, `./chat`, `./studio`, `./app`, `./site`, `./artifacts`) plus
+  root-only modules, with a small collision-overrides block pinning the names
+  `/app` re-exports from `/ui` · `/chat` · `/artifacts` to a single source
+  (`BreadcrumbItem` stays the `/ui` component; `/app`'s data type is
+  `AppBreadcrumbItem`). To expose a new public symbol, add it to its
+  `src/<area>/index.ts` — the root picks it up automatically.
+- **`UI_REVIEW_AGENT_INSTRUCTIONS` + the `reviewGeneratedUi` revision prompt** are
+  now generated from `HOUSE_RULES` (single source of truth), like the anti-slop
+  checklist in `APP_KIT_AGENT_INSTRUCTIONS`.
+- **`SiriWave` moved into the package** (`src/app/copilot/siri-wave.tsx`) — it
+  previously lived outside `src/` (`components/ui/`). Nothing public lives outside
+  `src/` anymore.
+- **Docs/guidance consolidated** — README copilot section rewritten around
+  `<AppCopilot>` (no topbar contradiction); recipe paths corrected to
+  `examples/app-kit/src/recipes/`; SKILL.md documents the copilot/blocks/catalog
+  subsystems + the root-as-subpaths export strategy; AGENTS.md points at the
+  catalog + blocks; the generic `spacing-system` skill was removed in favor of a
+  Timbal-token spacing note in SKILL.md.
+- **Examples migrated** — `copilot-overlay` recipe and the `operations-dashboard`
+  reference use `<AppCopilot>`.
+
+### Fixed
+
+- **Chat auto-scroll no longer fights the composer (P6).** The composer textarea
+  grows with CSS `field-sizing: content` instead of JS-driven
+  `react-textarea-autosize`, so typing/resizing it produces no JS height writes
+  for the viewport's resize/mutation observers to react to — the "scroll yanks to
+  bottom while typing" behavior is gone, with no layout change. Apps no longer
+  need a `useChatScrollLock`-style workaround.
+- **Upstream `useThreadViewportAutoScroll` patch** (`patches/`) — scrolling **up**
+  now cancels a pending auto-scroll (`scrollingToBottomBehaviorRef`) instead of
+  ignoring the scroll while one is in flight, so reading back through history no
+  longer snaps you to the bottom. Shipped as a local `bun` patch for dev/tests;
+  the same diff is intended for upstream (`@assistant-ui/react` is a peer
+  dependency).
+
+### Deprecated (removed next major)
+
+- `AppChatPanel` → use `CopilotPanel` (or just `<AppCopilot />`).
+- `useAppShellChat` → use `useCopilot`.
+- `AppShellChatControls` type → `CopilotControls`.
+- `AppCopilotProvider` page-context provider still works; for open/expand state
+  prefer `<CopilotProvider>` / `<AppCopilot context={…} />`.
+
+### Migration (1.x → 2.0)
+
+Replace the `AppShell` `chat*` wiring with a sibling `<AppCopilot>`:
+
+```diff
+- <AppCopilotProvider value={{ page: "Operations" }}>
+-   <AppShell
+-     sidebar={<StudioSidebar … />}
+-     chat={<AppChatPanel workforceId="ops" suggestions={…} />}
+-     chatTriggerLabel="Assistant"
+-     chatCollapsible
+-   >
+-     <Page title="Operations">{/* … */}</Page>
+-   </AppShell>
+- </AppCopilotProvider>
++ <>
++   <AppShell sidebar={<StudioSidebar … />}>
++     <Page title="Operations" actions={<ModeToggle />}>{/* … */}</Page>
++   </AppShell>
++   <AppCopilot
++     workforceId="ops"
++     context={{ page: "Operations" }}
++     triggerLabel="Assistant"
++     suggestions={…}
++   />
++ </>
+```
+
+- Custom triggers: wrap in `<CopilotProvider>` and call `useCopilot()?.setOpen(true)`,
+  or drive `<AppCopilot open onOpenChange hideTrigger />` directly.
+- Global actions that used a topbar move to `Page.actions`.
+- Imports keep working via deprecated aliases for one major; switch
+  `AppChatPanel`→`CopilotPanel` and `useAppShellChat`→`useCopilot` at your leisure.
+
+## [1.9.1] — 2026-06-29
+
+### Fixed
+
+- **Assistant action-bar “More” menu** — the “Export as Markdown” dropdown rendered behind the floating copilot panel (`z-50` vs shell `z-[70]`). Raised the menu to `z-[80]` so the option is visible when opened.
+
+## [1.9.0] — 2026-06-29
+
+API-naming reconciliation so codegen agents stop hitting `tsc` retry loops on the
+shapes the docs already describe. All three changes are additive and backward
+compatible.
+
+### Added
+
+- **`StudioSidebar` `items` prop** — the canonical nav prop is now `items` (`StudioSidebarItem[]`), matching `APP_KIT_AGENT_INSTRUCTIONS` and the skill docs. `workforces` is retained as a **deprecated alias** (it still works; `items` wins when both are passed), reflecting that the sidebar is general route nav, not only a workforce picker.
+- **`Section` `actions` slot** — `Section` now accepts a right-aligned `actions` node on its header row (e.g. a "Refresh" button), mirroring `Page` `actions`. Previously this content had to be placed inline in the body.
+- **`useLiveQuery().refresh`** — alias of `refetch`, matching the `refresh` naming used by the other data hooks (`useWorkforces`, `useConversations`, `useConversation`). Both names are returned.
+
+### Changed
+
+- **`APP_KIT_AGENT_INSTRUCTIONS`** — documents `StudioSidebar items` (with `workforces` noted as deprecated) and the `Section actions` slot; the embedded example uses `items`.
+
+## [1.8.0] — 2026-06-28
+
+Conversation history for app runs, a glass copilot shell, and sidebar + anti-slop
+hardening. Host apps can list past threads, reopen one in `<Thread>`, and continue
+it; `AppChatPanel` / `AppShell` ship an Apple-style liquid-glass copilot with a
+built-in history menu. Sidebar icons and four new lint gates close the gap that let
+codegen agents ship hand-rolled neon dashboards.
+
+### Added
+
+- **Conversation history (app runs)** — data layer + hooks to list thread roots and hydrate a full conversation from stored run traces:
+  - `listRuns`, `getRun`, `orderRunsForThread`, `isRootRun`, `runParentId` (`src/runtime/conversations.ts`)
+  - `runTraceToMessages`, `conversationRunsToMessages`, `normalizeContentToText` (`src/runtime/trace-to-messages.ts`) — rebuild text, thinking, tool calls (with results), and attachments per turn
+  - `useConversations` — paginated thread-root list scoped to a `workforceId`
+  - `useConversation` — fetch every turn in a thread, hydrate traces, return `<Thread>`-ready `ChatMessage[]` (with `truncated` when over `maxTurns`)
+  - `useTimbalRuntime().loadMessages(messages)` — replace runtime messages to reopen a stored thread; the last assistant `runId` becomes the parent for the next send
+  - Exported from the package root and `./chat`; README documents the host `{baseUrl}/runs` proxy requirement
+- **`AppChatPanel` conversation menu** — lists past threads for the panel's `workforceId`, reopens one by hydrating its traces into the live runtime, and starts a fresh thread via `clear`. Glass-styled composer (attachment chips, collapsible suggestions, send/cancel controls) tuned for the dark copilot panel.
+- **Liquid-glass copilot shell (`AppShell`)** — floating panel uses a vibrancy gradient + backdrop blur; expand/collapse via `chatExpanded` / `defaultChatExpanded` / `onChatExpandedChange` and `useAppShellChat().setExpanded`. Launcher trigger is a `liquid-glass-react` pill with an animated `SiriWave` glyph (no MessageSquare icon).
+- **`StudioSidebar` nav items take an optional `icon`** — items are now `{ id, name, icon? }` (new exported `StudioSidebarItem` type). The icon renders inline when expanded and as the rail glyph when collapsed (falling back to the initial). Fully backward compatible — existing `WorkforceItem[]` callers are unchanged.
+- **Five hard-error lint rules** (`lintGeneratedUi`), each mirrored in `HOUSE_RULES`:
+  - `no-glow` — neon/glow shadows (`shadow-[0_0_…]`, `drop-shadow-[0_0_…]`). Offset drop shadows and `shadow-card` are unaffected.
+  - `no-custom-shell-chrome` — a hand-rolled topbar (`AppShellSidebarTrigger` is unnecessary) or a hand-rolled `<nav>`/`<aside>` rail. Use `AppShell sidebar={<StudioSidebar … />}`.
+  - `no-uppercase-heading` — `uppercase` on `<h1>`–`<h3>` or large text. Small `text-xs uppercase tracking-wide` eyebrows are allowed.
+  - `theme-via-generator` — `forcedTheme` or hand-authored theme token values. Brand via `createTimbalTheme({ brand })` instead.
+  - `no-chat-wrapping` — `TimbalChat` / `AppChatPanel` wrapped in `Card`, `Section`, or custom bordered containers (or redundant heading/status chrome above the chat).
+
+### Changed
+
+- **`APP_KIT_AGENT_INSTRUCTIONS` rewired around the shell** — new **Shell & navigation** section; documents the no-topbar default, `StudioSidebar` icon nav, and the chat-wrapping rule.
+- **Recipes + reference model the pattern** — `sidebar-dashboard` recipe, the `operations-dashboard` reference, and the blueprint `AppKitDemo` now pass icon nav items (and a `brand`).
+- **`StudioSidebar` user menu** — profile dropdown restyled to match the glass history menu pattern.
+- **README** — simplified `AppShell` + `StudioSidebar` mobile-nav example (no manual `useAppShellNav` wiring); new **Conversation history** section with hook examples and lower-level API table.
+
+### Dependencies
+
+- **`liquid-glass-react`** — used for the copilot launcher pill (`AppShell`).
 
 ### Tooling
 
-- Anti-drift test asserts `StudioSidebarItem` accepts `{ id, name, icon }` at the type level, so the icon slot can't silently regress.
+- `trace-to-messages.test.ts` — turn + thread reconstruction from sample traces.
+- Anti-drift test asserts `StudioSidebarItem` accepts `{ id, name, icon }` at the type level.
 
 ## [1.7.0] — 2026-06-28
 

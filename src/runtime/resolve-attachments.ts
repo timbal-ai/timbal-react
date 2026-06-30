@@ -17,7 +17,7 @@ export type TimbalAttachmentsConfig = {
  * - `{ uploadUrl?, accept? }` — same adapter with overrides
  * - `AttachmentAdapter` — fully custom (e.g. presigned S3)
  * - `null` — disable attachments (no `+` button / dropzone wiring)
- * - `undefined` — off unless legacy `attachmentsUploadUrl` / `attachmentsAccept` are set
+ * - `undefined` — ON by default (built-in upload adapter). Pass `null` to opt out.
  */
 export type TimbalAttachmentsProp =
   | boolean
@@ -61,8 +61,10 @@ export function resolveAttachmentAdapter(
   const legacyEnables =
     legacyUploadUrl !== undefined || legacyAccept !== undefined;
 
+  // Default ON: when the consumer doesn't say anything, wire the built-in
+  // upload adapter so the composer `+` button + dropzone work out of the box.
+  // Opt out explicitly with `attachments={null}`.
   if (attachments === undefined) {
-    if (!legacyEnables) return undefined;
     return createDefaultAttachmentAdapter({
       baseUrl,
       fetch: options.fetch,
