@@ -4,6 +4,41 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **`createTimbalTheme` intent grew four fields** so reference-matching a design
+  never requires hand-authored tokens:
+  - `overrides` — one-off token overrides, **token-referential only**
+    (`var(--token)` / `color-mix(in oklab, …)`; literal colors throw with a
+    teaching error). Flat map applies to both modes; `{ light, dark, root }`
+    form for deliberate asymmetry. Overrides pass the `timbal-ui-lint` gate by
+    construction.
+  - `chartPalette` — up to 6 intent colors mapped to `--chart-1..6`, adapted
+    per mode (dark series brightened for contrast). Exempt from the
+    `color-literal` lint rule like `brand`/`accent`, including
+    formatter-wrapped multi-line arrays.
+  - `surfaces: "panel" | "console"` — `"console"` flattens the sidebar into the
+    background, brand-tints the active nav item, points `--chart-1` at the
+    brand, and defaults shadows to hairline.
+  - `defaultMode: "light" | "dark"` — dark-first intent, passed through on the
+    returned tokens; wire as `defaultTheme={theme.defaultMode ?? "light"}`.
+- **`--sidebar-active` / `--sidebar-active-foreground` tokens** — the
+  `StudioSidebar` active nav item (expanded and collapsed rail) now renders
+  through these tokens (default preserves the shipped elevated-gradient look).
+  Overriding `--sidebar-active: var(--sidebar-accent)` yields a flat accent
+  fill — no more `nav[aria-label]` CSS hooks to restyle the active state.
+- New exported types: `TimbalThemeOverrides`, `ThemeSurfaces`, `ThemeMode`.
+
+### Changed
+
+- `color-literal` / `theme-via-generator` / `forcedTheme` lint messages now
+  teach the sanctioned escape hatches (intent fields, `overrides`,
+  `var()`/`color-mix()`) instead of only naming the violation, and warn against
+  pasting `themeToCss` output into gated app CSS.
+- `THEME_AGENT_INSTRUCTIONS` rewritten around the richer intent object: the
+  golden rule is now "literals only as intent", runtime `applyTimbalTheme` is
+  the default apply path, and dark-first wiring goes through `defaultMode`.
+
 ## [3.0.0] — 2026-06-30
 
 One button for the whole package. `TimbalV2Button` is gone — every chat, studio,

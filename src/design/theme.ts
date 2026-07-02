@@ -31,6 +31,36 @@ import {
 /** CSS variable name → value. */
 export type ThemeTokenMap = Record<string, string>;
 
+/** Color-scheme identifier — the value `next-themes` calls a theme. */
+export type ThemeMode = "light" | "dark";
+
+/**
+ * Per-mode token overrides for {@link TimbalThemeIntent.overrides}. Prefer the
+ * flat `ThemeTokenMap` form (applied to both modes) — token-referential values
+ * resolve per-mode by construction, so a single declaration usually suffices.
+ */
+export interface TimbalThemeOverrides {
+  /** Overrides applied in `:root` (light mode) only. */
+  light?: ThemeTokenMap;
+  /** Overrides applied in `.dark` only. */
+  dark?: ThemeTokenMap;
+  /** Mode-independent overrides (dimensions, fonts, radii). */
+  root?: ThemeTokenMap;
+}
+
+/**
+ * Surface treatment for app chrome.
+ *
+ * - `"panel"` (default) — the shipped look: sidebar on its own tinted panel,
+ *   elevated-gradient active states.
+ * - `"console"` — flat, dense, ops/terminal look: the sidebar merges into the
+ *   page background, the active nav item is a brand-tinted flat fill, charts
+ *   lead with the brand color, and shadows drop to hairline (unless the intent
+ *   sets `shadow` explicitly). Pair with `defaultMode: "dark"` for dark-first
+ *   consoles.
+ */
+export type ThemeSurfaces = "panel" | "console";
+
 export interface TimbalThemeTokens {
   /** Variables applied in `:root` (light mode). */
   light: ThemeTokenMap;
@@ -38,6 +68,11 @@ export interface TimbalThemeTokens {
   dark: ThemeTokenMap;
   /** Mode-independent variables (e.g. `--radius`, `--font-sans`) applied once in `:root`. */
   root?: ThemeTokenMap;
+  /**
+   * The mode the app is designed to open in. Not applied by the serializer —
+   * wire it into the theme provider: `defaultTheme={theme.defaultMode ?? "light"}`.
+   */
+  defaultMode?: ThemeMode;
   /**
    * Font stack applied as `font-family` on the theme scope (and `body`), so
    * every component re-skins. Set independently of the `--font-*` vars so the
@@ -86,6 +121,30 @@ export interface TimbalThemeIntent {
   typography?: TimbalThemeTypography;
   /** Shadow weight for cards / elevated surfaces. Default keeps the shipped `medium`. */
   shadow?: ThemeShadow;
+  /** Chrome treatment — `"panel"` (shipped default) or the flat `"console"` look. */
+  surfaces?: ThemeSurfaces;
+  /**
+   * Chart series palette — up to 6 CSS colors mapped to `--chart-1..6` (extras
+   * are ignored). Like `brand`/`accent`, these are *intent* literals: the
+   * generator adapts each for light and dark surfaces. Keep the array on one
+   * line so the lint gate recognizes it as theme intent.
+   */
+  chartPalette?: string[];
+  /**
+   * One-off token overrides for cases the generator doesn't model. Values must
+   * be **token-referential** — composed from existing tokens via `var(--token)`
+   * / `color-mix(in oklab, var(--a) N%, var(--b))` — never literal colors
+   * (those belong in `brand` / `accent` / `chartPalette`; a literal here
+   * throws). The flat map form applies to both modes, which is almost always
+   * what a token-referential override wants.
+   */
+  overrides?: ThemeTokenMap | TimbalThemeOverrides;
+  /**
+   * The mode the app is designed to open in — `"dark"` for dark-first console
+   * apps. Passed through on the returned tokens; wire it as
+   * `defaultTheme={theme.defaultMode ?? "light"}` on the theme provider.
+   */
+  defaultMode?: ThemeMode;
 }
 
 // Card / elevated shadow presets per weight, paired light + dark. `medium` is
@@ -125,6 +184,70 @@ const SHADOW_PRESETS: Record<
     darkElevated: "0 18px 50px rgba(0, 0, 0, 0.6)",
   },
 };
+
+/**
+ * The `"console"` surface treatment, expressed purely in terms of other tokens
+ * so it composes with whatever the brand derivation produced (and stays valid
+ * in both modes from a single declaration).
+ */
+const CONSOLE_SURFACE_TOKENS: ThemeTokenMap = {
+  "--sidebar": "var(--background)",
+  "--sidebar-accent": "color-mix(in oklab, var(--primary) 12%, var(--background))",
+  "--sidebar-accent-foreground": "var(--foreground)",
+  "--sidebar-active": "var(--sidebar-accent)",
+  "--sidebar-active-foreground": "var(--sidebar-accent-foreground)",
+};
+
+/**
+ * A literal color inside an override *value*: hex, or a color function opening
+ * on a numeric channel (`oklch(0.2 …)`, `rgba(0, …)`). Deliberately does NOT
+ * match token-referential composition — `var(--x)`, `color-mix(in oklab, …)`,
+ * and relative color syntax (`oklch(from var(--x) …)`) all stay allowed.
+ */
+const OVERRIDE_COLOR_LITERAL_RE =
+  /#[0-9a-fA-F]{3,8}\b|\b(?:oklch|oklab|rgba?|hsla?|hwb|lab|lch)\(\s*[\d.]/i;
+
+function assertTokenReferential(map: ThemeTokenMap, where: string): void {
+  for (const [name, value] of Object.entries(map)) {
+    if (!name.startsWith("--")) {
+      throw new TypeError(
+        `createTimbalTheme: overrides${where} key "${name}" is not a CSS custom property — keys must start with "--" (e.g. "--sidebar-active").`,
+      );
+    }
+    if (OVERRIDE_COLOR_LITERAL_RE.test(value)) {
+      throw new TypeError(
+        `createTimbalTheme: overrides${where} value for "${name}" contains a literal color (${JSON.stringify(value)}). ` +
+          `Overrides must be token-referential — compose from existing tokens with var(--token) or ` +
+          `color-mix(in oklab, var(--a) N%, var(--b)). New literal colors belong in intent: brand, accent, or chartPalette.`,
+      );
+    }
+  }
+}
+
+function normalizeOverrides(
+  overrides: ThemeTokenMap | TimbalThemeOverrides,
+): Required<Pick<TimbalThemeOverrides, "light" | "dark">> & { root: ThemeTokenMap } {
+  const keys = Object.keys(overrides);
+  const structured =
+    keys.length > 0 && keys.every((k) => k === "light" || k === "dark" || k === "root");
+  if (structured) {
+    const o = overrides as TimbalThemeOverrides;
+    return { light: o.light ?? {}, dark: o.dark ?? {}, root: o.root ?? {} };
+  }
+  // Flat map — token-referential values resolve per-mode, so one declaration
+  // covers both. Applying to light AND dark keeps the paired-key invariant.
+  const flat = overrides as ThemeTokenMap;
+  return { light: { ...flat }, dark: { ...flat }, root: {} };
+}
+
+/** Clamp an intent chart color into the lightness band that reads on each surface. */
+function chartColorForMode(color: Oklch, mode: ThemeMode): Oklch {
+  if (mode === "light") {
+    return { ...color, l: Math.min(Math.max(color.l, 0.4), 0.75) };
+  }
+  // Dark surfaces need brighter series for contrast (shipped dark palette sits ≥0.62).
+  return { ...color, l: Math.max(color.l, 0.62) };
+}
 
 // ---------------------------------------------------------------------------
 // Derivation
@@ -320,6 +443,59 @@ export function createTimbalTheme(intent: TimbalThemeIntent): TimbalThemeTokens 
     });
   }
 
+  // ── Surface treatment ─────────────────────────────────────────────────────
+  if (intent.surfaces === "console") {
+    Object.assign(light, CONSOLE_SURFACE_TOKENS);
+    Object.assign(dark, CONSOLE_SURFACE_TOKENS);
+    // Console charts lead with the brand unless the intent picks its own palette.
+    if (!intent.chartPalette?.length) {
+      light["--chart-1"] = "var(--primary)";
+      dark["--chart-1"] = "var(--primary)";
+    }
+    // Crisp, flat chrome — unless the caller expressed a shadow preference.
+    if (!intent.shadow) {
+      const s = SHADOW_PRESETS.hairline;
+      light["--shadow-card-value"] = s.lightCard;
+      light["--shadow-card-elevated-value"] = s.lightElevated;
+      dark["--shadow-card-value"] = s.darkCard;
+      dark["--shadow-card-elevated-value"] = s.darkElevated;
+    }
+  }
+
+  // ── Chart palette (intent literals, adapted per mode) ────────────────────
+  if (intent.chartPalette?.length) {
+    intent.chartPalette.slice(0, 6).forEach((value, i) => {
+      const color = parseColor(value);
+      light[`--chart-${i + 1}`] = oklchToString(chartColorForMode(color, "light"));
+      dark[`--chart-${i + 1}`] = oklchToString(chartColorForMode(color, "dark"));
+    });
+  }
+
+  // ── Token-referential overrides (personalization escape hatch) ───────────
+  if (intent.overrides) {
+    const o = normalizeOverrides(intent.overrides);
+    assertTokenReferential(o.light, ".light");
+    assertTokenReferential(o.dark, ".dark");
+    assertTokenReferential(o.root, ".root");
+    Object.assign(light, o.light);
+    Object.assign(dark, o.dark);
+    Object.assign(root, o.root);
+    if (isDev()) {
+      const halfSet = [
+        ...Object.keys(o.light).filter((k) => !(k in o.dark)),
+        ...Object.keys(o.dark).filter((k) => !(k in o.light)),
+      ];
+      if (halfSet.length > 0) {
+        console.warn(
+          `[@timbal-ai/timbal-react] createTimbalTheme: overrides set ${halfSet.join(", ")} ` +
+            `in only one mode. styles.css defines most tokens in both :root and .dark, so a ` +
+            `one-mode override is usually shadowed in the other mode — prefer the flat map form ` +
+            `(applied to both) unless the asymmetry is deliberate.`,
+        );
+      }
+    }
+  }
+
   // ── Dev-only low-contrast warning ─────────────────────────────────────────
   if (isDev()) {
     const lum = relativeLuminance(primaryLight);
@@ -336,7 +512,14 @@ export function createTimbalTheme(intent: TimbalThemeIntent): TimbalThemeTokens 
     }
   }
 
-  return { light, dark, root, fontFamily, fontImportUrl };
+  return {
+    light,
+    dark,
+    root,
+    fontFamily,
+    fontImportUrl,
+    defaultMode: intent.defaultMode,
+  };
 }
 
 // ---------------------------------------------------------------------------

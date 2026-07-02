@@ -11,7 +11,10 @@ export type {
   TimbalThemeIntent,
   TimbalThemeTokens,
   TimbalThemeTypography,
+  TimbalThemeOverrides,
+  ThemeMode,
   ThemeShadow,
+  ThemeSurfaces,
   ThemeTokenMap,
   ThemeToCssOptions,
 } from "../../design/theme";

@@ -70,17 +70,29 @@ const COLOR_LITERAL_RE =
 
 /**
  * The one sanctioned place a raw color literal belongs: as *intent* fed to the
- * theme generator. `createTimbalTheme({ brand: "#4f46e5", accent: "#10b981" })`
- * is the documented branding path (see `theme-instructions.ts` /
- * `theme-presets.ts`), and a `swatch:` is a preset's representative chip color.
- * Flagging the brand hex here is a false positive — it punishes the exact API
- * the `color-literal` message tells the agent to use. We allow a color literal
- * on a line that either calls `createTimbalTheme(`/`createTimbalTheme<…>(` or
- * assigns one of the intent keys (`brand`/`accent`/`swatch`). Hand-authored
- * theme *tokens* (`--primary: #…`) stay blocked by `HAND_AUTHORED_TOKEN_RE`.
+ * theme generator. `createTimbalTheme({ brand: "#4f46e5", accent: "#10b981",
+ * chartPalette: ["#22d3ee"] })` is the documented branding path (see
+ * `theme-instructions.ts` / `theme-presets.ts`), and a `swatch:` is a preset's
+ * representative chip color. Flagging the brand hex here is a false positive —
+ * it punishes the exact API the `color-literal` message tells the agent to use.
+ * We allow a color literal on a line that either calls
+ * `createTimbalTheme(`/`createTimbalTheme<…>(` or assigns one of the intent
+ * keys (`brand`/`accent`/`swatch`/`chartPalette`). Hand-authored theme
+ * *tokens* (`--primary: #…`) stay blocked by `HAND_AUTHORED_TOKEN_RE`.
  */
 const THEME_INTENT_COLOR_RE =
-  /\bcreateTimbalTheme\b|(?:^|[\s,{(])(?:brand|accent|swatch)\s*:/;
+  /\bcreateTimbalTheme\b|(?:^|[\s,{(])(?:brand|accent|swatch|chartPalette)\s*:/;
+
+/**
+ * A `chartPalette: [` intent array left open at the end of the line — its
+ * continuation lines (pure quoted color items, tracked statefully below) are
+ * exempt from `color-literal` so a formatter wrapping the array doesn't turn
+ * sanctioned intent into findings.
+ */
+const CHART_PALETTE_OPEN_RE = /\bchartPalette\s*:\s*\[[^\]]*$/;
+
+/** A continuation line consisting only of quoted items (optionally closing the array). */
+const CHART_PALETTE_ITEM_LINE_RE = /^\s*(?:["'][^"']*["']\s*,?\s*)+\]?\s*,?\s*$/;
 
 /**
  * A CSS color function wrapping a CSS variable — `hsl(var(--chart-1))`,
@@ -265,6 +277,7 @@ export function lintGeneratedUi(
   let usesLucide = false;
   let iconUsageCount = 0;
   let dividerRunCount = 0;
+  let inChartPaletteArray = false;
 
   // Extract Page title if present
   let pageTitle: string | null = null;
@@ -382,13 +395,28 @@ export function lintGeneratedUi(
       });
     }
 
+    // ── multi-line chartPalette intent array (continuation exemption) ──
+    let isChartPaletteItemLine = false;
+    if (inChartPaletteArray) {
+      if (CHART_PALETTE_ITEM_LINE_RE.test(line)) {
+        isChartPaletteItemLine = true;
+        if (line.includes("]")) inChartPaletteArray = false;
+      } else {
+        // Anything other than plain quoted items ends the exemption.
+        inChartPaletteArray = false;
+      }
+    }
+    if (CHART_PALETTE_OPEN_RE.test(line)) inChartPaletteArray = true;
+
     // ── hex / oklch / rgb literals (skip the gradient-token allowlist) ──
     // Suppressed when the line already triggered the more specific
     // `chart-token-color-fn` rule so the agent gets one clear message, and when
     // the literal is brand *intent* fed to createTimbalTheme (the sanctioned
     // path) rather than a hardcoded color in markup.
     const literals =
-      wrapsTokenInColorFn || THEME_INTENT_COLOR_RE.test(line)
+      wrapsTokenInColorFn ||
+      THEME_INTENT_COLOR_RE.test(line) ||
+      isChartPaletteItemLine
         ? null
         : line.match(COLOR_LITERAL_RE);
     if (literals) {
@@ -397,7 +425,7 @@ export function lintGeneratedUi(
         severity: "error",
         line: lineNo,
         message:
-          "Hardcoded color literal. Colors must come from the theme generator (createTimbalTheme) and semantic tokens — never inline hex/oklch/rgb.",
+          "Hardcoded color literal. Literal colors are only allowed as theme intent — createTimbalTheme({ brand, accent, chartPalette }). Everywhere else, reference tokens: semantic utilities (text-primary, bg-muted, border-border) in markup; var(--token) or color-mix(in oklab, var(--token) 12%, var(--background)) in CSS values.",
         snippet: line.trim().slice(0, 120),
       });
     }
@@ -505,7 +533,7 @@ export function lintGeneratedUi(
         severity: "error",
         line: lineNo,
         message:
-          "forcedTheme bypasses the theme generator. Don't pin a theme — brand with createTimbalTheme({ brand }) + applyTimbalTheme (or a preset) so light/dark and rebranding keep working.",
+          'forcedTheme bypasses the theme generator. Don\'t pin a theme — for a dark-first app, express it as intent (createTimbalTheme({ brand, defaultMode: "dark" })) and wire defaultTheme={theme.defaultMode ?? "light"} on the provider so light/dark and rebranding keep working.',
         snippet: line.trim().slice(0, 120),
       });
     }
@@ -515,7 +543,7 @@ export function lintGeneratedUi(
         severity: "error",
         line: lineNo,
         message:
-          "Hand-authored theme token. A theme color variable (--background, --primary, --sidebar-bg, …) is assigned a literal color — that punches through the theme generator. Generate the theme with createTimbalTheme({ brand }) instead of hand-writing OKLCH/hex token values.",
+          "Hand-authored theme token. A theme color variable (--background, --primary, --sidebar-bg, …) is assigned a literal color — that punches through the theme generator. Generate the theme with createTimbalTheme({ brand, … }) and apply it at runtime (applyTimbalTheme / <TimbalThemeStyle>) — do not paste generated CSS into this file. For a one-off token the generator misses, use the intent's `overrides` or a token-referential CSS value (var(--token) / color-mix(in oklab, …)) — those pass this gate.",
         snippet: line.trim().slice(0, 120),
       });
     }

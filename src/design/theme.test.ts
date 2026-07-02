@@ -133,6 +133,142 @@ describe("createTimbalTheme", () => {
     const none = createTimbalTheme({ brand: "#000", shadow: "none" });
     expect(none.light["--shadow-card-value"]).toBe("none");
   });
+
+  it("passes defaultMode through (absent unless requested)", () => {
+    expect(createTimbalTheme({ brand: "#000" }).defaultMode).toBeUndefined();
+    expect(
+      createTimbalTheme({ brand: "#000", defaultMode: "dark" }).defaultMode,
+    ).toBe("dark");
+  });
+});
+
+describe("createTimbalTheme — surfaces", () => {
+  it('"console" flattens the sidebar with token-referential values in both modes', () => {
+    const t = createTimbalTheme({ brand: "#7132F5", surfaces: "console" });
+    for (const mode of [t.light, t.dark]) {
+      expect(mode["--sidebar"]).toBe("var(--background)");
+      expect(mode["--sidebar-accent"]).toContain("color-mix(");
+      expect(mode["--sidebar-active"]).toBe("var(--sidebar-accent)");
+      expect(mode["--chart-1"]).toBe("var(--primary)");
+      // Crisp chrome: hairline shadows applied by default.
+      expect(mode["--shadow-card-value"]).toBeDefined();
+    }
+  });
+
+  it("console keeps an explicit shadow / chartPalette intent", () => {
+    const t = createTimbalTheme({
+      brand: "#7132F5",
+      surfaces: "console",
+      shadow: "none",
+      chartPalette: ["#22d3ee"],
+    });
+    expect(t.light["--shadow-card-value"]).toBe("none");
+    expect(t.light["--chart-1"]).toMatch(/^oklch\(/);
+  });
+
+  it('"panel" / unset changes nothing', () => {
+    const t = createTimbalTheme({ brand: "#7132F5", surfaces: "panel" });
+    expect(t.light["--sidebar"]).toBeUndefined();
+    expect(t.light["--sidebar-active"]).toBeUndefined();
+  });
+});
+
+describe("createTimbalTheme — chartPalette", () => {
+  it("maps intent colors to --chart-N in both modes, capped at 6", () => {
+    const palette = [
+      "#7132F5",
+      "#22d3ee",
+      "#a78bfa",
+      "#34d399",
+      "#fbbf24",
+      "#f87171",
+      "#ffffff",
+    ];
+    const t = createTimbalTheme({ brand: "#000", chartPalette: palette });
+    for (let i = 1; i <= 6; i++) {
+      expect(t.light[`--chart-${i}`]).toMatch(/^oklch\(/);
+      expect(t.dark[`--chart-${i}`]).toMatch(/^oklch\(/);
+    }
+    expect(t.light["--chart-7"]).toBeUndefined();
+  });
+
+  it("brightens dark-mode series for contrast", () => {
+    const t = createTimbalTheme({ brand: "#000", chartPalette: ["#1e1b4b"] });
+    const lightness = (v: string) => Number.parseFloat(v.match(/oklch\(([\d.]+)/)![1]);
+    expect(lightness(t.dark["--chart-1"])).toBeGreaterThanOrEqual(0.62);
+  });
+});
+
+describe("createTimbalTheme — overrides", () => {
+  it("applies a flat token-referential map to both modes (keys stay paired)", () => {
+    const t = createTimbalTheme({
+      brand: "#7132F5",
+      overrides: { "--sidebar-active": "var(--sidebar-accent)" },
+    });
+    expect(t.light["--sidebar-active"]).toBe("var(--sidebar-accent)");
+    expect(t.dark["--sidebar-active"]).toBe("var(--sidebar-accent)");
+    expect(Object.keys(t.light).sort()).toEqual(Object.keys(t.dark).sort());
+  });
+
+  it("supports the structured { light, dark, root } form", () => {
+    const t = createTimbalTheme({
+      brand: "#7132F5",
+      overrides: {
+        light: { "--card": "var(--background)" },
+        dark: { "--card": "color-mix(in oklab, var(--foreground) 4%, var(--background))" },
+        root: { "--studio-sidebar-width": "16rem" },
+      },
+    });
+    expect(t.light["--card"]).toBe("var(--background)");
+    expect(t.dark["--card"]).toContain("color-mix(");
+    expect(t.root?.["--studio-sidebar-width"]).toBe("16rem");
+  });
+
+  it("overrides win over surfaces presets", () => {
+    const t = createTimbalTheme({
+      brand: "#7132F5",
+      surfaces: "console",
+      overrides: { "--sidebar-active": "var(--muted)" },
+    });
+    expect(t.light["--sidebar-active"]).toBe("var(--muted)");
+  });
+
+  it("throws on literal colors in overrides (hex and color functions)", () => {
+    expect(() =>
+      createTimbalTheme({ brand: "#000", overrides: { "--sidebar": "#060d1a" } }),
+    ).toThrow(/token-referential/);
+    expect(() =>
+      createTimbalTheme({
+        brand: "#000",
+        overrides: { "--card": "oklch(0.19 0.005 260)" },
+      }),
+    ).toThrow(/token-referential/);
+    expect(() =>
+      createTimbalTheme({
+        brand: "#000",
+        overrides: { dark: { "--card": "rgba(0, 0, 0, 0.5)" } },
+      }),
+    ).toThrow(/token-referential/);
+  });
+
+  it("allows color-mix, relative color syntax, and non-color values", () => {
+    expect(() =>
+      createTimbalTheme({
+        brand: "#000",
+        overrides: {
+          "--sidebar-accent": "color-mix(in oklab, var(--primary) 12%, var(--background))",
+          "--ring": "oklch(from var(--primary) l c h / 0.5)",
+          "--shadow-card-value": "none",
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("throws on keys that are not custom properties", () => {
+    expect(() =>
+      createTimbalTheme({ brand: "#000", overrides: { sidebar: "var(--background)" } }),
+    ).toThrow(/custom property/);
+  });
 });
 
 describe("themeToCss", () => {

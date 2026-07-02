@@ -88,6 +88,61 @@ describe("lintGeneratedUi — literals & inline styles", () => {
       expect.arrayContaining(["color-literal"]),
     );
   });
+
+  it("allows a chartPalette intent array on one line", () => {
+    const res = lintGeneratedUi(
+      `const theme = createTimbalTheme({ brand: "#000" });\nconst t2 = { chartPalette: ["#7132F5", "#22d3ee"] };`,
+    );
+    expect(res.findings.some((f) => f.rule === "color-literal")).toBe(false);
+  });
+
+  it("allows a formatter-wrapped multi-line chartPalette array", () => {
+    const res = lintGeneratedUi(
+      [
+        `const theme = createTimbalTheme({`,
+        `  brand: "#7132F5",`,
+        `  chartPalette: [`,
+        `    "#7132F5",`,
+        `    "#22d3ee", "#a78bfa",`,
+        `    "oklch(0.7 0.1 200)",`,
+        `  ],`,
+        `  radius: 0.5,`,
+        `});`,
+      ].join("\n"),
+    );
+    expect(res.findings.some((f) => f.rule === "color-literal")).toBe(false);
+  });
+
+  it("ends the chartPalette exemption at the first non-item line", () => {
+    const res = lintGeneratedUi(
+      [
+        `const theme = createTimbalTheme({`,
+        `  chartPalette: [`,
+        `    "#7132F5",`,
+        `  ],`,
+        `  radius: 0.5,`,
+        `});`,
+        `const stray = "#ff0066";`,
+      ].join("\n"),
+    );
+    expect(res.findings.some((f) => f.rule === "color-literal")).toBe(true);
+  });
+
+  it("allows token-referential CSS values (var / color-mix) — the override path", () => {
+    const res = lintGeneratedUi(
+      [
+        `:root {`,
+        `  --sidebar: var(--background);`,
+        `  --sidebar-accent: color-mix(in oklab, var(--primary) 12%, var(--background));`,
+        `  --sidebar-active: var(--sidebar-accent);`,
+        `  --chart-1: var(--primary);`,
+        `}`,
+      ].join("\n"),
+    );
+    expect(res.findings.some((f) => f.rule === "color-literal")).toBe(false);
+    expect(res.findings.some((f) => f.rule === "theme-via-generator")).toBe(false);
+    expect(res.findings.some((f) => f.rule === "chart-token-color-fn")).toBe(false);
+  });
 });
 
 describe("lintGeneratedUi — chart token color", () => {

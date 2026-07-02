@@ -56,6 +56,12 @@
   --sidebar-border: oklch(0.91 0.004 260);
   --sidebar-ring: oklch(0.55 0.014 260);
 
+  /* Active nav item surface (StudioSidebar). Accepts any `background` value —
+     defaults to the elevated gradient; set `--sidebar-active:
+     var(--sidebar-accent)` for a flat fill (the `surfaces: "console"` look). */
+  --sidebar-active: linear-gradient(to bottom, var(--elevated-from), var(--elevated-to));
+  --sidebar-active-foreground: var(--foreground);
+
   /* Timbal extension tokens — keep light + dark in sync below */
 
   /* Elevated surface gradient (cards, sidebar panel, secondary chrome).
@@ -200,6 +206,11 @@
   --sidebar-border: oklch(1 0 0 / 0.10);
   --sidebar-ring: oklch(0.55 0.01 260);
 
+  /* Re-declared (same token-referential value) so a `.dark` scope below the
+     root re-substitutes against the dark elevated tokens. */
+  --sidebar-active: linear-gradient(to bottom, var(--elevated-from), var(--elevated-to));
+  --sidebar-active-foreground: var(--foreground);
+
   /* Opaque equivalents of the translucent white wash — preserves the elevated
      gradient look while keeping the surface fully opaque (no bleed-through). */
   --elevated-from: oklch(0.205 0.004 260);
@@ -323,6 +334,9 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  /* --sidebar-active itself is a full `background` value (may be a gradient),
+     so it is consumed via an arbitrary property, not a color utility. */
+  --color-sidebar-active-foreground: var(--sidebar-active-foreground);
 
   /* Timbal extensions — exposed as colour tokens so they work with
      bg-*, border-*, text-*, from-*, via-*, to-* utilities alike. */

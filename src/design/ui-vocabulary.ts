@@ -314,9 +314,9 @@ export const HOUSE_RULES: readonly HouseRule[] = [
   },
   {
     id: "theme-via-generator",
-    rule: "Never hand-author theme color variables (.dark { --background: oklch(…) }, --sidebar-bg, --primary) or force a theme (forcedTheme). Brand with createTimbalTheme({ brand }) + applyTimbalTheme, or a preset.",
-    why: "Hand-written CSS custom-property colors and forcedTheme punch straight through the theme generator — the exact anti-pattern that makes one app look off-system. The generator owns light + dark; overriding tokens by hand breaks dark mode and rebranding.",
+    rule: "Never assign a literal color to a theme token (.dark { --background: oklch(…) }, --sidebar-bg: #…) or force a theme (forcedTheme). Brand with createTimbalTheme({ brand, accent, chartPalette, surfaces, defaultMode }) + applyTimbalTheme, or a preset. One-off tokens the generator misses: the intent's `overrides`, or token-referential CSS (var(--token) / color-mix(in oklab, …)) — both pass the gate.",
+    why: "Hand-written CSS custom-property colors and forcedTheme punch straight through the theme generator — the exact anti-pattern that makes one app look off-system. The generator owns light + dark; token-referential overrides keep it the single color source while still allowing personalization.",
     slop: `.dark { --background: oklch(0.09 0.025 248); --sidebar-bg: #060d1a; }`,
-    good: `applyTimbalTheme(createTimbalTheme({ brand: "#22d3ee" }))`,
+    good: `applyTimbalTheme(createTimbalTheme({ brand: "#22d3ee", overrides: { "--sidebar-active": "var(--sidebar-accent)" } }))`,
   },
 ] as const;

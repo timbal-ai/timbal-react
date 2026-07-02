@@ -60,31 +60,23 @@ The package ships pre-built Tailwind class names **plus a complete light + dark 
 @source "../node_modules/@timbal-ai/timbal-react/dist";
 ```
 
-That's it — no `@theme`, `:root`, or `.dark` blocks of your own. Toggling dark mode is a single `document.documentElement.classList.toggle("dark")` (or `next-themes` `attribute="class"`). Wire `next-themes` with **`defaultTheme="light"`** and **`enableSystem={false}`** so new apps ship in light mode; dark appears only when the user toggles. The built-in `ModeToggle` (uncontrolled) persists to `localStorage` key `timbal-theme` and restores on reload.
+That's it — no `@theme`, `:root`, or `.dark` blocks of your own. Toggling dark mode is a single `document.documentElement.classList.toggle("dark")` (or `next-themes` `attribute="class"`). Wire `next-themes` with **`defaultTheme={theme.defaultMode ?? "light"}`** and **`enableSystem={false}`** — apps ship light unless the design is dark-first, in which case express that as `createTimbalTheme({ defaultMode: "dark" })` intent. Never `defaultTheme="system"` or `forcedTheme`. The built-in `ModeToggle` (uncontrolled) persists to `localStorage` key `timbal-theme` and restores on reload.
 
 > Adjust the `@source` path if your CSS file lives at a different depth relative to `node_modules`.
 
 ### Overriding the palette
 
-Every token has a CSS-variable indirection in `styles.css`. Override individual variables to rebrand without forking:
+Every token has a CSS-variable indirection in `styles.css`. Don't hand-write literal token values — express **intent** through `createTimbalTheme` (see [Programmatic theming](#programmatic-theming-no-hand-authored-oklch)): new colors go in `brand` / `accent` / `chartPalette`, and one-off tokens go in `overrides`, which is **token-referential only** (`var(--token)` / `color-mix(in oklab, …)` — a literal color throws):
 
-```css
-:root {
-  --primary: oklch(0.5 0.12 265);
-  --playground-from: oklch(0.95 0.04 265 / 0.6);
-  /* Chart series — override any to rebrand every dashboard chart at once */
-  --chart-1: var(--primary);
-  --chart-2: oklch(0.62 0.13 184);
-}
-
-.dark {
-  --primary: oklch(0.72 0.14 265);
-  --playground-from: oklch(0.27 0.04 265);
-  --chart-1: var(--primary);
-}
+```ts
+const theme = createTimbalTheme({
+  brand: "#4f46e5",
+  chartPalette: ["#4f46e5", "#0891b2"],       // → --chart-1..6, adapted per mode
+  overrides: { "--sidebar-active": "var(--sidebar-accent)" },  // one-offs, token-referential
+});
 ```
 
-Both light AND dark blocks must define every overridden token — otherwise toggling dark mode produces an inconsistent UI. The library prints a one-time dev-only console warning when it detects a mismatch.
+Token-referential CSS overrides in your own `:root` / `.dark` work too (`--chart-1: var(--primary);`) and resolve correctly in both modes from a single declaration. If you must hand-write a *literal* token value in CSS (only sensible outside lint-gated generated apps — the `timbal-ui-lint` gate rejects it), define it in **both** `:root` and `.dark` — the library prints a one-time dev-only console warning when it detects a mismatch.
 
 ### Charts (app kit + artifacts)
 
@@ -99,7 +91,7 @@ Dashboard and in-chat charts use the **native shadcn/recharts layer** — animat
 
 **Flush dashboards (`ChartPanel`, `MetricChartCard`, cartesian artifacts):** charts default to **`layout="flush"`** — no axis tick labels; **hover tooltips** show the category (`xKey`) and formatted value(s). Opt back in with `showXAxis` / `showYAxis` on `LineAreaChart`, or `showAxes: true` on a `ChartArtifact`. Use `layout="default"` when you want visible axes without passing extra props.
 
-**Rebrand:** override `--chart-1` … `--chart-6` in `:root` / `.dark` (series 1 defaults to `--primary`). Per-series overrides: `series[].color` on `LineAreaChart` or `colors` on pie/radial artifacts.
+**Rebrand:** pass `chartPalette: ["#…", …]` to `createTimbalTheme` (maps to `--chart-1..6`, adapted per mode), or point tokens at each other in CSS (`--chart-1: var(--primary);`). Per-series overrides: `series[].color` on `LineAreaChart` or `colors` on pie/radial artifacts.
 
 **`ChartArtifact` kinds:** `bar`, `horizontalBar`, `line`, `area`, `pie`, `donut`, `radial`, `radar` — see `ChartPanel` + the app-kit **Chart catalog** recipe (`examples/app-kit/src/recipes/chart-catalog.tsx`).
 
@@ -131,17 +123,24 @@ const theme = createTimbalTheme({
   brand: "#4f46e5",
   radius: 0.875,     // corner roundness (rem) → --radius + --radius-2xl
   shadow: "soft",    // "none" | "hairline" | "soft" | "medium" | "strong"
+  surfaces: "panel", // "panel" (default) | "console" — flat ops/terminal chrome
+  defaultMode: "light", // dark-first apps: "dark" → wire defaultTheme={theme.defaultMode ?? "light"}
+  chartPalette: ["#4f46e5", "#0891b2"], // → --chart-1..6, adapted per mode
   typography: {      // optional — re-skins every component's font
     sans: '"Geist", ui-sans-serif, system-ui, sans-serif',
     importUrl: "https://fonts.googleapis.com/css2?family=Geist:wght@400..600&display=swap",
   },
+  overrides: {       // one-off tokens — token-referential only (literals throw)
+    "--card": "color-mix(in oklab, var(--foreground) 3%, var(--background))",
+  },
 });
-
-// Build-time / SSR — paste into index.css (paired light + dark, always in sync):
-const css = themeToCss(theme);
 
 // Runtime — inject a managed <style> (+ font <link>), swappable, returns a disposer:
 const dispose = applyTimbalTheme(theme);
+
+// Build-time / SSR tooling — serialize the same tokens (paired light + dark, always
+// in sync). Don't paste the output into a lint-gated app's CSS; apply at runtime there.
+const css = themeToCss(theme);
 ```
 
 > **Fonts must be loaded.** `applyTimbalTheme` and `TimbalThemeStyle` inject the `<link>` for `typography.importUrl` automatically. For build-time `themeToCss`, add the `<link rel="stylesheet">` to `index.html` yourself (or pass `themeToCss(theme, { includeFontImport: true })` when the result is a standalone stylesheet).

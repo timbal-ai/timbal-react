@@ -137,13 +137,22 @@ export const studioSidebarCollapsedRailItemIdleClass = cn(
 );
 
 export const studioSidebarCollapsedRailItemActiveClass = cn(
-  studioSidebarCollapsedRailItemClass,
-  studioSidebarNavItemSurfaceClass,
-  "text-foreground",
+  "border border-border shadow-card",
+  "[background:var(--sidebar-active)] text-sidebar-active-foreground",
 );
 
-/** Selected agent — same opaque secondary button surface as sign-out hover. */
-export const studioSidebarNavItemActiveClass = studioSidebarNavItemSurfaceClass;
+/**
+ * Selected agent / nav row. Themable via `--sidebar-active` (a full
+ * `background` value — the shipped default is the elevated gradient, matching
+ * the sign-out hover surface) and `--sidebar-active-foreground`. Flat console
+ * look: override `--sidebar-active: var(--sidebar-accent)` (what
+ * `createTimbalTheme({ surfaces: "console" })` does).
+ */
+export const studioSidebarNavItemActiveClass = cn(
+  "[background:var(--sidebar-active)] text-sidebar-active-foreground",
+  "border border-border",
+  "shadow-card",
+);
 
 // ---------------------------------------------------------------------------
 // Tool timeline rows (Used / Failed / Thought / Using …)

@@ -16,37 +16,49 @@ The package ships a complete light + dark token system (\`styles.css\`). Compone
 
 ### Golden rule
 
-**Never write \`oklch(...)\` / hex literals or hand-author paired \`:root\` + \`.dark\` blocks.** Express intent and let the package derive a complete, contrast-correct, paired palette.
+**Literal colors (hex / oklch / rgb) are allowed in exactly one place: the intent object passed to \`createTimbalTheme\` (\`brand\`, \`accent\`, \`chartPalette\`).** Everywhere else, reference tokens — semantic utilities in markup, \`var(--token)\` / \`color-mix(in oklab, …)\` in CSS values. The lint gate enforces exactly this split.
 
-### Generate a full personality (color + roundness + fonts + shadows)
+### Generate a full personality from one intent object
 
 \`\`\`ts
-import { createTimbalTheme, themeToCss } from "@timbal-ai/timbal-react";
+import { createTimbalTheme, applyTimbalTheme } from "@timbal-ai/timbal-react";
 
 const theme = createTimbalTheme({
   brand: "#4f46e5",
-  radius: 0.875,          // corner roundness in rem (sets --radius + --radius-2xl)
-  shadow: "soft",         // "none" | "hairline" | "soft" | "medium" | "strong"
-  tintNeutrals: false,    // tint background/border toward the brand hue
-  accent: "#10b981",      // optional secondary accent
-  typography: {           // optional — re-skins every component's font
+  accent: "#10b981",       // optional secondary accent
+  radius: 0.875,           // corner roundness in rem (sets --radius + --radius-2xl)
+  shadow: "soft",          // "none" | "hairline" | "soft" | "medium" | "strong"
+  tintNeutrals: false,     // tint background/border toward the brand hue
+  surfaces: "console",     // "panel" (default) | "console" — flat ops/terminal chrome
+  defaultMode: "dark",     // the mode the app opens in (default "light")
+  chartPalette: ["#7132F5", "#22d3ee", "#a78bfa"],  // --chart-1..6; keep on ONE line
+  typography: {            // optional — re-skins every component's font
     sans: '"Geist", ui-sans-serif, system-ui, sans-serif',
     importUrl: "https://fonts.googleapis.com/css2?family=Geist:wght@400..600&display=swap",
     // display?, mono? also supported
   },
+  overrides: {             // one-offs the generator misses — token-referential ONLY
+    "--sidebar-active": "var(--sidebar-accent)",
+    "--card": "color-mix(in oklab, var(--foreground) 3%, var(--background))",
+  },
 });
-const css = themeToCss(theme); // paired light + dark, guaranteed in sync
+applyTimbalTheme(theme);   // module scope in main.tsx / a theme.ts it imports
 \`\`\`
 
-- \`createTimbalTheme\` derives \`--primary\`, its foreground, ring, the full button gradient, and a soft playground tint from \`brand\`. \`radius\` sets roundness, \`shadow\` sets card depth, \`typography\` sets fonts. You only supply intent — never raw OKLCH.
+- \`createTimbalTheme\` derives \`--primary\`, its foreground, ring, the full button gradient, and a soft playground tint from \`brand\`; \`surfaces: "console"\` flattens the sidebar into the background, brand-tints the active nav item (\`--sidebar-active\`), points \`--chart-1\` at the brand, and drops shadows to hairline.
+- \`overrides\` values must be **token-referential** (\`var(--token)\`, \`color-mix(in oklab, var(--a) 12%, var(--b))\`). A literal color there **throws** — new colors are intent (\`brand\`/\`accent\`/\`chartPalette\`), so the generated theme stays the single color source. The flat map applies to both modes (token-referential values resolve per-mode automatically).
 - For a real company, look up the actual brand hex first (brandfetch / "<company> brand color hex").
-- **Web fonts must be loaded.** \`applyTimbalTheme\` / \`TimbalThemeStyle\` inject the \`<link>\` for \`typography.importUrl\` automatically. For build-time \`themeToCss\`, add the \`<link rel="stylesheet" href="…">\` to your \`index.html\` yourself (or pass \`themeToCss(theme, { includeFontImport: true })\` when the result is a standalone stylesheet).
+- **Web fonts must be loaded.** \`applyTimbalTheme\` / \`TimbalThemeStyle\` inject the \`<link>\` for \`typography.importUrl\` automatically.
 
 ### Apply a theme
 
-- **Build-time / SSR:** \`themeToCss(theme)\` → paste the returned CSS into your \`index.css\` (after the \`@import "@timbal-ai/timbal-react/styles.css"\`). One block, both modes.
-- **Runtime / swappable:** \`applyTimbalTheme(theme)\` injects a managed \`<style>\` and returns a disposer. Works with the \`.dark\` toggle (next-themes / ModeToggle).
+- **Runtime (the default path):** \`applyTimbalTheme(theme)\` at module scope injects a managed \`<style>\` before first paint and returns a disposer. Works with the \`.dark\` toggle (next-themes / ModeToggle).
 - **Component:** render \`<TimbalThemeStyle theme={theme} />\` (or \`preset="indigo"\`) once near the app root.
+- **\`themeToCss(theme)\`** serializes the same tokens for SSR / build tooling **outside** the app source. Do **not** paste its output into \`ui/src\` CSS — the pasted literals fail the \`theme-via-generator\` lint gate; apply at runtime instead.
+
+### Dark-first apps
+
+\`defaultMode: "dark"\` expresses a dark-first design as intent. Wire it into the provider — \`defaultTheme={theme.defaultMode ?? "light"}\` with \`enableSystem={false}\` (\`storageKey="timbal-theme"\`, \`attribute="class"\`). Never \`defaultTheme="system"\` (follows OS dark) and never \`forcedTheme\` (kills the toggle).
 
 ### Offer styles to the user ("show compatible styles, then apply")
 
@@ -76,6 +88,6 @@ Each preset is a **full personality** (color + radius + shadows + font), not jus
 
 - Generated pages use **semantic Tailwind tokens only** — never literal colors or per-element \`style={{ color }}\`.
 - Light/dark mode stays the \`.dark\` class (\`next-themes attribute="class"\` or \`ModeToggle\`). Presets are **brand**, not a second dark-mode system.
-- **Scaffold default is light.** Wire \`next-themes\` with \`defaultTheme="light"\` and \`enableSystem={false}\` (\`storageKey="timbal-theme"\`). Apps ship in white/light mode; dark appears only when the user explicitly toggles (\`ModeToggle\` / \`setTheme("dark")\`). Never \`defaultTheme="system"\` (follows OS dark) or \`forcedTheme="dark"\`.
-- Override individual tokens only for one-offs the generator doesn't cover; if you must, set the variable in **both** \`:root\` and \`.dark\` (a dev-only warning fires otherwise).
+- **One-off tokens go through \`overrides\` (or token-referential CSS), never hand-written literals.** \`--primary: oklch(…)\` in app CSS is the \`theme-via-generator\` anti-pattern and fails the gate.
+- Chart series: pass tokens raw (\`fill="var(--chart-1)"\` — never \`hsl(var(--chart-1))\`), rebrand via \`chartPalette\` intent.
 `.trim();
