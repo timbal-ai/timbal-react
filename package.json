@@ -44,7 +44,8 @@
     "./vite": {
       "types": "./vite/local-dev.d.ts",
       "import": "./vite/local-dev.mjs"
-    }
+    },
+    "./prompts/*": "./dist/prompts/*"
   },
   "files": [
     "dist",
@@ -55,7 +56,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup && tsup --config tsup.cli.config.ts",
+    "build": "tsup && tsup --config tsup.cli.config.ts && bun scripts/emit-prompts.mjs",
     "build:watch": "tsup --watch",
     "clean": "rm -rf dist",
     "test": "bun test",

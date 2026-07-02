@@ -26,7 +26,8 @@ import { createTimbalTheme, applyTimbalTheme } from "@timbal-ai/timbal-react";
 const theme = createTimbalTheme({
   brand: "#4f46e5",
   accent: "#10b981",       // optional secondary accent
-  radius: 0.875,           // corner roundness in rem (sets --radius + --radius-2xl)
+  radius: 0.875,           // corner roundness in rem → --radius, and --radius-2xl = radius + 0.25
+                           //   (cards/composer use 2xl: radius 1.25 ⇒ 24px-radius cards)
   shadow: "soft",          // "none" | "hairline" | "soft" | "medium" | "strong"
   neutrals: { hue: 85, chroma: 0.016, lightness: 0.975 },  // canvas warmth: cream≈85, greige≈70 —
                            // derives page/cards/muted/borders in BOTH modes; hue independent of brand
@@ -47,10 +48,11 @@ const theme = createTimbalTheme({
 applyTimbalTheme(theme);   // module scope in main.tsx / a theme.ts it imports
 \`\`\`
 
-- \`createTimbalTheme\` derives \`--primary\`, its foreground, ring, the full button gradient, and a soft playground tint from \`brand\`; \`surfaces: "console"\` flattens the sidebar into the background, brand-tints the active nav item (\`--sidebar-active\`), points \`--chart-1\` at the brand, and drops shadows to hairline.
+- \`createTimbalTheme\` derives \`--primary\`, its foreground, ring, the full button gradient, and a soft playground tint from \`brand\`; \`surfaces: "console"\` flattens the sidebar into the background, brand-tints the active nav item (\`--sidebar-active\`), points \`--chart-1\` at the brand (only when no \`chartPalette\` is given — an explicit palette always wins), and drops shadows to hairline.
 - \`neutrals\` owns the **canvas** (page background, cards, muted surfaces, borders — both modes) from one hue, independent of \`brand\`: cream paper ≈ \`{ hue: 85, chroma: 0.016, lightness: 0.975 }\`, greige enterprise ≈ \`{ hue: 70 }\`. It wins over \`tintNeutrals\` (which only leans neutrals toward the brand hue). Never fake canvas warmth by mixing the brand into white — say it with \`neutrals\`.
 - \`typography.display\` reaches **every** \`h1\`–\`h3\` (kit-rendered headings included) via \`--font-display\` — no wrapper spans needed. Body/controls stay on \`typography.sans\`.
 - \`overrides\` values must be **token-referential** (\`var(--token)\`, \`color-mix(in oklab, var(--a) 12%, var(--b))\`). A literal color there **throws** — new colors are intent (\`brand\`/\`accent\`/\`chartPalette\`), so the generated theme stays the single color source. The flat map applies to both modes (token-referential values resolve per-mode automatically). The full themable token inventory is the \`:root\` block of the package's \`styles.css\` — read it before writing overrides.
+- **Decorative category tints are sanctioned the same way:** a soft per-category wash on a card is \`className="bg-[color-mix(in_oklab,var(--chart-2)_14%,var(--card))]"\` — token-referential, passes the gate, flips with dark mode. Route category hues through \`chartPalette\` so the washes rebrand with the theme.
 - For a real company, look up the actual brand hex first (brandfetch / "<company> brand color hex").
 - **Web fonts must be loaded.** \`applyTimbalTheme\` / \`TimbalThemeStyle\` inject the \`<link>\` for \`typography.importUrl\` automatically.
 
@@ -60,9 +62,9 @@ applyTimbalTheme(theme);   // module scope in main.tsx / a theme.ts it imports
 - **Component:** render \`<TimbalThemeStyle theme={theme} />\` (or \`preset="indigo"\`) once near the app root.
 - **\`themeToCss(theme)\`** serializes the same tokens for SSR / build tooling **outside** the app source. Do **not** paste its output into \`ui/src\` CSS — the pasted literals fail the \`theme-via-generator\` lint gate; apply at runtime instead.
 
-### Dark-first apps
+### Provider wiring (light default and dark-first)
 
-\`defaultMode: "dark"\` expresses a dark-first design as intent. Wire it into the provider — \`defaultTheme={theme.defaultMode ?? "light"}\` with \`enableSystem={false}\` (\`storageKey="timbal-theme"\`, \`attribute="class"\`). Never \`defaultTheme="system"\` (follows OS dark) and never \`forcedTheme\` (kills the toggle).
+Always wire \`next-themes\` the same way — \`<ThemeProvider attribute="class" storageKey="timbal-theme" enableSystem={false} defaultTheme={theme.defaultMode ?? "light"}>\` — whether or not the app is dark-first (\`defaultMode: "dark"\` expresses dark-first as intent). Never \`defaultTheme="system"\` (follows OS dark) and never \`forcedTheme\` (kills the toggle).
 
 ### Offer styles to the user ("show compatible styles, then apply")
 

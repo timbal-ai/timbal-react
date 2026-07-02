@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@import "@timbal-ai/timbal-react/styles.css";
+
+@source "../node_modules/@timbal-ai/timbal-react/dist";
+
+/*
+ * Ritual — friendly consumer base size.
+ *
+ * The theme intent (src/theme.ts) owns every color; this file contains no
+ * color values. Bumping the root font-size scales the whole rem system a
+ * touch, which is how the "larger base size / airy / oversized touch
+ * targets" trait is expressed without hand-tuning individual components.
+ */
+:root {
+  font-size: 106.25%; /* 17px base */
+}

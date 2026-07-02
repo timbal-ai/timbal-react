@@ -17,6 +17,14 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
   `h1`–`h3` through `var(--font-display, var(--font-sans, inherit))`, so a
   serif/mono display stack re-skins kit-rendered titles (Page, Section,
   dialogs) with no wrapper spans. No-op when `display` is unset.
+- **Tiered agent prompts** — `APP_KIT_CORE_INSTRUCTIONS` (new export): the
+  compact always-injected tier (~6.5k chars, size test-enforced) carrying the
+  surface/archetype decision, every house rule (rendered from `HOUSE_RULES`,
+  zero drift), the retry-killing API gotchas, and a routing table to on-demand
+  layers. The full instruction strings now also ship as **readable files** —
+  `dist/prompts/{core,appkit,theme,reference}.md` (exports map `./prompts/*`)
+  — so agents can pull detail per task instead of consuming the 56k-char
+  monolith up front (which remains exported unchanged).
 - **`REFERENCE_AGENT_INSTRUCTIONS` (new export)** — the compact
   screenshot-to-plan protocol for reference-matching agents: signal→intent
   extraction table, block/invention planning, upfront non-goals

@@ -171,7 +171,7 @@ applyThemePreset("indigo");
 
 > The visual theme picker (`ThemePresetGallery`) is an **internal/dev tool** and is intentionally **not** part of the public API — theming is a developer/config choice, not an end-user selector in shipped apps.
 
-**For UI-generation agents:** inject `THEME_AGENT_INSTRUCTIONS` into the system prompt so the model themes via these APIs (and never emits raw OKLCH), mirroring `APP_KIT_AGENT_INSTRUCTIONS`. When the task includes a **reference screenshot**, also inject `REFERENCE_AGENT_INSTRUCTIONS` — the compact extract → plan → iterate-on-intent protocol (signal→intent table, invention-lane planning, upfront non-goals).
+**For UI-generation agents:** prompts are **tiered**. Inject `APP_KIT_CORE_INSTRUCTIONS` (compact: archetypes, every house rule, API gotchas, layer routing) and let the agent pull detail on demand from the files shipped in the package — `dist/prompts/appkit.md` (full component menu/recipes), `dist/prompts/theme.md`, `dist/prompts/reference.md` (the extract → plan → iterate-on-intent protocol for reference screenshots; also exported as `REFERENCE_AGENT_INSTRUCTIONS`). Hosts that prefer one big injection can still use the full `APP_KIT_AGENT_INSTRUCTIONS` / `THEME_AGENT_INSTRUCTIONS` strings.
 
 ### Anti-slop guardrails for generated UIs
 
