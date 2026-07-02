@@ -1284,7 +1284,7 @@ All sizing and class composites moved to internal modules. Override the CSS vari
 }
 ```
 
-For colours, override the existing semantic tokens (`--background`, `--foreground`, `--composer-bg`, `--bubble-user`, `--playground-from/via/to`, …). See [`src/styles.css`](src/styles.css) for the full list.
+For colours, don't hand-write literal token values — express intent through `createTimbalTheme` (`brand` / `accent` / `chartPalette`, plus token-referential `overrides` for one-offs); see [Overriding the palette](#overriding-the-palette). [`src/styles.css`](src/styles.css) has the full token list.
 
 ### Removed from the public API
 

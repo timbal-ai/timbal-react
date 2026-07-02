@@ -83,6 +83,22 @@ describe("lintGeneratedUi — literals & inline styles", () => {
     expect(found).toEqual(expect.arrayContaining(["theme-via-generator"]));
   });
 
+  it("blocks named-color and color() theme token values too", () => {
+    expect(rules(`  --background: black;`)).toEqual(
+      expect.arrayContaining(["theme-via-generator"]),
+    );
+    expect(rules(`  --card: lightgray;`)).toEqual(
+      expect.arrayContaining(["theme-via-generator"]),
+    );
+    expect(rules(`  --accent: color(display-p3 1 0 0);`)).toEqual(
+      expect.arrayContaining(["theme-via-generator"]),
+    );
+    // color-mix is composition, not a literal — must NOT match.
+    expect(
+      rules(`  --sidebar-accent: color-mix(in oklab, var(--primary) 12%, var(--background));`),
+    ).not.toEqual(expect.arrayContaining(["theme-via-generator"]));
+  });
+
   it("still flags a stray hex that is not theme intent", () => {
     expect(rules(`const tone = "#ff0066";`)).toEqual(
       expect.arrayContaining(["color-literal"]),

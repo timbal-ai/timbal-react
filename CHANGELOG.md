@@ -2,7 +2,7 @@
 
 All notable changes to `@timbal-ai/timbal-react` are documented here.
 
-## [Unreleased]
+## [3.1.0] — 2026-07-02
 
 ### Added
 

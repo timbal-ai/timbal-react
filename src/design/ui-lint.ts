@@ -199,11 +199,14 @@ const FORCED_THEME_RE = /\bforcedTheme\b/;
 /**
  * Hand-authored theme color variable: a CSS custom property the theme
  * generator owns, assigned a literal color. `--background: oklch(…)`,
- * `--sidebar-bg: #060d1a`, `--primary: hsl(…)`. Catches the "call
- * createTimbalTheme then punch through with hand-written tokens" anti-pattern.
+ * `--sidebar-bg: #060d1a`, `--primary: hsl(…)`, `--card: red`,
+ * `--accent: color(display-p3 …)`. Catches the "call createTimbalTheme then
+ * punch through with hand-written tokens" anti-pattern. Token-referential
+ * values (`var(--…)`, `color-mix(…)`) deliberately do NOT match — that's the
+ * sanctioned override path.
  */
 const HAND_AUTHORED_TOKEN_RE =
-  /--(?:background|foreground|card|card-foreground|popover|popover-foreground|primary|primary-foreground|secondary|secondary-foreground|muted|muted-foreground|accent|accent-foreground|destructive|destructive-foreground|border|input|ring|sidebar[a-z-]*|chart-\d)\s*:\s*(?:oklch|hsla?|rgba?|#[0-9a-fA-F]{3,8})/i;
+  /--(?:background|foreground|card|card-foreground|popover|popover-foreground|primary|primary-foreground|secondary|secondary-foreground|muted|muted-foreground|accent|accent-foreground|destructive|destructive-foreground|border|input|ring|sidebar[a-z-]*|chart-\d)\s*:\s*(?:oklch|hsla?|rgba?|(?:oklab|hwb|lab|lch|color)\s*\(|#[0-9a-fA-F]{3,8}|(?:black|white|(?:dark|light)?(?:red|green|blue|gray|grey|cyan|salmon|orange)|purple|pink|teal|magenta|yellow|brown|navy|maroon|olive|lime|aqua|silver|gold|indigo|violet|crimson|coral|khaki|plum|orchid|turquoise|tan|beige|ivory|azure|lavender|fuchsia|rebeccapurple)\b)/i;
 
 /**
  * Trend/delta context: a directional icon, a `trend`/`delta`/`change` prop, or

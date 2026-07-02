@@ -199,26 +199,66 @@ const CONSOLE_SURFACE_TOKENS: ThemeTokenMap = {
 };
 
 /**
- * A literal color inside an override *value*: hex, or a color function opening
- * on a numeric channel (`oklch(0.2 …)`, `rgba(0, …)`). Deliberately does NOT
- * match token-referential composition — `var(--x)`, `color-mix(in oklab, …)`,
- * and relative color syntax (`oklch(from var(--x) …)`) all stay allowed.
+ * Literal-color forms inside an override *value*. Everything here fails the
+ * `timbal-ui-lint` gate too, so rejecting it at generation time keeps the
+ * "overrides pass the gate by construction" guarantee:
+ * - hex (`#0af`, `#00aaff`)
+ * - a color function opening on a numeric channel (`oklch(0.2 …)`, `rgba(0, …)`)
+ * - relative color syntax (`oklch(from var(--x) …)`) — the gate's line scan
+ *   can't tell it from a literal, so it's rejected everywhere; use
+ *   `color-mix()` to derive from a token instead
+ * - the `color()` function (`color(display-p3 …)`)
+ * Token-referential composition — `var(--x)`, `color-mix(in oklab, …)` — stays
+ * allowed.
  */
 const OVERRIDE_COLOR_LITERAL_RE =
-  /#[0-9a-fA-F]{3,8}\b|\b(?:oklch|oklab|rgba?|hsla?|hwb|lab|lch)\(\s*[\d.]/i;
+  /#[0-9a-fA-F]{3,8}\b|\b(?:oklch|oklab|rgba?|hsla?|hwb|lab|lch)\(\s*[\d.]|\b(?:oklch|oklab|rgba?|hsla?|hwb|lab|lch)\(\s*from\b|\bcolor\(/i;
+
+/**
+ * A color function wrapping a token (`hsl(var(--primary))`). The tokens are
+ * already complete colors — wrapping them produces invalid CSS and a silently
+ * uncolored result (the same foot-gun the lint's `chart-token-color-fn` rule
+ * catches in app source).
+ */
+const OVERRIDE_COLOR_FN_WRAPPING_VAR_RE =
+  /\b(?:hsl|hsla|rgb|rgba|oklch|oklab|lab|lch|hwb|color)\(\s*var\(\s*--/i;
+
+/** Named CSS colors ("red", "white") — literals by another name. */
+const OVERRIDE_NAMED_COLOR_RE =
+  /\b(?:black|white|(?:dark|light)?(?:red|green|blue|gray|grey|cyan|salmon|orange)|purple|pink|teal|magenta|yellow|brown|navy|maroon|olive|lime|aqua|silver|gold|indigo|violet|crimson|coral|khaki|plum|orchid|turquoise|tan|beige|ivory|azure|lavender|fuchsia|rebeccapurple|(?:slate|steel|royal|sky|powder|midnight|cadet)blue|(?:sea|forest|spring)green|(?:hot|deep)pink)\b/i;
+
+/** Values that don't need to reference a token: CSS-wide keywords + plain dimensions. */
+const OVERRIDE_KEYWORD_RE = /^(?:transparent|currentcolor|none|inherit|initial|unset|revert(?:-layer)?)$/i;
+const OVERRIDE_DIMENSION_RE =
+  /^-?[\d.]+(?:px|rem|em|%|vh|vw|ch|ms|s|deg)?(?:\s+-?[\d.]+(?:px|rem|em|%|vh|vw|ch|ms|s|deg)?)*$/;
 
 function assertTokenReferential(map: ThemeTokenMap, where: string): void {
-  for (const [name, value] of Object.entries(map)) {
+  for (const [name, rawValue] of Object.entries(map)) {
     if (!name.startsWith("--")) {
       throw new TypeError(
         `createTimbalTheme: overrides${where} key "${name}" is not a CSS custom property — keys must start with "--" (e.g. "--sidebar-active").`,
       );
     }
-    if (OVERRIDE_COLOR_LITERAL_RE.test(value)) {
+    const value = rawValue.trim();
+    if (OVERRIDE_KEYWORD_RE.test(value) || OVERRIDE_DIMENSION_RE.test(value)) {
+      continue;
+    }
+    if (OVERRIDE_COLOR_FN_WRAPPING_VAR_RE.test(value)) {
       throw new TypeError(
-        `createTimbalTheme: overrides${where} value for "${name}" contains a literal color (${JSON.stringify(value)}). ` +
-          `Overrides must be token-referential — compose from existing tokens with var(--token) or ` +
-          `color-mix(in oklab, var(--a) N%, var(--b)). New literal colors belong in intent: brand, accent, or chartPalette.`,
+        `createTimbalTheme: overrides${where} value for "${name}" wraps a token in a color function (${JSON.stringify(rawValue)}). ` +
+          `Theme tokens are already complete colors — wrapping them is invalid CSS and renders uncolored. Pass the token directly: var(--token).`,
+      );
+    }
+    if (
+      !value.includes("var(--") ||
+      OVERRIDE_COLOR_LITERAL_RE.test(value) ||
+      OVERRIDE_NAMED_COLOR_RE.test(value)
+    ) {
+      throw new TypeError(
+        `createTimbalTheme: overrides${where} value for "${name}" is not token-referential (${JSON.stringify(rawValue)}). ` +
+          `Overrides must compose from existing tokens with var(--token) or ` +
+          `color-mix(in oklab, var(--a) N%, var(--b)). New literal colors belong in intent (brand, accent, chartPalette); ` +
+          `fonts belong in typography; shadows in shadow.`,
       );
     }
   }

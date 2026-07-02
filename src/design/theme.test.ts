@@ -251,15 +251,51 @@ describe("createTimbalTheme — overrides", () => {
     ).toThrow(/token-referential/);
   });
 
-  it("allows color-mix, relative color syntax, and non-color values", () => {
+  it("throws on the literal forms the lint gate also rejects (named, color(), relative, fn-wrapped var)", () => {
+    // Named CSS colors are literals by another name.
+    expect(() =>
+      createTimbalTheme({ brand: "#000", overrides: { "--card": "red" } }),
+    ).toThrow(/token-referential/);
+    // color(display-p3 …) literals.
+    expect(() =>
+      createTimbalTheme({
+        brand: "#000",
+        overrides: { "--card": "color(display-p3 1 0 0)" },
+      }),
+    ).toThrow(/token-referential/);
+    // Relative color syntax — the gate's line scan can't tell it from a
+    // literal, so it's rejected everywhere; derive with color-mix() instead.
+    expect(() =>
+      createTimbalTheme({
+        brand: "#000",
+        overrides: { "--ring": "oklch(from var(--primary) l c h / 0.5)" },
+      }),
+    ).toThrow();
+    // Wrapping a token in a color function is invalid CSS (tokens are full colors).
+    expect(() =>
+      createTimbalTheme({
+        brand: "#000",
+        overrides: { "--chart-1": "hsl(var(--primary))" },
+      }),
+    ).toThrow(/wraps a token/);
+  });
+
+  it("allows color-mix, gradients of tokens, keywords, and dimensions", () => {
     expect(() =>
       createTimbalTheme({
         brand: "#000",
         overrides: {
           "--sidebar-accent": "color-mix(in oklab, var(--primary) 12%, var(--background))",
-          "--ring": "oklch(from var(--primary) l c h / 0.5)",
+          "--sidebar-active": "linear-gradient(to bottom, var(--elevated-from), var(--elevated-to))",
           "--shadow-card-value": "none",
+          "--composer-border": "transparent",
         },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      createTimbalTheme({
+        brand: "#000",
+        overrides: { root: { "--studio-sidebar-width": "16rem", "--radius-2xl": "1.25rem" } },
       }),
     ).not.toThrow();
   });
