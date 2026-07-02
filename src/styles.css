@@ -295,6 +295,21 @@
 }
 
 /* =============================================================== *
+ * Display type — kit and app headings consume the theme's         *
+ * optional display stack (`typography.display` →                  *
+ * `--font-display`). Unset it falls back to the body stack, so    *
+ * this is a no-op until a theme sets a display font. Element      *
+ * specificity: loses to any font-* utility, wins over inherited   *
+ * body font — exactly the intended precedence.                    *
+ * =============================================================== */
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-display, var(--font-sans, inherit));
+}
+
+/* =============================================================== *
  * Tailwind v4 @theme inline — re-aliases the base tokens above so *
  * `bg-background`, `text-foreground`, `border-border`, etc. all   *
  * resolve via var() and flip with .dark.                          *

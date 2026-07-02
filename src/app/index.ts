@@ -1,4 +1,5 @@
 export { APP_KIT_AGENT_INSTRUCTIONS } from "./agent-instructions";
+export { REFERENCE_AGENT_INSTRUCTIONS } from "../design/reference-instructions";
 
 // Machine-readable catalog of every primitive + block (import paths, what each
 // composes, and a source ref to fork). Powers the agent instructions + gallery.
@@ -53,6 +54,7 @@ export type {
   TimbalThemeIntent,
   TimbalThemeTokens,
   TimbalThemeTypography,
+  TimbalThemeNeutrals,
   TimbalThemeOverrides,
   ThemeMode,
   ThemeShadow,

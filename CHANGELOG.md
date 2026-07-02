@@ -6,6 +6,28 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ### Added
 
+- **`neutrals` intent** — full neutral-canvas personality from one hue
+  (`neutrals: { hue: 85, chroma: 0.016, lightness: 0.975 }` = cream paper):
+  derives page background, cards, muted surfaces, sidebar, and borders in both
+  modes, with hue independent of `brand` (unlike `tintNeutrals`, which it wins
+  over). Makes cream-editorial / greige-enterprise / warm-consumer canvases
+  expressible without any token overrides. `folio` preset now ships cream
+  neutrals so the range is visible in the gallery.
+- **`typography.display` now reaches every heading** — `styles.css` routes
+  `h1`–`h3` through `var(--font-display, var(--font-sans, inherit))`, so a
+  serif/mono display stack re-skins kit-rendered titles (Page, Section,
+  dialogs) with no wrapper spans. No-op when `display` is unset.
+- **`REFERENCE_AGENT_INSTRUCTIONS` (new export)** — the compact
+  screenshot-to-plan protocol for reference-matching agents: signal→intent
+  extraction table, block/invention planning, upfront non-goals
+  (house-rule conflicts), and the iterate-on-intent loop. Contract-tested so it
+  can only name intent fields that exist.
+- **`invention-lane` house rule** — bespoke components are documented as
+  legitimate when no catalog block fits, with the substrate rules (kit
+  primitives + semantic tokens, zero literals, same lint) and the
+  second-use-extract discipline; rendered into `APP_KIT_AGENT_INSTRUCTIONS`
+  alongside a dedicated section.
+
 - **`createTimbalTheme` intent grew four fields** so reference-matching a design
   never requires hand-authored tokens:
   - `overrides` — one-off token overrides, **token-referential only**

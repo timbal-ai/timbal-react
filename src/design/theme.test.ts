@@ -173,6 +173,80 @@ describe("createTimbalTheme — surfaces", () => {
   });
 });
 
+describe("createTimbalTheme — neutrals", () => {
+  const hueOf = (v: string) => Number.parseFloat(v.match(/oklch\([\d.]+ [\d.]+ ([\d.]+)/)![1]);
+  const lightnessOf = (v: string) => Number.parseFloat(v.match(/oklch\(([\d.]+)/)![1]);
+  const chromaOf = (v: string) => Number.parseFloat(v.match(/oklch\([\d.]+ ([\d.]+)/)![1]);
+
+  it("derives the full canvas family from one hue, in both modes", () => {
+    const t = createTimbalTheme({ brand: "#9a3412", neutrals: { hue: 85 } });
+    for (const key of ["--background", "--card", "--muted", "--border", "--sidebar"]) {
+      expect(hueOf(t.light[key])).toBeCloseTo(85, 0);
+    }
+    for (const key of ["--background", "--card", "--muted", "--sidebar"]) {
+      expect(hueOf(t.dark[key])).toBeCloseTo(85, 0);
+    }
+    // Dark stays a near-black ramp; light anchors at the default paper tone.
+    expect(lightnessOf(t.dark["--background"])).toBeCloseTo(0.145, 2);
+    expect(lightnessOf(t.light["--background"])).toBeCloseTo(0.985, 2);
+  });
+
+  it("clamps lightness and chroma into the neutral band", () => {
+    const t = createTimbalTheme({
+      brand: "#000",
+      neutrals: { hue: 85, chroma: 0.3, lightness: 0.5 },
+    });
+    expect(lightnessOf(t.light["--background"])).toBeCloseTo(0.93, 2);
+    expect(chromaOf(t.light["--background"])).toBeLessThanOrEqual(0.05);
+  });
+
+  it("wins over tintNeutrals (hue decoupled from brand)", () => {
+    const t = createTimbalTheme({
+      brand: "#4f46e5", // indigo brand ≈ hue 277
+      tintNeutrals: true,
+      neutrals: { hue: 85 },
+    });
+    expect(hueOf(t.light["--secondary"])).toBeCloseTo(85, 0);
+  });
+
+  it("does not clobber an explicit accent intent", () => {
+    const t = createTimbalTheme({
+      brand: "#9a3412",
+      accent: "#10b981",
+      neutrals: { hue: 85 },
+    });
+    // Accent derivation ran first; neutrals must not overwrite it.
+    expect(hueOf(t.light["--accent"])).not.toBeCloseTo(85, 0);
+  });
+
+  it("keeps light and dark key sets paired", () => {
+    const t = createTimbalTheme({ brand: "#000", neutrals: { hue: 85 } });
+    expect(Object.keys(t.light).sort()).toEqual(Object.keys(t.dark).sort());
+  });
+
+  it("composes with surfaces: console (flat sidebar rides the warm canvas)", () => {
+    const t = createTimbalTheme({
+      brand: "#9a3412",
+      neutrals: { hue: 85 },
+      surfaces: "console",
+    });
+    expect(t.light["--sidebar"]).toBe("var(--background)");
+    expect(hueOf(t.light["--background"])).toBeCloseTo(85, 0);
+  });
+});
+
+describe("display type consumption", () => {
+  it("styles.css routes h1–h3 through --font-display with sans fallback", async () => {
+    const css = await Bun.file(new URL("../styles.css", import.meta.url)).text();
+    expect(css).toMatch(/h1,\s*h2,\s*h3\s*\{\s*font-family:\s*var\(--font-display,\s*var\(--font-sans,\s*inherit\)\);/);
+  });
+
+  it("folio preset carries cream neutrals (range is human-eyeballable)", () => {
+    const folio = getThemePreset("folio")!;
+    expect(folio.tokens.light["--background"]).toMatch(/oklch\(0\.975 /);
+  });
+});
+
 describe("createTimbalTheme — chartPalette", () => {
   it("maps intent colors to --chart-N in both modes, capped at 6", () => {
     const palette = [

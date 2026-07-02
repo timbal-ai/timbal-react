@@ -79,6 +79,17 @@ You are **not** required to copy any example layout, page title, section order, 
 
 When in doubt: compose from the **component menu** + **guidelines**, then adapt creatively to the request.
 
+### The invention lane (bespoke components are legitimate — here are the rules)
+
+When **no catalog block has the anatomy you need** (a pull-quote, an annotated reading row, a stepper variant, a domain-specific card), building a bespoke component is the **sanctioned** path — not slop. The rules that keep it on-system:
+
+1. **Substrate:** compose from kit primitives (\`SurfaceCard\`, \`Stack\`, \`Field*\`, \`Badge\`, …) and semantic tokens (\`text-foreground\`, \`bg-muted\`, \`border-border\`, \`text-muted-foreground\`). Anything interactive rides the kit control classes — never a hand-styled \`<input>\`/\`<button>\`.
+2. **Zero literal colors** and no glow/gradient tricks — bespoke code passes the exact same lint gate as everything else.
+3. **Check the catalog first** (\`APP_KIT_CATALOG\`) and prefer **props over forks**: don't rebuild a near-fit block to change one slot.
+4. **Second use = extract.** The moment you copy your own bespoke shape into a second place, pull it into one shared component (\`src/components/\`), props for the differences.
+
+Name your bespoke components in your plan/summary so the host can track recurring shapes — shapes that recur across projects get productized into the kit.
+
 ### Importable catalog — import, don't rebuild
 
 This listing is generated from \`APP_KIT_CATALOG\` (exported from \`@timbal-ai/timbal-react/app\` — read it programmatically for the same data). Every entry's import path is guaranteed to resolve. **Blocks** are composed sections: prefer importing a block over re-assembling its parts. Each block names a \`fork\` source path you can copy and adapt when no prop fits.
@@ -348,6 +359,7 @@ These ship in the same design system but aren't re-exported from \`/app\`. Reach
 | \`TagInput\` | Chips / token input; commits on Enter/comma, removes on Backspace, optional \`dedupe\`/\`max\`. |
 | \`AvatarGroup\` | Overlapping avatar stack with an optional \`+N\` overflow chip (\`max\`, \`spacing\`). |
 | \`CircularProgress\` | Lightweight SVG progress ring — determinate (optional center label) or indeterminate. |
+| \`Progress\` | Linear progress bar (\`/ui\`) — rides \`--primary\`; size with height utilities (e.g. \`className="h-0.5"\` for a hairline reading-progress line). Never hand-roll a progress div. |
 | \`CopyButton\` | Click-to-copy with a transient check confirmation; icon-only or with a label. |
 | \`Snippet\` | Single-line code / command on the elevated surface with a built-in copy button. |
 

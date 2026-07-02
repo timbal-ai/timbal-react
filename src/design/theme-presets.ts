@@ -151,13 +151,14 @@ export const TIMBAL_THEME_PRESETS: readonly TimbalThemePreset[] = [
     id: "folio",
     label: "Folio",
     description:
-      "Editorial serif (Fraunces), near-sharp corners, hairline shadows — content / docs / reports.",
+      "Editorial serif (Fraunces) on cream paper neutrals, near-sharp corners, hairline shadows — content / docs / reports.",
     swatch: "#9a3412",
     font: "Fraunces",
     tokens: createTimbalTheme({
       brand: "#9a3412",
       radius: 0.25,
       shadow: "hairline",
+      neutrals: { hue: 85, chroma: 0.016, lightness: 0.975 },
       typography: { sans: STACK.fraunces, importUrl: FONT_URL.fraunces },
     }),
   },

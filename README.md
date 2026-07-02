@@ -123,11 +123,14 @@ const theme = createTimbalTheme({
   brand: "#4f46e5",
   radius: 0.875,     // corner roundness (rem) → --radius + --radius-2xl
   shadow: "soft",    // "none" | "hairline" | "soft" | "medium" | "strong"
+  neutrals: { hue: 85, chroma: 0.016, lightness: 0.975 }, // canvas warmth (cream≈85, greige≈70),
+                     // both modes, hue independent of brand; wins over tintNeutrals
   surfaces: "panel", // "panel" (default) | "console" — flat ops/terminal chrome
   defaultMode: "light", // dark-first apps: "dark" → wire defaultTheme={theme.defaultMode ?? "light"}
   chartPalette: ["#4f46e5", "#0891b2"], // → --chart-1..6, adapted per mode
   typography: {      // optional — re-skins every component's font
     sans: '"Geist", ui-sans-serif, system-ui, sans-serif',
+    display: '"Fraunces", ui-serif, Georgia, serif', // reaches ALL h1–h3 (kit headings included)
     importUrl: "https://fonts.googleapis.com/css2?family=Geist:wght@400..600&display=swap",
   },
   overrides: {       // one-off tokens — token-referential only (literals throw)
@@ -168,7 +171,7 @@ applyThemePreset("indigo");
 
 > The visual theme picker (`ThemePresetGallery`) is an **internal/dev tool** and is intentionally **not** part of the public API — theming is a developer/config choice, not an end-user selector in shipped apps.
 
-**For UI-generation agents:** inject `THEME_AGENT_INSTRUCTIONS` into the system prompt so the model themes via these APIs (and never emits raw OKLCH), mirroring `APP_KIT_AGENT_INSTRUCTIONS`.
+**For UI-generation agents:** inject `THEME_AGENT_INSTRUCTIONS` into the system prompt so the model themes via these APIs (and never emits raw OKLCH), mirroring `APP_KIT_AGENT_INSTRUCTIONS`. When the task includes a **reference screenshot**, also inject `REFERENCE_AGENT_INSTRUCTIONS` — the compact extract → plan → iterate-on-intent protocol (signal→intent table, invention-lane planning, upfront non-goals).
 
 ### Anti-slop guardrails for generated UIs
 

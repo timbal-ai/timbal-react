@@ -11,6 +11,7 @@ export type {
   TimbalThemeIntent,
   TimbalThemeTokens,
   TimbalThemeTypography,
+  TimbalThemeNeutrals,
   TimbalThemeOverrides,
   ThemeMode,
   ThemeShadow,

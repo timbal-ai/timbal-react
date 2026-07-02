@@ -313,6 +313,14 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     good: `<StatusBadge tone="danger">Critical</StatusBadge>`,
   },
   {
+    id: "invention-lane",
+    rule: "When no catalog block fits the anatomy you need, building a bespoke component is LEGITIMATE — on the sanctioned substrate only: compose kit primitives and SurfaceCard, semantic tokens for every color, kit control classes for anything interactive. Never fork a near-fit block when props would do; if you copy your own bespoke shape a second time, extract it to one shared component.",
+    why: "References contain anatomy no closed catalog can pre-ship (pull-quotes, annotated timelines, reading rows). Banning invention caps fidelity; ungoverned invention is how slop starts. The lane keeps the freedom and the floor: bespoke code passes the exact same lint as everything else, so 'custom' never means 'off-system'.",
+    slop: `<div style={{background:"#faf5ef"}} className="rounded-xl p-4 shadow-[0_0_20px_rgba(0,0,0,.2)]">…</div>`,
+    good: `<figure className="border-l-2 border-primary/40 pl-4"><blockquote className="text-lg text-foreground">…</blockquote><figcaption className="text-sm text-muted-foreground">…</figcaption></figure>`,
+    enforcement: "prompt-only",
+  },
+  {
     id: "theme-via-generator",
     rule: "Never assign a literal color to a theme token (.dark { --background: oklch(…) }, --sidebar-bg: #…) or force a theme (forcedTheme). Brand with createTimbalTheme({ brand, accent, chartPalette, surfaces, defaultMode }) + applyTimbalTheme, or a preset. One-off tokens the generator misses: the intent's `overrides`, or token-referential CSS (var(--token) / color-mix(in oklab, …)) — both pass the gate.",
     why: "Hand-written CSS custom-property colors and forcedTheme punch straight through the theme generator — the exact anti-pattern that makes one app look off-system. The generator owns light + dark; token-referential overrides keep it the single color source while still allowing personalization.",

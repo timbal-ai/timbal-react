@@ -101,6 +101,29 @@ export interface TimbalThemeTypography {
   importUrl?: string;
 }
 
+/**
+ * Neutral-surface personality — the warmth/coolness of the *canvas* (page,
+ * cards, muted surfaces, borders), independent of `brand`. This is what makes
+ * cream/paper editorial, greige enterprise, or warm off-white consumer looks
+ * expressible: `tintNeutrals` can only lean neutrals toward the brand hue,
+ * while `neutrals` owns the hue outright.
+ */
+export interface TimbalThemeNeutrals {
+  /** OKLCH hue for neutral surfaces: ≈85 cream, ≈70 greige, ≈260 shipped cool. */
+  hue: number;
+  /**
+   * Tint strength. Default 0.012 — perceivable warmth without reading as a
+   * color. Clamped to ≤ 0.05 (beyond that it's an accent, not a neutral).
+   */
+  chroma?: number;
+  /**
+   * Light-mode page lightness. Default 0.985 (soft paper; shipped white is
+   * 0.995). Clamped to [0.93, 1]. Dark mode keeps the shipped near-black
+   * lightness ramp, warmed with the same hue.
+   */
+  lightness?: number;
+}
+
 export interface TimbalThemeIntent {
   /** Primary brand color — any CSS color: `#4f46e5`, `rgb(...)`, `oklch(...)`. */
   brand: string;
@@ -109,11 +132,20 @@ export interface TimbalThemeIntent {
   /** Corner radius in rem (maps to `--radius` + `--radius-2xl`). Default 0.75. */
   radius?: number;
   /**
-   * Tint neutral surfaces (background / muted / border) toward the brand hue
+   * Tint neutral surfaces (secondary / muted / border) toward the brand hue
    * with very low chroma, for a more cohesive branded feel. Default `false`
-   * keeps the shipped neutral grays.
+   * keeps the shipped neutral grays. For full control of the canvas — hue
+   * independent of brand, page lightness, tint depth — use `neutrals` instead
+   * (it wins when both are set).
    */
   tintNeutrals?: boolean;
+  /**
+   * Full neutral-canvas personality (page background, cards, muted surfaces,
+   * borders — both modes). Derives a complete warm/cool neutral family from
+   * one hue: `neutrals: { hue: 85, chroma: 0.016, lightness: 0.975 }` is cream
+   * paper. Wins over `tintNeutrals`.
+   */
+  neutrals?: TimbalThemeNeutrals;
   /**
    * Full typography personality (font stacks + optional web-font URL). When
    * set, the generated theme re-skins every component's font.
@@ -481,6 +513,78 @@ export function createTimbalTheme(intent: TimbalThemeIntent): TimbalThemeTokens 
       h: 0,
       alpha: 0.1,
     });
+  }
+
+  // ── Neutral canvas (full warm/cool family from one hue) ─────────────────
+  // Runs after tintNeutrals so `neutrals` wins when both are set, and before
+  // surfaces/overrides so those still have the last word.
+  if (intent.neutrals) {
+    const h = intent.neutrals.hue;
+    const c = Math.min(intent.neutrals.chroma ?? 0.012, 0.05);
+    const L = Math.min(Math.max(intent.neutrals.lightness ?? 0.985, 0.93), 1);
+    const n = (l: number, ch = c) =>
+      oklchToString({ l: Math.min(Math.max(l, 0), 1), c: ch, h, alpha: 1 });
+    // Ink foregrounds carry a whisper of the same hue so text sits *in* the
+    // canvas rather than on it.
+    const inkC = Math.min(c * 0.5, 0.015);
+
+    // Light: preserve the shipped lightness deltas, anchored to L.
+    light["--background"] = n(L);
+    light["--card"] = n(L);
+    light["--popover"] = n(L);
+    light["--foreground"] = n(0.145, inkC);
+    light["--card-foreground"] = n(0.145, inkC);
+    light["--popover-foreground"] = n(0.145, inkC);
+    light["--secondary"] = n(L - 0.02);
+    light["--secondary-foreground"] = n(0.205, inkC);
+    light["--muted"] = n(L - 0.02);
+    light["--muted-foreground"] = n(0.52, Math.min(c * 1.2, 0.03));
+    light["--accent"] ??= n(L - 0.03);
+    light["--accent-foreground"] ??= n(0.205, inkC);
+    light["--border"] = n(L - 0.085);
+    light["--input"] = n(L - 0.085);
+    light["--sidebar"] = n(L - 0.008);
+    light["--sidebar-foreground"] = n(0.145, inkC);
+    light["--sidebar-accent"] = n(L - 0.025);
+    light["--sidebar-border"] = n(L - 0.085);
+    light["--elevated-from"] = n(Math.min(L + 0.008, 1), c * 0.7);
+    light["--elevated-to"] = n(L - 0.008);
+    light["--modal-from"] = n(Math.min(L + 0.008, 1), c * 0.7);
+    light["--modal-to"] = n(L - 0.018);
+    light["--composer-bg"] = n(L);
+    light["--composer-border"] = n(L - 0.085);
+    light["--code-block-bg"] = n(L - 0.01, c * 0.7);
+    light["--code-header-bg"] = n(L - 0.025, c * 0.7);
+
+    // Dark: shipped near-black ramp, warmed with the same hue.
+    const cd = Math.min(c * 0.6, 0.02);
+    dark["--background"] = n(0.145, cd * 0.6);
+    dark["--card"] = n(0.19, cd);
+    dark["--popover"] = n(0.19, cd);
+    dark["--foreground"] = n(0.985, Math.min(cd, 0.006));
+    dark["--card-foreground"] = n(0.985, Math.min(cd, 0.006));
+    dark["--popover-foreground"] = n(0.985, Math.min(cd, 0.006));
+    dark["--secondary"] = n(0.22, cd);
+    dark["--secondary-foreground"] = n(0.985, Math.min(cd, 0.006));
+    dark["--muted"] = n(0.22, cd);
+    dark["--muted-foreground"] = n(0.72, cd);
+    dark["--accent"] ??= n(0.25, cd);
+    dark["--accent-foreground"] ??= n(0.985, Math.min(cd, 0.006));
+    // Borders stay the shipped white-alpha (reads correctly on any hue).
+    dark["--border"] = "oklch(1 0 0 / 0.10)";
+    dark["--input"] = "oklch(1 0 0 / 0.12)";
+    dark["--sidebar"] = n(0.19, cd);
+    dark["--sidebar-foreground"] = n(0.985, Math.min(cd, 0.006));
+    dark["--sidebar-accent"] = n(0.25, cd);
+    dark["--sidebar-border"] = "oklch(1 0 0 / 0.10)";
+    dark["--elevated-from"] = n(0.205, cd * 0.8);
+    dark["--elevated-to"] = n(0.185, cd * 0.8);
+    dark["--modal-from"] = n(0.22, cd);
+    dark["--modal-to"] = n(0.19, cd);
+    dark["--composer-bg"] = n(0.19, cd);
+    dark["--composer-border"] = "oklch(1 0 0 / 0.12)";
+    dark["--code-block-bg"] = n(0.17, cd);
+    dark["--code-header-bg"] = n(0.205, cd);
   }
 
   // ── Surface treatment ─────────────────────────────────────────────────────
