@@ -4,7 +4,7 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
-## [3.1.0] — 2026-07-03
+## [3.2.0] — 2026-07-03
 
 Dashboard chrome gets a flush sidebar by default, codegen guardrails re-tier taste
 vs correctness, and `AppShell topbar` is a supported layout again.
@@ -53,6 +53,73 @@ vs correctness, and `AppShell topbar` is a supported layout again.
 - **`CopilotOverlay` trigger pill** — toned-down liquid-glass displacement and
   aberration plus a container scrim/ring so the floating pill doesn't smear dark
   fringes on busy backgrounds.
+
+## [3.1.0] — 2026-07-02
+
+### Added
+
+- **`neutrals` intent** — full neutral-canvas personality from one hue
+  (`neutrals: { hue: 85, chroma: 0.016, lightness: 0.975 }` = cream paper):
+  derives page background, cards, muted surfaces, sidebar, and borders in both
+  modes, with hue independent of `brand` (unlike `tintNeutrals`, which it wins
+  over). Makes cream-editorial / greige-enterprise / warm-consumer canvases
+  expressible without any token overrides. `folio` preset now ships cream
+  neutrals so the range is visible in the gallery.
+- **`typography.display` now reaches every heading** — `styles.css` routes
+  `h1`–`h3` through `var(--font-display, var(--font-sans, inherit))`, so a
+  serif/mono display stack re-skins kit-rendered titles (Page, Section,
+  dialogs) with no wrapper spans. No-op when `display` is unset.
+- **Tiered agent prompts** — `APP_KIT_CORE_INSTRUCTIONS` (new export): the
+  compact always-injected tier (~6.5k chars, size test-enforced) carrying the
+  surface/archetype decision, every house rule (rendered from `HOUSE_RULES`,
+  zero drift), the retry-killing API gotchas, and a routing table to on-demand
+  layers. The full instruction strings now also ship as **readable files** —
+  `dist/prompts/{core,appkit,theme,reference}.md` (exports map `./prompts/*`)
+  — so agents can pull detail per task instead of consuming the 56k-char
+  monolith up front (which remains exported unchanged).
+- **`REFERENCE_AGENT_INSTRUCTIONS` (new export)** — the compact
+  screenshot-to-plan protocol for reference-matching agents: signal→intent
+  extraction table, block/invention planning, upfront non-goals
+  (house-rule conflicts), and the iterate-on-intent loop. Contract-tested so it
+  can only name intent fields that exist.
+- **`invention-lane` house rule** — bespoke components are documented as
+  legitimate when no catalog block fits, with the substrate rules (kit
+  primitives + semantic tokens, zero literals, same lint) and the
+  second-use-extract discipline; rendered into `APP_KIT_AGENT_INSTRUCTIONS`
+  alongside a dedicated section.
+
+- **`createTimbalTheme` intent grew four fields** so reference-matching a design
+  never requires hand-authored tokens:
+  - `overrides` — one-off token overrides, **token-referential only**
+    (`var(--token)` / `color-mix(in oklab, …)`; literal colors throw with a
+    teaching error). Flat map applies to both modes; `{ light, dark, root }`
+    form for deliberate asymmetry. Overrides pass the `timbal-ui-lint` gate by
+    construction.
+  - `chartPalette` — up to 6 intent colors mapped to `--chart-1..6`, adapted
+    per mode (dark series brightened for contrast). Exempt from the
+    `color-literal` lint rule like `brand`/`accent`, including
+    formatter-wrapped multi-line arrays.
+  - `surfaces: "panel" | "console"` — `"console"` flattens the sidebar into the
+    background, brand-tints the active nav item, points `--chart-1` at the
+    brand, and defaults shadows to hairline.
+  - `defaultMode: "light" | "dark"` — dark-first intent, passed through on the
+    returned tokens; wire as `defaultTheme={theme.defaultMode ?? "light"}`.
+- **`--sidebar-active` / `--sidebar-active-foreground` tokens** — the
+  `StudioSidebar` active nav item (expanded and collapsed rail) now renders
+  through these tokens (default preserves the shipped elevated-gradient look).
+  Overriding `--sidebar-active: var(--sidebar-accent)` yields a flat accent
+  fill — no more `nav[aria-label]` CSS hooks to restyle the active state.
+- New exported types: `TimbalThemeOverrides`, `ThemeSurfaces`, `ThemeMode`.
+
+### Changed
+
+- `color-literal` / `theme-via-generator` / `forcedTheme` lint messages now
+  teach the sanctioned escape hatches (intent fields, `overrides`,
+  `var()`/`color-mix()`) instead of only naming the violation, and warn against
+  pasting `themeToCss` output into gated app CSS.
+- `THEME_AGENT_INSTRUCTIONS` rewritten around the richer intent object: the
+  golden rule is now "literals only as intent", runtime `applyTimbalTheme` is
+  the default apply path, and dark-first wiring goes through `defaultMode`.
 
 ## [3.0.0] — 2026-06-30
 
