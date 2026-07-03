@@ -16,7 +16,7 @@ const sidebarHeaderClass = "flex h-12 shrink-0 items-center px-2";
 
 const toggleButtonClass = cn(
   "flex shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors",
-  "hover:bg-muted hover:text-foreground",
+  "hover:bg-sidebar-accent hover:text-foreground",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15",
 );
 

@@ -10,6 +10,21 @@
  * recur in generated output. Feed `formatLintReport(findings)` back to the
  * generating agent (see `reviewGeneratedUi`) so it can self-correct.
  *
+ * ## Severity policy
+ *
+ * - **`error`** — reserved for *correctness and theming integrity*: things
+ *   that silently break at runtime (invalid CSS from `hsl(var(--token))`,
+ *   unsafe chart dataKeys, broken chat layout) or punch through the theme
+ *   generator (raw palette colors, hand-authored tokens, `forcedTheme`) and
+ *   break dark mode / rebranding. These block regardless of model quality.
+ * - **`warn`** — *taste opinions* (icon budgets, bold metrics, glow shadows,
+ *   uppercase headings, card-in-card). They only block under
+ *   `{ strict: true }`. Strict is the per-caller knob: run strict for
+ *   cheap/fast models that need tight rails, lenient for frontier models
+ *   whose deliberate style choices are usually defensible.
+ * - Prefer **blocklist rules** ("don't do X") over allowlist rules ("must use
+ *   Y") — allowlists cap generation quality at the kit's own components.
+ *
  * Public, documented API — exported from the package root and `/app`.
  */
 
@@ -148,26 +163,15 @@ const COLORED_HOVER_RE = /\bhover:(?:bg|from|to|via)-(?:primary|destructive|succ
 const GLOW_SHADOW_RE = /\b(?:drop-)?shadow-\[0(?:px)?_0(?:px)?_/;
 
 /**
- * Hand-rolled top bar: the mobile menu trigger is rendered automatically by
- * `AppShell`, so any explicit `AppShellSidebarTrigger` in generated code means
- * the agent built a custom topbar (the thing we never want).
- */
-const APP_SHELL_TRIGGER_RE = /\bAppShellSidebarTrigger\b/;
-
-/**
- * Any `AppShell topbar={…}` (or `topbar="…"`) usage. `AppShell` renders its own
- * mobile menu button, so a topbar is never needed — global actions belong in
- * `Page.actions` and an in-app assistant is a self-mounting `<AppCopilot>`, not a
- * topbar button. Matches the JSX prop form to avoid flagging an unrelated
- * identifier named `topbar`.
- */
-const APP_SHELL_TOPBAR_RE = /\btopbar\s*=\s*[{"]/;
-
-/**
  * Hand-rolled sidebar rail signature: a `<nav>` / `<aside>` element, laid out
  * as a vertical column (`flex-col`), at a fixed rail width (`w-48`…`w-80`).
  * Checked as three order-independent signals on one line to stay high-precision
  * (a generic `<aside>` won't carry all three). Use `StudioSidebar` instead.
+ *
+ * Note: a global topbar is NOT flagged — `AppShell topbar={…}` is the supported
+ * slot for horizontal nav (with `AppShellSidebarTrigger` placed inside it when a
+ * sidebar drawer also exists). Only chrome built *outside* the shell's slots is
+ * slop.
  */
 const NAV_RAIL_TAG_RE = /<(?:nav|aside)\b/;
 const NAV_RAIL_COLUMN_RE = /\bflex-col\b/;
@@ -332,7 +336,7 @@ export function lintGeneratedUi(
         const parentCard = openCards[openCards.length - 1];
         findings.push({
           rule: "no-table-in-card",
-          severity: "error",
+          severity: "warn",
           line: lineNo,
           message: `Table inside card. Never wrap a <${tableMatch[1]}> or table inside a <${parentCard.type}> (opened on L${parentCard.line}). Place the table directly on the Page or Section instead.`,
           snippet: line.trim().slice(0, 120),
@@ -442,7 +446,7 @@ export function lintGeneratedUi(
     if (GLOW_SHADOW_RE.test(line)) {
       findings.push({
         rule: "no-glow",
-        severity: "error",
+        severity: "warn",
         line: lineNo,
         message:
           "Glow / neon shadow. shadow-[0_0_…] / drop-shadow-[0_0_…] halos are the canonical 'cyberpunk AI dashboard' tell. Use the kit elevation (shadow-card / shadow-card-elevated) — a 'glowing' brief is not permission to break the elevation system.",
@@ -450,27 +454,7 @@ export function lintGeneratedUi(
       });
     }
 
-    // ── hand-rolled topbar / sidebar rail ───────────────────────────────
-    if (APP_SHELL_TRIGGER_RE.test(line)) {
-      findings.push({
-        rule: "no-custom-shell-chrome",
-        severity: "error",
-        line: lineNo,
-        message:
-          "Custom topbar. AppShell renders the mobile menu button itself — you do not need AppShellSidebarTrigger or a top bar. Default to no global topbar; put global actions in Page.actions or the sidebar.",
-        snippet: line.trim().slice(0, 120),
-      });
-    }
-    if (APP_SHELL_TOPBAR_RE.test(line)) {
-      findings.push({
-        rule: "no-custom-shell-chrome",
-        severity: "error",
-        line: lineNo,
-        message:
-          "No global topbar. Don't pass AppShell topbar={…} — AppShell renders its own mobile menu button, so a topbar is never needed. Put global actions (theme, account) in Page.actions or the sidebar; an in-app assistant is a self-mounting <AppCopilot> (suggestions for quick actions), never a topbar button.",
-        snippet: line.trim().slice(0, 120),
-      });
-    }
+    // ── hand-rolled sidebar rail ────────────────────────────────────────
     if (
       NAV_RAIL_TAG_RE.test(line) &&
       NAV_RAIL_COLUMN_RE.test(line) &&
@@ -478,10 +462,10 @@ export function lintGeneratedUi(
     ) {
       findings.push({
         rule: "no-custom-shell-chrome",
-        severity: "error",
+        severity: "warn",
         line: lineNo,
         message:
-          "Hand-rolled sidebar rail. Don't build a custom <nav>/<aside> navigation column — use AppShell sidebar={<StudioSidebar items={navItems} selectedId={…} onSelect={…} />}. StudioSidebar nav items take an optional `icon`, so icon nav is no reason to go custom.",
+          "Hand-rolled sidebar rail. Prefer AppShell sidebar={<StudioSidebar items={navItems} selectedId={…} onSelect={…} />} (or AppShell topbar={…} for horizontal nav) — the shell slots carry the collapse motion, mobile drawer, and sidebar tokens for free. StudioSidebar nav items take an optional `icon`.",
         snippet: line.trim().slice(0, 120),
       });
     }
@@ -490,7 +474,7 @@ export function lintGeneratedUi(
     if (UPPERCASE_HEADING_RE.test(line)) {
       findings.push({
         rule: "no-uppercase-heading",
-        severity: "error",
+        severity: "warn",
         line: lineNo,
         message:
           "UPPERCASE heading / display text. All-caps display text reads as shouty template chrome — use sentence case. Convey severity with StatusBadge/StatusDot tone, not screaming labels. (A small text-xs uppercase tracking-wide eyebrow is fine.)",
@@ -635,9 +619,9 @@ export function lintGeneratedUi(
       if (headingMatch) {
         findings.push({
           rule: "no-chat-wrapping",
-          severity: "error",
+          severity: "warn",
           line: lineNo,
-          message: `Custom heading in chat view. Do not render custom <${headingMatch[1]}> headings on the chat page. Pass welcome.heading to TimbalChat if you need to customize the welcome title.`,
+          message: `Custom heading in chat view. Prefer welcome.heading on TimbalChat over a custom <${headingMatch[1]}> above the thread (the welcome screen already owns that slot).`,
           snippet: line.trim().slice(0, 120),
         });
       }

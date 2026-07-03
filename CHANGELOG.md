@@ -4,6 +4,56 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+## [3.1.0] — 2026-07-03
+
+Dashboard chrome gets a flush sidebar by default, codegen guardrails re-tier taste
+vs correctness, and `AppShell topbar` is a supported layout again.
+
+### Added
+
+- **`StudioSidebar` `variant` prop** (`"flush"` | `"floating"`, default `"flush"`)
+  and exported `StudioSidebarVariant` type from `@timbal-ai/timbal-react/studio`.
+
+### Changed
+
+- **`StudioSidebar` redesigned — flat nav rows + flush rail default.** Nav items
+  are now quiet text rows with a soft `sidebar-accent` tint on hover/selection
+  (no more raised bordered-button chrome per row), and the high-level
+  `StudioSidebar` defaults to a **full-height flush rail** with a single hairline
+  border — the standard product-dashboard look. Pass `variant="floating"` for
+  the previous rounded studio-style card; `TimbalStudioShell` (which drives
+  `StudioSidebarPanel` directly) keeps the floating card unchanged. The footer
+  user menu now uses the token-styled overlay (`DropdownMenuItem
+  variant="destructive"` for sign out) instead of hand-rolled dark-glass chrome,
+  so it follows light/dark and rebranding. `--sidebar-accent` (light) nudged to
+  `oklch(0.955 0.004 260)` so the flat selected state reads clearly.
+- **Lint severities re-tiered: errors = correctness + theming integrity,
+  warnings = taste.** `no-glow`, `no-uppercase-heading`, `no-table-in-card`,
+  the custom-heading half of `no-chat-wrapping`, and `no-custom-shell-chrome`
+  (hand-rolled rails) are now **warnings** — they block only under
+  `strict: true`, which becomes the per-caller knob (run strict for cheap/fast
+  generation models, lenient for frontier models). Raw colors, color literals,
+  `hsl(var(--token))` wrapping, unsafe chart dataKeys, theme-token bypasses,
+  and chat-wrapping layout breaks remain hard errors. The policy is documented
+  in `ui-lint.ts`, `HOUSE_RULES`, and the skill; a severity-policy test pins
+  each tier.
+- **`no-custom-shell-chrome` no longer rejects the `AppShell topbar={…}` slot or
+  `AppShellSidebarTrigger`** — a global topbar (brand + nav links + search +
+  account) is a supported layout again, composed through the shell's `topbar`
+  prop with `<AppShellSidebarTrigger />` placed inside it when a sidebar drawer
+  also exists. The rule still flags hand-rolled `<nav>`/`<aside>` rails built
+  outside the shell's slots. `HOUSE_RULES`, `APP_KIT_AGENT_INSTRUCTIONS`, and
+  the catalog entry for `AppShell` were updated to document the topbar
+  archetype instead of forbidding it.
+- **`AppShell` main inset** defaults to the flush rail width on first render so
+  mount doesn't flash a slide for the common `variant="flush"` sidebar.
+- **`Page` fill layout** re-adds bottom padding inside `overflow-y-auto` scroll
+  panes (not the shell footer) so the last row isn't flush against the viewport
+  edge.
+- **`CopilotOverlay` trigger pill** — toned-down liquid-glass displacement and
+  aberration plus a container scrim/ring so the floating pill doesn't smear dark
+  fringes on busy backgrounds.
+
 ## [3.0.0] — 2026-06-30
 
 One button for the whole package. `TimbalV2Button` is gone — every chat, studio,

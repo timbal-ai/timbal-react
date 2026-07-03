@@ -412,17 +412,18 @@ describe("lintGeneratedUi — neutral trend", () => {
 });
 
 describe("lintGeneratedUi — glow shadows", () => {
-  it("errors on a neon glow box-shadow", () => {
-    const res = lintGeneratedUi(
-      `<span className="h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />`,
-    );
-    expect(res.ok).toBe(false);
+  it("warns on a neon glow box-shadow (blocks only in strict)", () => {
+    const src = `<span className="h-1.5 w-1.5 rounded-full shadow-[0_0_6px_var(--ring)]" />`;
+    const res = lintGeneratedUi(src);
     expect(res.findings.map((f) => f.rule)).toEqual(
       expect.arrayContaining(["no-glow"]),
     );
+    expect(res.findings.find((f) => f.rule === "no-glow")?.severity).toBe("warn");
+    expect(res.ok).toBe(true);
+    expect(lintGeneratedUi(src, { strict: true }).ok).toBe(false);
   });
 
-  it("errors on drop-shadow glow with px offsets", () => {
+  it("flags drop-shadow glow with px offsets", () => {
     expect(rules(`<div className="drop-shadow-[0px_0px_20px_var(--ring)]" />`)).toEqual(
       expect.arrayContaining(["no-glow"]),
     );
@@ -442,17 +443,6 @@ describe("lintGeneratedUi — glow shadows", () => {
 });
 
 describe("lintGeneratedUi — custom shell chrome", () => {
-  it("errors when a custom topbar uses AppShellSidebarTrigger", () => {
-    const src = `
-      <div className="flex h-12 items-center border-b px-4">
-        <AppShellSidebarTrigger className="lg:hidden" />
-      </div>
-    `;
-    expect(rules(src)).toEqual(
-      expect.arrayContaining(["no-custom-shell-chrome"]),
-    );
-  });
-
   it("errors on a hand-rolled full-height nav rail", () => {
     const src = `<nav className="flex h-full w-64 flex-col gap-1 p-3">{links}</nav>`;
     expect(rules(src)).toEqual(
@@ -467,13 +457,13 @@ describe("lintGeneratedUi — custom shell chrome", () => {
     );
   });
 
-  it("errors when AppShell is given a topbar prop", () => {
+  it("does not flag AppShell's topbar slot (supported horizontal nav)", () => {
     const src = `
       <AppShell
         sidebar={<StudioSidebar items={nav} selectedId={v} onSelect={set} />}
         topbar={
           <div className="flex items-center gap-2">
-            <Button onClick={openCoach}>AI Coach</Button>
+            <AppShellSidebarTrigger className="md:hidden" />
             <ModeToggle theme={theme} setTheme={setTheme} />
           </div>
         }
@@ -481,9 +471,7 @@ describe("lintGeneratedUi — custom shell chrome", () => {
         {main}
       </AppShell>
     `;
-    expect(rules(src)).toEqual(
-      expect.arrayContaining(["no-custom-shell-chrome"]),
-    );
+    expect(rules(src).includes("no-custom-shell-chrome")).toBe(false);
   });
 
   it("does not flag using StudioSidebar in AppShell.sidebar", () => {
@@ -498,13 +486,20 @@ describe("lintGeneratedUi — custom shell chrome", () => {
 });
 
 describe("lintGeneratedUi — uppercase display text", () => {
-  it("errors on an UPPERCASE heading element", () => {
-    expect(rules(`<h2 className="text-xl uppercase">Critical</h2>`)).toEqual(
+  it("warns on an UPPERCASE heading element (blocks only in strict)", () => {
+    const src = `<h2 className="text-xl uppercase">Critical</h2>`;
+    const res = lintGeneratedUi(src);
+    expect(res.findings.map((f) => f.rule)).toEqual(
       expect.arrayContaining(["no-uppercase-heading"]),
     );
+    expect(
+      res.findings.find((f) => f.rule === "no-uppercase-heading")?.severity,
+    ).toBe("warn");
+    expect(res.ok).toBe(true);
+    expect(lintGeneratedUi(src, { strict: true }).ok).toBe(false);
   });
 
-  it("errors on uppercase applied to large text", () => {
+  it("flags uppercase applied to large text", () => {
     expect(
       rules(`<span className="text-2xl font-normal uppercase">Elevated</span>`),
     ).toEqual(expect.arrayContaining(["no-uppercase-heading"]));
@@ -602,4 +597,44 @@ describe("lintGeneratedUi — strict mode", () => {
     expect(lintGeneratedUi(src).ok).toBe(true); // warn only
     expect(lintGeneratedUi(src, { strict: true }).ok).toBe(false);
   });
+});
+
+describe("lintGeneratedUi — severity policy (errors = correctness/theming, warns = taste)", () => {
+  // Correctness + theming-integrity rules stay hard errors regardless of strict.
+  const ERROR_FIXTURES: Record<string, string> = {
+    "raw-color": `<span className="text-blue-600">x</span>`,
+    "color-literal": `const c = "#ff0066";`,
+    "chart-token-color-fn": `<Cell fill="hsl(var(--chart-1))" />`,
+    "chart-data-key": `series={[{ dataKey: "Water %" }]}`,
+    "theme-via-generator": `<ThemeProvider forcedTheme="dark" />`,
+  };
+
+  // Taste rules are warnings — they block only under strict.
+  const WARN_FIXTURES: Record<string, string> = {
+    "no-glow": `<div className="shadow-[0_0_20px_var(--ring)]" />`,
+    "no-uppercase-heading": `<h2 className="text-xl uppercase">Critical</h2>`,
+    "no-table-in-card": `<Card>\n  <DataTable columns={c} rows={r} getRowKey={k} />\n</Card>`,
+    "no-custom-shell-chrome": `<nav className="flex h-full w-64 flex-col gap-1 p-3">{links}</nav>`,
+    "bold-metric": `<span className="text-3xl font-bold">$1</span>`,
+  };
+
+  for (const [rule, src] of Object.entries(ERROR_FIXTURES)) {
+    it(`${rule} is error severity`, () => {
+      const res = lintGeneratedUi(src);
+      const finding = res.findings.find((f) => f.rule === rule);
+      expect(finding?.severity).toBe("error");
+      expect(res.ok).toBe(false);
+    });
+  }
+
+  for (const [rule, src] of Object.entries(WARN_FIXTURES)) {
+    it(`${rule} is warn severity (lenient passes, strict blocks)`, () => {
+      const res = lintGeneratedUi(src);
+      const finding = res.findings.find((f) => f.rule === rule);
+      expect(finding?.severity).toBe("warn");
+      expect(res.findings.every((f) => f.severity !== "error")).toBe(true);
+      expect(res.ok).toBe(true);
+      expect(lintGeneratedUi(src, { strict: true }).ok).toBe(false);
+    });
+  }
 });

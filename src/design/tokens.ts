@@ -33,6 +33,11 @@ export const SIDEBAR_INSET_PX_EXPANDED =
 export const SIDEBAR_INSET_PX_COLLAPSED =
   SIDEBAR_GAP_PX + SIDEBAR_WIDTH_COLLAPSED_PX + SIDEBAR_CONTENT_GAP_PX;
 
+// Flush sidebar variant — panel sits at the viewport edge (no floating gap),
+// so the main column clears exactly the rail width.
+export const SIDEBAR_INSET_PX_FLUSH_EXPANDED = SIDEBAR_WIDTH_PX;
+export const SIDEBAR_INSET_PX_FLUSH_COLLAPSED = SIDEBAR_WIDTH_COLLAPSED_PX;
+
 // ---------------------------------------------------------------------------
 // Derived rem strings (used by inline CSS-var bag below + Tailwind arbitrary
 // values via `var(--studio-*)`)

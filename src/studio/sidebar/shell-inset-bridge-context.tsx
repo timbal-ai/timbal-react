@@ -5,6 +5,8 @@ import { useLayoutEffect, type FC } from "react";
 import {
   SIDEBAR_INSET_PX_COLLAPSED,
   SIDEBAR_INSET_PX_EXPANDED,
+  SIDEBAR_INSET_PX_FLUSH_COLLAPSED,
+  SIDEBAR_INSET_PX_FLUSH_EXPANDED,
 } from "../../design/tokens";
 import { useShellInsetReporter } from "../../layout/shell-inset-context";
 import { useStudioSidebarLayout } from "./sidebar-context";
@@ -12,6 +14,8 @@ import { useStudioSidebarLayout } from "./sidebar-context";
 export interface StudioSidebarShellInsetBridgeProps {
   /** Public hook for custom shells to track the sidebar inset width (px). */
   onInsetChange?: (insetPx: number) => void;
+  /** Flush rail (no floating gap) — the inset is exactly the rail width. */
+  flush?: boolean;
 }
 
 /**
@@ -22,6 +26,7 @@ export interface StudioSidebarShellInsetBridgeProps {
  */
 export const StudioSidebarShellInsetBridge: FC<StudioSidebarShellInsetBridgeProps> = ({
   onInsetChange,
+  flush = false,
 }) => {
   const reportInset = useShellInsetReporter();
   const { isMobile, isCollapsedRail } = useStudioSidebarLayout();
@@ -30,11 +35,15 @@ export const StudioSidebarShellInsetBridge: FC<StudioSidebarShellInsetBridgeProp
     const insetPx = isMobile
       ? 0
       : isCollapsedRail
-        ? SIDEBAR_INSET_PX_COLLAPSED
-        : SIDEBAR_INSET_PX_EXPANDED;
+        ? flush
+          ? SIDEBAR_INSET_PX_FLUSH_COLLAPSED
+          : SIDEBAR_INSET_PX_COLLAPSED
+        : flush
+          ? SIDEBAR_INSET_PX_FLUSH_EXPANDED
+          : SIDEBAR_INSET_PX_EXPANDED;
     reportInset?.(insetPx);
     onInsetChange?.(insetPx);
-  }, [reportInset, onInsetChange, isMobile, isCollapsedRail]);
+  }, [reportInset, onInsetChange, isMobile, isCollapsedRail, flush]);
 
   return null;
 };

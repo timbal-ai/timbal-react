@@ -38,6 +38,20 @@ import { StudioSidebarShellInsetBridge } from "./shell-inset-bridge-context";
 
 const DEFAULT_BREAKPOINT_PX = 768;
 
+/**
+ * Panel appearance:
+ * - `"floating"` — rounded card with a gap around it (studio playground chrome).
+ * - `"flush"` — full-height rail attached to the viewport edge with a single
+ *   hairline border; the standard product-dashboard look.
+ */
+export type StudioSidebarVariant = "floating" | "flush";
+
+/** Flush rail surface — file-local (component-owned styling). */
+const flushPanelClass = cn(
+  "bg-sidebar text-sidebar-foreground",
+  "border-r border-sidebar-border",
+);
+
 function readPersistedCollapsed(key: string | null): boolean {
   if (!key || typeof window === "undefined") return false;
   try {
@@ -73,6 +87,8 @@ export interface StudioSidebarPanelProps {
   brand?: ReactNode;
   logo?: ReactNode;
   emptyCaption?: string | null;
+  /** Panel appearance. The low-level panel defaults to the studio `"floating"` card. */
+  variant?: StudioSidebarVariant;
 }
 
 /**
@@ -96,6 +112,7 @@ export const StudioSidebarPanel: FC<StudioSidebarPanelProps> = ({
   brand,
   logo,
   emptyCaption = null,
+  variant = "floating",
 }) => {
   const reducedMotion = useReducedMotion();
 
@@ -127,13 +144,19 @@ export const StudioSidebarPanel: FC<StudioSidebarPanelProps> = ({
   const brandNode = brand ?? <TimbalMark size={32} />;
   const logoNode = logo ?? (isCustomBrand ? null : brandNode);
 
+  const isFlush = variant === "flush" && !isMobile;
+
   const panel = (
     <motion.div
       data-sidebar-collapsed={isCollapsedRail ? "" : undefined}
       className={cn(
         "flex h-full flex-col overflow-hidden",
-        studioSidebarPanelClass,
-        isMobile ? "rounded-none rounded-r-2xl" : "rounded-2xl",
+        isFlush
+          ? flushPanelClass
+          : cn(
+              studioSidebarPanelClass,
+              isMobile ? "rounded-none rounded-r-2xl" : "rounded-2xl",
+            ),
       )}
       initial={false}
       animate={{ width: panelWidthPx }}
@@ -205,7 +228,10 @@ export const StudioSidebarPanel: FC<StudioSidebarPanelProps> = ({
 
   return (
     <aside
-      className="absolute inset-y-0 left-0 z-[60] flex py-[var(--studio-sidebar-gap)] pl-[var(--studio-sidebar-gap)]"
+      className={cn(
+        "absolute inset-y-0 left-0 z-[60] flex",
+        !isFlush && "py-[var(--studio-sidebar-gap)] pl-[var(--studio-sidebar-gap)]",
+      )}
       aria-label="Studio navigation"
     >
       {panel}
@@ -284,6 +310,13 @@ export interface StudioSidebarProps {
    * Use to inset a sibling main column. `AppShell` wires this automatically.
    */
   onInsetChange?: (insetPx: number) => void;
+  /**
+   * Panel appearance. Default **`"flush"`** — a full-height rail attached to
+   * the viewport edge with a single hairline border (the standard product
+   * dashboard look). Pass `"floating"` for the rounded studio-style card with
+   * a gap around it (what `TimbalStudioShell` uses).
+   */
+  variant?: StudioSidebarVariant;
 }
 
 /**
@@ -306,6 +339,7 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
   mobileOpen: mobileOpenProp,
   onMobileOpenChange: onMobileOpenChangeProp,
   onInsetChange,
+  variant = "flush",
 }) => {
   const reducedMotion = useReducedMotion();
 
@@ -435,7 +469,10 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
 
   return (
     <StudioSidebarContext.Provider value={contextValue}>
-      <StudioSidebarShellInsetBridge onInsetChange={onInsetChange} />
+      <StudioSidebarShellInsetBridge
+        onInsetChange={onInsetChange}
+        flush={variant === "flush"}
+      />
       <StudioSidebarPanel
         workforces={workforces}
         selectedId={selectedId}
@@ -452,6 +489,7 @@ export const StudioSidebar: FC<StudioSidebarProps> = ({
         brand={brand}
         logo={logo}
         emptyCaption={emptyCaption}
+        variant={variant}
       />
     </StudioSidebarContext.Provider>
   );

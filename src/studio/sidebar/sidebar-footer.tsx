@@ -105,45 +105,45 @@ export const StudioSidebarFooter: FC<StudioSidebarFooterProps> = ({
     onSignOut?.();
   };
 
+  // Token-styled overlay (light + dark follow the theme) — the sidebar sits at
+  // z-60, so lift the portal'd menu above it.
   const dropdownContent = user ? (
     <DropdownMenuContent
       side={iconOnlyLayout ? "right" : "top"}
       align={iconOnlyLayout ? "end" : "start"}
-      className="w-64 z-[70] rounded-2xl border border-white/15 bg-neutral-900/75 backdrop-blur-2xl shadow-[0_16px_48px_rgba(0,0,0,0.5)] p-1.5"
+      className="z-[70] w-56"
     >
-      <DropdownMenuLabel className="font-normal px-2.5 py-2">
-        <div className="flex flex-col space-y-1">
-          <p className="truncate text-sm font-semibold text-white/90">
+      <DropdownMenuLabel className="font-normal">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <p className="truncate text-sm font-medium text-foreground">
             {user.user_name}
           </p>
-          <p className="truncate text-xs text-white/50">
+          <p className="truncate text-xs text-muted-foreground">
             {user.user_email}
           </p>
         </div>
       </DropdownMenuLabel>
-      <DropdownMenuSeparator className="-mx-1.5 bg-white/10 my-1" />
-      <DropdownMenuItem
-        onClick={handleToggleTheme}
-        className="cursor-pointer rounded-xl px-2.5 py-2 text-white/85 hover:bg-white/10 focus:bg-white/10 focus:text-white transition-colors gap-3"
-      >
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={handleToggleTheme} className="cursor-pointer">
         {isDark ? (
           <>
-            <Sun className="size-4 shrink-0 text-white/60" />
+            <Sun className="size-4 shrink-0" />
             <span>Light mode</span>
           </>
         ) : (
           <>
-            <Moon className="size-4 shrink-0 text-white/60" />
+            <Moon className="size-4 shrink-0" />
             <span>Dark mode</span>
           </>
         )}
       </DropdownMenuItem>
-      <DropdownMenuSeparator className="-mx-1.5 bg-white/10 my-1" />
+      <DropdownMenuSeparator />
       <DropdownMenuItem
+        variant="destructive"
         onClick={handleSignOut}
-        className="cursor-pointer rounded-xl px-2.5 py-2 text-rose-400 hover:bg-rose-500/10 focus:bg-rose-500/10 focus:text-rose-400 transition-colors gap-3"
+        className="cursor-pointer"
       >
-        <LogOut className="size-4 shrink-0 text-rose-400" />
+        <LogOut className="size-4 shrink-0" />
         <span>Sign out</span>
       </DropdownMenuItem>
     </DropdownMenuContent>
@@ -165,7 +165,7 @@ export const StudioSidebarFooter: FC<StudioSidebarFooterProps> = ({
                   {iconOnlyLayout ? (
                     <button
                       type="button"
-                      className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors hover:bg-accent/50 p-0.5"
+                      className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors hover:bg-sidebar-accent p-0.5"
                       aria-label="User menu"
                     >
                       <Avatar size="sm" className="size-8">
@@ -180,7 +180,7 @@ export const StudioSidebarFooter: FC<StudioSidebarFooterProps> = ({
                   ) : (
                     <button
                       type="button"
-                      className="flex w-full min-w-0 items-center gap-2.5 rounded-lg p-2 hover:bg-accent/50 outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors text-left"
+                      className="flex w-full min-w-0 items-center gap-2.5 rounded-lg p-2 hover:bg-sidebar-accent outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors text-left"
                     >
                       <Avatar size="sm" className="shrink-0">
                         {user.user_photo_url ? (

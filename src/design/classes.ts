@@ -100,10 +100,16 @@ export const studioSidebarPanelClass = cn(
   "shadow-card-elevated",
 );
 
-/** Sidebar nav rows — agents, new chat, sign out (shared chrome). */
+/**
+ * Sidebar nav rows — agents, new chat, sign out (shared chrome).
+ *
+ * Flat by design: rows are quiet text that pick up a soft `sidebar-accent`
+ * tint on hover/selection. No borders, gradients, or shadows — nav items are
+ * navigation, not buttons (the old raised-button chrome read as clunky).
+ */
 export const studioSidebarNavItemClass = cn(
   "flex items-center rounded-lg text-sm",
-  "transition-[color,background-color,box-shadow,border-color] duration-200 ease-in-out",
+  "transition-colors duration-150 ease-out",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/15 focus-visible:ring-offset-2",
 );
 
@@ -113,37 +119,24 @@ export function studioSidebarNavItemLayout(iconOnly: boolean) {
     : "w-full gap-2 px-2.5 py-2";
 }
 
-/** Opaque Timbal v2 secondary — same border/shadow as chrome buttons. */
-export const studioSidebarNavItemSurfaceClass = cn(
-  "bg-gradient-to-b from-elevated-from to-elevated-to text-foreground",
-  "border border-border",
-  "shadow-card",
-);
-
 export const studioSidebarNavItemIdleClass = cn(
-  "border border-transparent text-muted-foreground shadow-none",
-  "hover:text-foreground",
-  "hover:bg-gradient-to-b hover:from-elevated-from hover:to-elevated-to",
-  "hover:border-border hover:shadow-card",
+  "text-muted-foreground",
+  "hover:bg-sidebar-accent hover:text-foreground",
 );
 
-export const studioSidebarCollapsedRailItemClass = cn(
-  "border border-border shadow-card bg-sidebar-accent",
+/** Selected nav row — flat accent tint, weight carries the emphasis. */
+export const studioSidebarNavItemActiveClass = cn(
+  "bg-sidebar-accent font-medium text-foreground",
 );
 
 export const studioSidebarCollapsedRailItemIdleClass = cn(
-  studioSidebarCollapsedRailItemClass,
-  "text-muted-foreground hover:text-foreground",
+  "text-muted-foreground",
+  "hover:bg-sidebar-accent hover:text-foreground",
 );
 
 export const studioSidebarCollapsedRailItemActiveClass = cn(
-  studioSidebarCollapsedRailItemClass,
-  studioSidebarNavItemSurfaceClass,
-  "text-foreground",
+  "bg-sidebar-accent text-foreground",
 );
-
-/** Selected agent — same opaque secondary button surface as sign-out hover. */
-export const studioSidebarNavItemActiveClass = studioSidebarNavItemSurfaceClass;
 
 // ---------------------------------------------------------------------------
 // Tool timeline rows (Used / Failed / Thought / Using …)

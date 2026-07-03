@@ -1020,7 +1020,7 @@ if (res.ok) {
 | Export | Description |
 |---|---|
 | `TimbalStudioShell` | Floating sidebar + top bar + full-height `TimbalChat`. Most opinionated layout |
-| `StudioSidebar` | Floating workforce sidebar — collapses, mobile drawer, runtime portal anchor |
+| `StudioSidebar` | App nav sidebar — collapses, mobile drawer, runtime portal anchor. `variant="flush"` full-height rail (default) or `"floating"` studio card |
 | `ModeToggle` | Sun/moon theme toggle styled for the studio top bar |
 | `TimbalMark` | Liquid-metal brand mark — drop-in welcome icon |
 | `StudioWelcome` | Welcome screen with `TimbalMark` + staggered intro animation |
