@@ -206,11 +206,23 @@ export const CopilotOverlay: FC<CopilotOverlayProps> = ({
                 cornerRadius={999}
                 padding="6px 20px 6px 6px"
                 blurAmount={0.14}
-                displacementScale={96}
+                // Near-flat displacement — the filter samples transparent black
+                // past the pill's edge, so anything higher paints dark smudges
+                // on the rounded ends.
+                displacementScale={6}
                 saturation={140}
-                aberrationIntensity={3}
+                // Keep aberration subtle — against the contrast scrim, higher
+                // values smear orange/blue fringes across the pill body.
+                aberrationIntensity={0.6}
                 elasticity={0.35}
-                className="pointer-events-auto cursor-pointer"
+                // The translucent scrim + hairline ring live on the glass
+                // container (behind its backdrop-filter layer), so the blur
+                // samples them and the pill keeps its frosted look while never
+                // dissolving into busy or dark page backgrounds.
+                // The library's heavy `.glass` drop shadow paints between the
+                // scrim and the blur, so the blur smears it back into the pill
+                // as gray side smudges — kill it and shadow the container.
+                className="pointer-events-auto cursor-pointer rounded-full bg-white/85 ring-1 ring-black/10 shadow-lg dark:bg-zinc-950/55 dark:ring-white/15 [&_.glass]:!shadow-none"
                 style={{
                   position: "fixed",
                   // The library centers on its top/left anchor (translate -50%,-50%),

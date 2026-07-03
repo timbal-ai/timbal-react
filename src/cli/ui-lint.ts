@@ -11,6 +11,12 @@
  *   timbal-ui-lint [--strict] [--max-icons N] [--max-row-dividers N] [--json]
  *                  <file.tsx> [more files...]
  *
+ * Strictness is the per-caller taste knob: by default only **errors**
+ * (correctness + theming integrity) fail the review; `--strict` also fails on
+ * **warnings** (taste rules — icons, bold metrics, glow, uppercase, nesting).
+ * Run `--strict` for cheap/fast generation models that need tight rails, and
+ * lenient for frontier models whose deliberate style choices are usually fine.
+ *
  * Exit codes:
  *   0  every file passed
  *   1  at least one file failed review (slop findings)

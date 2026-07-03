@@ -52,3 +52,41 @@ describe("StudioSidebar mobile sync", () => {
     expect(drawerHidden(container)).toBe("true");
   });
 });
+
+describe("StudioSidebar appearance variants", () => {
+  beforeEach(() => setViewport(1280)); // desktop rail
+  afterEach(() => setViewport(1024));
+
+  const brand = <span>Brand</span>;
+
+  function panelClass(root: HTMLElement) {
+    const aside = root.querySelector('aside[aria-label="Studio navigation"]');
+    return (aside?.firstElementChild as HTMLElement | null)?.className ?? "";
+  }
+
+  it("defaults to the flush full-height rail (hairline border, no floating card)", () => {
+    const { container } = render(
+      <StudioSidebar workforces={[]} selectedId="" onSelect={() => {}} brand={brand} persistKey={null} />,
+    );
+    const cls = panelClass(container);
+    expect(cls).toContain("border-r");
+    expect(cls).not.toContain("rounded-2xl");
+    expect(cls).not.toContain("shadow-card-elevated");
+  });
+
+  it("variant=\"floating\" keeps the rounded studio card", () => {
+    const { container } = render(
+      <StudioSidebar
+        workforces={[]}
+        selectedId=""
+        onSelect={() => {}}
+        brand={brand}
+        persistKey={null}
+        variant="floating"
+      />,
+    );
+    const cls = panelClass(container);
+    expect(cls).toContain("rounded-2xl");
+    expect(cls).toContain("shadow-card-elevated");
+  });
+});

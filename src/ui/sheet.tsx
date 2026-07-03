@@ -60,13 +60,18 @@ const sheetContentVariants = cva(
   ),
   {
     variants: {
+      // Anchor both horizontal edges (inset-x-4) and let auto margins pin the
+      // panel once a max-w applies. Never size with 100vw: it measures the
+      // window layout viewport, which overflows the visible area on mobile
+      // (transformed ancestors, horizontal page overflow, scrollbars) and
+      // crops the drawer.
       side: {
-        top: "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top fixed top-4 inset-x-4 mx-auto w-[calc(100vw-2rem)] sm:max-w-lg rounded-2xl p-5",
+        top: "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top fixed top-4 inset-x-4 mx-auto w-auto sm:max-w-lg rounded-2xl p-5",
         bottom:
-          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom fixed bottom-4 inset-x-4 mx-auto w-[calc(100vw-2rem)] sm:max-w-lg rounded-2xl p-5",
-        left: "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed top-4 bottom-4 left-4 w-[calc(100vw-2rem)] rounded-2xl p-5",
+          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom fixed bottom-4 inset-x-4 mx-auto w-auto sm:max-w-lg rounded-2xl p-5",
+        left: "data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left fixed top-4 bottom-4 inset-x-4 mr-auto w-auto rounded-2xl p-5",
         right:
-          "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right fixed top-4 bottom-4 right-4 w-[calc(100vw-2rem)] rounded-2xl p-5",
+          "data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right fixed top-4 bottom-4 inset-x-4 ml-auto w-auto rounded-2xl p-5",
       },
       size: {
         default: "",
@@ -91,8 +96,8 @@ const sheetContentVariants = cva(
       { side: "right", size: "xl", class: "sm:max-w-xl md:max-w-3xl lg:max-w-4xl" },
       { side: "left", size: "2xl", class: "sm:max-w-2xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl" },
       { side: "right", size: "2xl", class: "sm:max-w-2xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl" },
-      { side: "left", size: "full", class: "max-w-[calc(100vw-2rem)]" },
-      { side: "right", size: "full", class: "max-w-[calc(100vw-2rem)]" },
+      { side: "left", size: "full", class: "max-w-none" },
+      { side: "right", size: "full", class: "max-w-none" },
     ],
     defaultVariants: {
       side: "right",

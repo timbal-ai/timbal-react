@@ -20,6 +20,7 @@ import {
 import { studioSidebarWidthTransition } from "../../design/sidebar-motion";
 import {
   SIDEBAR_INSET_PX_EXPANDED,
+  SIDEBAR_INSET_PX_FLUSH_EXPANDED,
   studioChromeShellStyle,
 } from "../../design/tokens";
 import {
@@ -212,13 +213,18 @@ export const AppShell: FC<AppShellProps> = ({
     [navOpen, setNavOpen, toggleNav],
   );
 
+  // First-render guess before the sidebar's inset bridge reports: the flush
+  // rail width (StudioSidebar's default variant) — avoids a mount-time slide
+  // for the common case; floating sidebars correct before first paint.
   const [insetPaddingPx, setInsetPaddingPx] = useState(
-    sidebar ? SIDEBAR_INSET_PX_EXPANDED : 0,
+    sidebar ? SIDEBAR_INSET_PX_FLUSH_EXPANDED : 0,
   );
   const reportShellInset = useCallback<ShellInsetReporter>((insetPx) => {
     setInsetPaddingPx(insetPx);
   }, []);
-  const insetExpanded = insetPaddingPx >= SIDEBAR_INSET_PX_EXPANDED;
+  // Expanded when the inset is at least the flush rail width — covers both the
+  // flush (width only) and floating (gap + width + gap) sidebar variants.
+  const insetExpanded = insetPaddingPx >= SIDEBAR_INSET_PX_FLUSH_EXPANDED;
 
   const shellBody = (
     <AppShellBody

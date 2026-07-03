@@ -14,6 +14,16 @@ import { PageHeader, type PageHeaderProps } from "./PageHeader";
 
 export type { AppPageWidth } from "../../design/app-classes";
 
+// Fill pages own their own scroll, so the shell's bottom inset (`pb-8 md:pb-10`
+// on `AppShell` main) is intentionally dropped. Without it, a scroll pane's last
+// row sits flush against the viewport edge. Re-add trailing space *inside* each
+// scroll pane so content clears the bottom while any pinned footer keeps hugging
+// it. We target `overflow-y-auto` (split-view lists / detail columns) and leave
+// `overflow-y-scroll` untouched — that's what the chat `Thread` viewport uses,
+// and it already self-pads its sticky composer.
+const fillScrollPaddingClass =
+  "[&_.overflow-y-auto]:pb-6 md:[&_.overflow-y-auto]:pb-8";
+
 export interface PageProps extends PageHeaderProps {
   children: ReactNode;
   /** Slot above the title (breadcrumbs). */
@@ -62,6 +72,7 @@ const PageFrame: FC<Omit<PageProps, "density">> = ({
   const rootClass = fill
     ? cn(
         "flex min-h-0 min-w-0 flex-1 flex-col",
+        fillScrollPaddingClass,
         fillPadded && columnClass,
       )
     : columnClass;

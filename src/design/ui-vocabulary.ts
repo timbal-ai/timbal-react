@@ -167,6 +167,19 @@ export const SLOP_BUDGETS = {
  * House-style rules in plain language. The prompt renders these verbatim and
  * the linter maps each `id` to a check, so the model is told and tested on the
  * exact same list.
+ *
+ * ## Severity policy (keep new rules honest)
+ *
+ * - **Correctness + theming integrity ⇒ lint `error`.** Silent runtime breaks
+ *   (invalid CSS, black charts, broken chat layout) and anything that punches
+ *   through the theme generator (raw palette colors, hand-authored tokens).
+ * - **Taste ⇒ lint `warn`.** Style opinions (icons, bold metrics, glow,
+ *   uppercase, card nesting) block only under `strict: true` — callers choose
+ *   strictness per model tier instead of one global taste regime.
+ * - **Prefer blocklists over allowlists.** "Don't do X" scales with better
+ *   models; "must use component Y" caps every generated app at that
+ *   component's quality. When a kit component keeps losing to hand-rolled
+ *   output, fix the component rather than tightening the rule.
  */
 export interface HouseRule {
   id: string;
@@ -300,10 +313,10 @@ export const HOUSE_RULES: readonly HouseRule[] = [
   },
   {
     id: "no-custom-shell-chrome",
-    rule: "Never hand-roll a sidebar rail or a topbar. Use AppShell with sidebar={<StudioSidebar … />}; AppShell renders the mobile menu button itself — no topbar and no AppShellSidebarTrigger needed.",
-    why: "A hand-built <nav>/<aside> rail or a custom top bar drifts from the shell chrome (spacing, motion, mobile drawer, tokens) and is exactly the slop that ships. StudioSidebar takes { id, name, icon? } items + onSelect — route nav with icons is its job. Put global actions in Page.actions, not a topbar.",
-    slop: `<div className="h-12 border-b"><AppShellSidebarTrigger /> … </div>`,
-    good: `<AppShell sidebar={<StudioSidebar items={navItems} selectedId={view} onSelect={setView} />}>`,
+    rule: "Route shell chrome through AppShell's slots. Vertical nav = sidebar={<StudioSidebar … />} (variant=\"flush\" rail by default, \"floating\" for the studio card); horizontal nav / global actions = topbar={…} (put <AppShellSidebarTrigger /> inside it when a sidebar drawer also exists). Don't build a free-floating <nav>/<aside> rail.",
+    why: "The shell slots carry the collapse motion, mobile drawer, and sidebar tokens for free; a hand-built rail or a bar bolted outside the shell has to re-earn all of that. StudioSidebar takes { id, name, icon? } items + onSelect, and AppShell's topbar slot spans the full shell width with the correct sticky inset.",
+    slop: `<div className="fixed top-0 h-12 w-full border-b"> … </div>`,
+    good: `<AppShell topbar={<MyTopNav />} sidebar={<StudioSidebar items={navItems} selectedId={view} onSelect={setView} />}>`,
   },
   {
     id: "no-uppercase-heading",
