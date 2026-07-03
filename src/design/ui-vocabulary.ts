@@ -269,11 +269,14 @@ export const HOUSE_RULES: readonly HouseRule[] = [
   },
   {
     id: "compose-from-blocks",
-    rule: "Build from premade blocks (MetricRow, MetricChartCard, DataTable, IntegrationCard). Drop to raw primitives only when no block fits.",
-    why: "Slop appears the moment generation falls below the curated block layer.",
-    // "Should have used a block" is a judgement about absence, not a textual
-    // pattern — no high-precision deterministic check exists, so this stays
-    // prompt-only rather than risk false-positives blocking valid UIs.
+    rule: "Prefer premade blocks and kit primitives over raw HTML — but bespoke composition is fine when nothing shipped fits (see invention-lane).",
+    why: "Raw HTML drifts off-brand and breaks responsiveness. Blocks save wiring; forcing a block when it doesn't fit produces worse UIs than a thoughtful bespoke component.",
+    enforcement: "prompt-only",
+  },
+  {
+    id: "invention-lane",
+    rule: "When no catalog block fits, build a bespoke component from /ui primitives and semantic tokens — bespoke is legitimate; extract on second use.",
+    why: "Constrained invention beats cloning a reference layout. Tokens + primitives keep bespoke UIs on-brand and lint-clean.",
     enforcement: "prompt-only",
   },
   {

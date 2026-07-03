@@ -17,7 +17,7 @@ For **host-app dashboards** (not in-chat artifacts), use `@timbal-ai/timbal-reac
 import { APP_KIT_AGENT_INSTRUCTIONS } from "@timbal-ai/timbal-react/app";
 ```
 
-That string documents the component menu, design rules, accessibility, and **recipe index**. Prefer composing from it creatively — do not clone layouts wholesale.
+That string documents the component menu, design rules, accessibility, and **recipe index**. Agents own layout and visual personality above the substrate — compose creatively; do not clone reference layouts wholesale.
 
 Better still, import the ready-made blocks directly and discover them programmatically via **`APP_KIT_CATALOG`** (each entry carries an exact `importFrom` path + a `source` ref to fork):
 

@@ -67,13 +67,22 @@ export const APP_KIT_AGENT_INSTRUCTIONS = `
 
 Build **dashboard and operations UIs** with React components. Import from \`@timbal-ai/timbal-react/app\` (or the main package entry if your app already uses it).
 
-### Creative freedom (read this first)
+### You own the design (read this first)
+
+The package provides the **substrate** — tokens, primitives, blocks, shells. Everything above that is **your design decision**: layout, chrome, density, grid shape, whether there's a sidebar or a topbar or neither, visual personality, and bespoke components when nothing shipped fits. **Two apps for two different domains should not look alike.** Do not treat any single example, reference screen, or archetype as "the Timbal look".
+
+Levers you're expected to use:
+
+- **Layout archetypes** — see the table below. Vary columns, density, header placement, and whether nav is a sidebar, a topbar, or neither.
+- **Global chrome** — \`AppShell\` supports \`sidebar\`, \`topbar\`, both, or neither. Page-scoped actions go in \`Page.actions\`.
+- **Theming as differentiation** — \`createTimbalTheme\` intent (\`brand\`, \`accent\`, \`neutrals\`, \`radius\`, \`shadow\`, \`surfaces: "panel" | "console"\`, \`defaultMode\`, \`chartPalette\`, \`typography\` incl. \`display\`, token-referential \`overrides\`) generates a full personality without hand-authoring OKLCH.
+- **The invention lane** — when no catalog block fits, build a bespoke component from \`/ui\` primitives + semantic tokens (no color literals, same lint). Bespoke is legitimate; extract to a shared file on second use.
 
 You are **not** required to copy any example layout, page title, section order, or visual theme.
 
 - **Do** invent layouts that fit the user's domain (CRM, inventory, billing, internal tools, etc.).
 - **Do** pick only the components you need; skip shell, sidebar, or copilot when the task does not need them.
-- **Do** vary density, grid columns, navigation patterns, and copy — as long as you follow the **design guidelines** below.
+- **Do** vary density, grid columns, navigation patterns, and copy.
 - **Do not** treat \`examples/app-kit/src/reference/\` as a template to clone (no default "Operations" dashboard with sidebar + three KPI tiles + SubNav + table unless the user asked for that).
 - **Do** use \`examples/app-kit/src/recipes/\` as **short grammar examples** (one concern per file), not as a full app blueprint.
 
@@ -108,9 +117,9 @@ The most common failure is shipping the **same** layout every time: sidebar + \`
 
 Mix them: vary the grid columns, density, \`Page\` actions placement, and whether nav is a sidebar, a topbar, or neither. Two dashboards for two domains should not look identical.
 
-### Shell & navigation (don't hand-roll this)
+### Shell & navigation (strong defaults — use the kit, don't hand-roll chrome)
 
-The sidebar and the mobile menu are **solved** — use them, don't rebuild them.
+The sidebar and the mobile menu are **solved** — prefer them over a custom rail. You may still choose **no sidebar** (topbar-only, focused, or bento layouts) when that fits the domain.
 
 - **Sidebar = \`StudioSidebar\`.** It's the canonical app nav. Pass \`items\` (nav items), \`selectedId\`, and \`onSelect\`. Each item is \`{ id, name, icon? }\` — **icons are a built-in optional slot**, so wanting a per-item icon is **never** a reason to build a custom rail. Pass a \`brand\` node for the product name/logo. (\`workforces\` is a deprecated alias for \`items\`.) Appearance: \`variant="flush"\` (default) is a full-height rail with a hairline border — the standard product-dashboard look; \`variant="floating"\` is the rounded studio-style card with a gap around it.
 - **Topbar = \`AppShell topbar={…}\`.** When the product wants horizontal nav (brand + links + search + account), pass it through the shell's \`topbar\` slot — it spans the full shell width with the correct sticky inset. Compose it from kit controls (\`SearchInput\`, \`DropdownMenu\`, \`Avatar\`, \`Button variant="ghost"\`), and place \`<AppShellSidebarTrigger />\` inside it when a sidebar drawer also exists. Do **not** bolt a \`fixed top-0\` bar outside the shell. For sidebar-only apps a topbar is optional — \`AppShell\` renders its own floating mobile menu button, and lightweight global actions can just live in \`Page.actions\`.
@@ -215,16 +224,24 @@ Also re-exported from \`/app\`: \`Button\`, \`Avatar\` / \`AvatarImage\` / \`Ava
 
 Theming helpers (import from the package root or \`/app\`): \`createTimbalTheme\`, \`themeToCss\`, \`applyTimbalTheme\`, \`TIMBAL_THEME_PRESETS\`, \`applyThemePreset\`, \`TimbalThemeStyle\`, \`THEME_AGENT_INSTRUCTIONS\`. Theming is **configured by the developer**, not surfaced as an end-user theme picker.
 
-### Design guidelines (required)
+### Non-negotiables (correctness — these break builds, theming, or layout)
+
+| Area | Rule |
+|------|------|
+| **Theming** | Use semantic Tailwind tokens (\`bg-background\`, \`text-foreground\`, \`border-border\`, …). Rebrand with \`createTimbalTheme\` + \`applyTimbalTheme\` / presets — **never** hand-author OKLCH or paired \`:root\`/\`.dark\` token blocks, and never \`forcedTheme\` (linted: \`theme-via-generator\`). One-off tokens go through the intent's \`overrides\` (\`var()\`/\`color-mix()\` only). |
+| **Charts** | Colors from \`--chart-1..6\` automatically — reference \`var(--chart-N)\` directly, **never** \`hsl(var(--chart-N))\`. Series \`dataKey\`s must be safe identifiers (no spaces or \`%\`); put human names in \`label\`. |
+| **Data loading** | **Never swallow fetch errors** — \`.catch(() => {})\` turns a failed request into a permanent empty skeleton. Log the error and surface an \`EmptyState\`/\`Banner\`. |
+| **Layout chrome** | Route global nav through \`AppShell\`'s \`sidebar\` (\`StudioSidebar\`) and/or \`topbar\` slots — don't bolt a free-floating \`<nav>\`/\`<aside>\` or \`fixed top-0\` bar outside the shell (linted: \`no-custom-shell-chrome\`). |
+| **Full-page chat** | Let \`TimbalChat\` / \`AppCopilot\` own their surface — don't wrap them in \`Card\`/\`Section\` or add custom heading/status blocks above them (linted: \`no-chat-wrapping\`). Use \`welcome\` for custom greetings. |
+
+### Strong defaults (prefer these — deviate deliberately, not accidentally)
 
 | Area | Rule |
 |------|------|
 | **Copilot** | Drop in a self-mounting \`<AppCopilot workforceId="…" />\` — it portals its own floating glass panel + trigger to \`document.body\`, so it needs **no** \`AppShell\` wiring and is never a sidebar column that shrinks main content. Pass page context via the \`context\` prop (or \`AppCopilotProvider\` / \`useAppCopilotContext\`). For a custom open trigger, use controlled \`open\`/\`onOpenChange\` + \`hideTrigger\`, or wrap the app in \`CopilotProvider\` and call \`useCopilot()\`. |
 | **Chat panel** | \`AppCopilot\` owns the panel (\`Thread variant="panel"\` internally). Dismiss with **X**; the built-in trigger is a SiriWave pill (label e.g. "Assistant") — **no** MessageSquare or chat icons. |
 | **Context** | Do not show raw JSON context in the panel header; pass it via \`AppCopilot\`'s \`context\` prop / \`AppCopilotProvider\`. |
-| **Theming** | Use semantic Tailwind tokens (\`bg-background\`, \`text-foreground\`, \`border-border\`, \`bg-elevated-from\`, etc.) from the host app's \`styles.css\`. To rebrand, **never hand-author OKLCH** — call \`createTimbalTheme({ brand })\` + \`themeToCss\`/\`applyTimbalTheme\`, or apply a catalog preset (\`TIMBAL_THEME_PRESETS\` / \`applyThemePreset\`). Apply the theme **programmatically** — do **not** add an end-user theme selector to generated apps. See \`THEME_AGENT_INSTRUCTIONS\`. |
-| **Layout chrome** | \`Page\` → \`Section\` for main content hierarchy. Global nav goes through \`AppShell\`'s slots: \`sidebar\` (\`StudioSidebar\`) for vertical nav, \`topbar\` for horizontal nav / brand + search + account. Don't hand-roll a free-floating \`<nav>\`/\`<aside>\` rail or a \`fixed top-0\` bar outside the shell (linted: \`no-custom-shell-chrome\`) — the slots carry collapse motion, the mobile drawer, and sidebar tokens for free. Lightweight per-page actions still fit best in \`Page.actions\`. |
-| **Theme** | Apply the brand once with \`createTimbalTheme({ brand })\` + \`applyTimbalTheme\`. **Never** hand-author token values (\`.dark { --background: oklch(…) }\`, \`--sidebar-bg\`, \`--primary\`) or pass \`forcedTheme\` — that punches through the generator and breaks dark mode/rebranding (linted: \`theme-via-generator\`). A "cyberpunk/glowing" brief means *pick a brand color*, not *hand-paint tokens and add neon glows*. |
+| **Layout hierarchy** | \`Page\` → \`Section\` for main content. Lightweight per-page actions fit best in \`Page.actions\`. |
 | **Spacing / gaps** | \`Page\` **auto-stacks its direct children with a vertical gap** — drop blocks straight in (e.g. \`Page\` → \`FilterBar\` + \`DataTable\`, or \`MetricRow\` + \`ChartPanel\`) and they breathe; do **not** wrap every block in an extra \`<div>\` (that collapses the gap). For ad-hoc clusters inside a card/row use \`Stack\` (\`gap\`, \`direction\`) instead of bare flex with no gap. Grids still need their own \`gap-*\`. |
 | **Width** | \`Page\` defaults to a wide centered column. For focused / reading / form pages pass \`width\` (\`default\`, \`centered\`, \`narrow\`, \`prose\`) instead of always running full-bleed — not everything needs the full width. \`width="full"\` opts into edge-to-edge. For full-height pages that should stay centered use \`fill\` + \`fillPadded\`. |
 | **Density** | Set \`density="compact"\` on \`Page\` for tighter dashboards (full-width column, smaller section gaps, card padding, metric tiles, default chart height 220). Default is \`"default"\` (platform spacing). Wrap custom layouts with \`AppDensityProvider\` when not using \`Page\`. Per-section override: \`Section density="compact"\`. Do **not** hand-tune five layers of \`className\` padding when density covers the need. |
@@ -235,15 +252,15 @@ Theming helpers (import from the package root or \`/app\`): \`createTimbalTheme\
 | **Modals** | Use \`AppConfirmDialog\` for destructive/export confirmations. |
 | **Metrics** | Overview KPIs → \`MetricRow\` or \`MetricChartCard\` (not four separate heavy cards). Values use **normal** font weight, not bold. |
 | **Integrations** | Catalog → \`IntegrationCard\` grid; connected list → \`ConnectionRow\` inside \`ConnectionRowList\`. Footer CTAs: \`Button variant="secondary"\`. |
-| **Anti-slop** | Follow the **anti-slop checklist** below. No loud green/red trend pills on every tile; no \`bg-card\` flat grids when platform chrome exists; avoid recycling demo names ("Operations", mock workforce lists). |
+| **Anti-slop** | Follow the **anti-slop checklist** below as taste guidance — warnings block only when the pipeline runs \`strict: true\`. No loud green/red trend pills on every tile; avoid recycling demo names ("Operations", mock workforce lists). A user's brief can override taste rules when intentional. |
 
-### Anti-slop checklist (required — output is linted against this)
+### Anti-slop checklist (taste — follow by default; strict mode enforces warnings)
 
-Generated UIs are checked by \`lintGeneratedUi\`: **errors** (correctness + theming integrity — raw colors, invalid token wrapping, unsafe chart dataKeys, hand-authored theme tokens) always reject; **warnings** (taste — icons, bold metrics, glow, uppercase, card nesting) reject only when the pipeline runs strict, but follow them anyway unless the user's brief explicitly calls for something else. Self-review against these before returning code (icon budget: ${SLOP_BUDGETS.maxIconsPerView} per view; at most ${SLOP_BUDGETS.maxRowDividers} ruled rows before it reads as a ledger):
+Generated UIs are checked by \`lintGeneratedUi\`: **errors** (correctness + theming integrity — raw colors, invalid token wrapping, unsafe chart dataKeys, hand-authored theme tokens, chat-wrapping layout breaks) always reject; **warnings** (taste — icons, bold metrics, glow, uppercase, card nesting) reject only when the pipeline runs \`strict: true\`. Self-review against these before returning code (icon budget: ${SLOP_BUDGETS.maxIconsPerView} per view; at most ${SLOP_BUDGETS.maxRowDividers} ruled rows before it reads as a ledger):
 
 ${ANTI_SLOP_CHECKLIST}
 
-The cause of slop is dropping **below** the curated block layer into raw primitives + free Tailwind. Stay on the blocks; reach for primitives only when no block fits, and even then keep colors on semantic tokens.
+Slop usually comes from **raw HTML + literal colors**, not from thoughtful bespoke layout. Prefer blocks and kit primitives when they fit; when they don't, use the **invention lane** (tokens + \`/ui\` primitives) instead of cloning a reference screen.
 
 ### Accessibility (required)
 

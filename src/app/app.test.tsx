@@ -24,7 +24,8 @@ const sampleRows = [
 
 describe("APP_KIT_AGENT_INSTRUCTIONS", () => {
   it("documents creative freedom, recipes, and premade components", () => {
-    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("Creative freedom");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("You own the design");
+    expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("invention lane");
     expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("examples/app-kit/src/recipes");
     expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("MetricRow");
     expect(APP_KIT_AGENT_INSTRUCTIONS).toContain("MetricChartCard");

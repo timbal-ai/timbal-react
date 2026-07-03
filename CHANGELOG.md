@@ -4,6 +4,27 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [Unreleased]
 
+## [3.2.1] — 2026-07-03
+
+Agent prompts stop steering codegen toward a single app-kit clone — composition and
+visual personality are explicit design decisions again.
+
+### Changed
+
+- **`APP_KIT_AGENT_INSTRUCTIONS` reframed around "You own the design".** The
+  substrate (tokens, primitives, blocks, shells) is separate from layout, chrome,
+  density, and bespoke UI. Documents layout archetypes, theming intent as a
+  differentiation lever, and the **invention lane** (bespoke components from
+  `/ui` primitives + semantic tokens when no block fits).
+- **Guidelines split into tiers** — **non-negotiables** (correctness: theming,
+  chart tokens/dataKeys, fetch errors, shell slots, chat wrapping) vs **strong
+  defaults** (copilot, metrics, integrations — prefer kit pieces, deviate
+  deliberately). Anti-slop is taste guidance; warnings block only under
+  `strict: true`.
+- **`HOUSE_RULES` updated** — new `invention-lane` rule; `compose-from-blocks`
+  softened to prefer blocks without forbidding bespoke composition when nothing
+  shipped fits.
+
 ## [3.2.0] — 2026-07-03
 
 Dashboard chrome gets a flush sidebar by default, codegen guardrails re-tier taste
