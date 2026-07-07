@@ -172,10 +172,14 @@ export const SLOP_BUDGETS = {
  *
  * - **Correctness + theming integrity ⇒ lint `error`.** Silent runtime breaks
  *   (invalid CSS, black charts, broken chat layout) and anything that punches
- *   through the theme generator (raw palette colors, hand-authored tokens).
- * - **Taste ⇒ lint `warn`.** Style opinions (icons, bold metrics, glow,
- *   uppercase, card nesting) block only under `strict: true` — callers choose
- *   strictness per model tier instead of one global taste regime.
+ *   through the theme system (raw palette colors, hand-authored tokens).
+ * - **Taste ⇒ `enforcement: "prompt-only"` (v2).** Style opinions (icons,
+ *   bold metrics, glow, uppercase, card nesting, hand-rolled controls) are no
+ *   longer linted at all — they moved to the screenshot critique rubric in
+ *   the `timbal-ui` skill, judged on rendered output where taste is actually
+ *   visible. On fork-first projects the component source is project-owned,
+ *   so control/chrome checks would flag the design system itself. The rules
+ *   stay in this list because legacy prompts still render them.
  * - **Prefer blocklists over allowlists.** "Don't do X" scales with better
  *   models; "must use component Y" caps every generated app at that
  *   component's quality. When a kit component keeps losing to hand-rolled
@@ -230,6 +234,7 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "An icon on every tile/card is the #1 tell of generated slop.",
     slop: `<StatTile label={<><BarChart2 /> Revenue</>} value="$95k" />`,
     good: `<StatTile label="Revenue" value="$95k" />`,
+    enforcement: "prompt-only",
   },
   {
     id: "neutral-trend",
@@ -237,6 +242,7 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "Loud green/red pills everywhere are noise, not signal.",
     slop: `<MetricTile trend="+8%" className="text-green-500" />`,
     good: `<MetricTile label="Win rate" value="50%" />`,
+    enforcement: "prompt-only",
   },
   {
     id: "values-normal-weight",
@@ -244,11 +250,13 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "Giant bold numbers read as a template; normal weight reads as a product.",
     slop: `<span className="text-3xl font-bold tabular-nums">$322k</span>`,
     good: `<span className="text-2xl font-normal tabular-nums">$322k</span>`,
+    enforcement: "prompt-only",
   },
   {
     id: "no-card-in-card",
     rule: "Don't nest a bordered card inside another bordered card. Group with spacing or a Section instead.",
     why: "Card-in-card doubles borders and shadows for no information gain.",
+    enforcement: "prompt-only",
   },
   {
     id: "no-table-in-card",
@@ -256,16 +264,19 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "The DataTable is already designed to sit flat with its own borders and shadows. Wrapping it inside a card adds redundant borders, margins, and shadows, which looks like slop.",
     slop: "<Card><DataTable columns={columns} rows={rows} getRowKey={getRowKey} /></Card>",
     good: "<DataTable columns={columns} rows={rows} getRowKey={getRowKey} />",
+    enforcement: "prompt-only",
   },
   {
     id: "no-row-dividers",
     rule: "Don't put a divider between every list row. Use spacing or zebra striping.",
     why: "A rule under every row turns a clean list into a dense ledger.",
+    enforcement: "prompt-only",
   },
   {
     id: "no-data-gradient",
     rule: "Gradients are reserved for chrome (composer, elevated surface, playground) and built-in chart/avatar fills — never on a data card shell, stat tile, or table row background.",
     why: "Gradient stat cards are the canonical 'AI dashboard' look; SVG bar/pie fills and AvatarFallback variant=\"secondary\" (Action button chrome) are kit-owned exceptions.",
+    enforcement: "prompt-only",
   },
   {
     id: "compose-from-blocks",
@@ -282,6 +293,7 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "Hand-rolled controls drift from the shared control-surface skin and look foreign next to kit controls.",
     slop: `<button className="rounded-lg border border-input bg-transparent px-3 h-9">`,
     good: `<SelectTrigger><SelectValue /></SelectTrigger>`,
+    enforcement: "prompt-only",
   },
   {
     id: "no-title-repetition",
@@ -289,6 +301,7 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "If the Page already has a title, repeating it in the first child section or table is redundant and wastes vertical space.",
     slop: `<Page title="Orders"><Section title="Orders"><DataTable ... /></Section></Page>`,
     good: `<Page title="Orders"><DataTable ... /></Page>`,
+    enforcement: "prompt-only",
   },
   {
     id: "no-chat-wrapping",
@@ -303,6 +316,7 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "Colored hover highlights (like hover:bg-primary/5 or hover:bg-emerald-500/5) look dirty and break the neutral chrome aesthetic. Use the kit's clean, neutral hover states, or AlertCard, or TIMBAL_V2_SECONDARY_CHROME hover layers.",
     slop: `<Card className="hover:bg-emerald-500/10 hover:border-emerald-500/30">`,
     good: `<AlertCard onClick={handleClick}>`,
+    enforcement: "prompt-only",
   },
   {
     id: "no-glow",
@@ -310,6 +324,7 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "Glowing shadows are the #1 'cyberpunk AI dashboard' tell. The design system conveys depth with subtle elevation, not neon halos — a brief asking for a 'glowing' look is not permission to break the elevation system.",
     slop: `<div className="shadow-[0_0_20px_rgba(34,211,238,0.4)]">`,
     good: `<div className="shadow-card">`,
+    enforcement: "prompt-only",
   },
   {
     id: "no-custom-shell-chrome",
@@ -317,6 +332,7 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "The shell slots carry the collapse motion, mobile drawer, and sidebar tokens for free; a hand-built rail or a bar bolted outside the shell has to re-earn all of that. StudioSidebar takes { id, name, icon? } items + onSelect, and AppShell's topbar slot spans the full shell width with the correct sticky inset.",
     slop: `<div className="fixed top-0 h-12 w-full border-b"> … </div>`,
     good: `<AppShell topbar={<MyTopNav />} sidebar={<StudioSidebar items={navItems} selectedId={view} onSelect={setView} />}>`,
+    enforcement: "prompt-only",
   },
   {
     id: "no-uppercase-heading",
@@ -324,6 +340,7 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     why: "All-caps display text (\"CRITICAL\", \"THREAT LEVEL: ELEVATED\") reads as shouty template chrome. The kit uses sentence case; status meaning comes from StatusBadge/StatusDot tone, not screaming labels. (A small `text-xs uppercase tracking-wide` eyebrow is fine — this targets large/heading text.)",
     slop: `<h2 className="text-2xl uppercase">Critical</h2>`,
     good: `<StatusBadge tone="danger">Critical</StatusBadge>`,
+    enforcement: "prompt-only",
   },
   {
     id: "theme-via-generator",

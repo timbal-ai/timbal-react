@@ -11,7 +11,10 @@ import { defineConfig } from "tsup";
  * `node_modules`.
  */
 export default defineConfig({
-  entry: { "cli/timbal-ui-lint": "src/cli/ui-lint.ts" },
+  entry: {
+    "cli/timbal-ui-lint": "src/cli/ui-lint.ts",
+    "cli/timbal-dna": "src/cli/dna.ts",
+  },
   format: ["esm"],
   platform: "node",
   target: "node18",
