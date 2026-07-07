@@ -35,6 +35,56 @@ export {
 } from "../design/ui-review";
 export type { ReviewResult } from "../design/ui-review";
 
+// Design DNA — the v4 per-project design system: schema, deterministic
+// compiler (dna.json → tokens.css), and the curated registries. This is the
+// successor to createTimbalTheme for fork-first (blueprint v2) projects.
+export {
+  parseDna,
+  compileDna,
+  DnaValidationError,
+  DNA_COMPILER_VERSION,
+  FONT_PAIRINGS,
+  STATUS_SETS,
+  MOTION_PRESETS,
+  ELEVATION_LADDERS,
+  DENSITY_SPECS,
+  getFontPairing,
+  getStatusSet,
+  getMotionPreset,
+  getElevationLadder,
+} from "../design/dna/index";
+export type {
+  DesignDna,
+  DnaColor,
+  DnaTypography,
+  DnaShape,
+  DnaElevation,
+  DnaSpacing,
+  DnaMotion,
+  DnaLayout,
+  DnaVoice,
+  DnaMeta,
+  DnaReference,
+  DnaPersonality,
+  DnaOverrides,
+  DnaSurfaceStrategy,
+  DnaMode,
+  DnaStatusSetId,
+  DnaChartRecipeId,
+  DnaControlShape,
+  DnaElevationLevel,
+  DnaElevationStrategy,
+  DnaDensity,
+  DnaMotionPreset,
+  DnaCompileResult,
+  DnaCompileReport,
+  FontPairing,
+  StatusSet,
+  MotionSpec,
+  ElevationLadder,
+  DensitySpec,
+} from "../design/dna/index";
+
 // Theming — generator, presets, apply helpers, preview UI, agent instructions
 export {
   createTimbalTheme,

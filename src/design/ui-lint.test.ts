@@ -78,491 +78,141 @@ describe("lintGeneratedUi — literals & inline styles", () => {
     expect(res.findings.some((f) => f.rule === "color-literal")).toBe(false);
   });
 
-  it("still blocks a hand-authored theme token with a hex (the real anti-pattern)", () => {
-    const found = rules(`  --primary: #ff5a5f;`);
-    expect(found).toEqual(expect.arrayContaining(["theme-via-generator"]));
-  });
-
-  it("still flags a stray hex that is not theme intent", () => {
-    expect(rules(`const tone = "#ff0066";`)).toEqual(
-      expect.arrayContaining(["color-literal"]),
-    );
-  });
-});
-
-describe("lintGeneratedUi — chart token color", () => {
-  it("errors when a theme token is wrapped in a color function", () => {
-    const res = lintGeneratedUi(`<Cell fill="hsl(var(--chart-1))" />`);
-    expect(res.ok).toBe(false);
-    expect(res.findings.map((f) => f.rule)).toEqual(
-      expect.arrayContaining(["chart-token-color-fn"]),
-    );
-  });
-
-  it("flags rgb()/oklch() wrapping of tokens too", () => {
-    expect(rules(`const c = "rgb(var(--primary))";`)).toEqual(
-      expect.arrayContaining(["chart-token-color-fn"]),
-    );
-    expect(rules(`const c = "oklch(var(--chart-2))";`)).toEqual(
-      expect.arrayContaining(["chart-token-color-fn"]),
-    );
-  });
-
-  it("does not also emit the generic color-literal for the same line", () => {
-    const found = rules(`<Cell fill="hsl(var(--chart-1))" />`);
-    expect(found.includes("chart-token-color-fn")).toBe(true);
-    expect(found.includes("color-literal")).toBe(false);
-  });
-
-  it("accepts a token passed directly", () => {
-    const res = lintGeneratedUi(`<Cell fill="var(--chart-1)" />`);
-    expect(res.findings.some((f) => f.rule === "chart-token-color-fn")).toBe(false);
-    expect(res.findings.some((f) => f.rule === "color-literal")).toBe(false);
-  });
-});
-
-describe("lintGeneratedUi — chart data key", () => {
-  it("errors on a series dataKey containing a space", () => {
-    const src = `series={[{ dataKey: "Sleep hours", label: "Sleep" }]}`;
-    expect(rules(src)).toEqual(expect.arrayContaining(["chart-data-key"]));
-  });
-
-  it("errors on a dataKey containing a percent sign", () => {
-    expect(rules(`<Area dataKey="Water %" />`)).toEqual(
-      expect.arrayContaining(["chart-data-key"]),
-    );
-  });
-
-  it("accepts a safe identifier dataKey with a separate label", () => {
-    const src = `series={[{ dataKey: "waterPct", label: "Water %" }]}`;
-    expect(rules(src).includes("chart-data-key")).toBe(false);
-  });
-
-  it("does not flag a plain identifier dataKey prop", () => {
-    expect(rules(`<Line dataKey="sleepHours" />`).includes("chart-data-key")).toBe(
-      false,
-    );
-  });
-});
-
-describe("lintGeneratedUi — input guards", () => {
-  it("throws a TypeError with the correct signature when given a non-string", () => {
-    // The classic misuse: passing { filename, source } instead of the string.
-    expect(() =>
-      // @ts-expect-error — intentionally wrong call shape
-      lintGeneratedUi({ filename: "x.tsx", source: "<div/>" }),
-    ).toThrow(TypeError);
-    try {
-      // @ts-expect-error — intentionally wrong call shape
-      lintGeneratedUi({ filename: "x.tsx", source: "<div/>" });
-    } catch (err) {
-      expect((err as Error).message).toContain("expects the generated code as a string");
-      expect((err as Error).message).toContain("{ filename, source }");
-    }
-  });
-
-  it("formatLintReport throws when handed the whole result instead of findings", () => {
-    const result = lintGeneratedUi(`<div className="text-blue-600" />`);
-    expect(() =>
-      // @ts-expect-error — intentionally wrong call shape
-      formatLintReport(result),
-    ).toThrow(TypeError);
-  });
-});
-
-describe("lintGeneratedUi — house style", () => {
-  it("warns on bold giant values", () => {
-    expect(
-      rules(`<span className="text-3xl font-bold tabular-nums">$322k</span>`),
-    ).toEqual(expect.arrayContaining(["bold-metric"]));
-  });
-
-  it("does not warn on normal-weight values", () => {
+  it("skips comments and imports", () => {
     const res = lintGeneratedUi(
-      `<span className="text-2xl font-normal tabular-nums">$322k</span>`,
+      [
+        `// example: #ff0000 in a comment`,
+        `import { x } from "y"; // rgb(1,2,3)`,
+        `<div className="bg-background" />`,
+      ].join("\n"),
     );
     expect(res.findings).toHaveLength(0);
   });
+});
 
-  it("warns on gradients outside chrome tokens", () => {
-    expect(
-      rules(`<div className="bg-gradient-to-br from-purple-500 to-pink-500" />`),
-    ).toEqual(expect.arrayContaining(["data-gradient"]));
+describe("lintGeneratedUi — chart correctness", () => {
+  it("flags hsl(var(--token)) wrapping as the specific chart rule, not color-literal", () => {
+    const res = lintGeneratedUi(`<Cell fill="hsl(var(--chart-1))" />`);
+    const ids = res.findings.map((f) => f.rule);
+    expect(ids).toContain("chart-token-color-fn");
+    expect(ids).not.toContain("color-literal");
+    expect(res.ok).toBe(false);
   });
 
-  it("allows gradients built only from reserved chrome tokens", () => {
+  it("accepts the token passed directly", () => {
+    const res = lintGeneratedUi(`<Cell fill="var(--chart-1)" />`);
+    expect(res.findings).toHaveLength(0);
+  });
+
+  it("flags unsafe dataKeys (space / %)", () => {
+    expect(rules(`series={[{ dataKey: "Water %" }]}`)).toContain("chart-data-key");
+    expect(rules(`<Bar dataKey="Sleep hours" />`)).toContain("chart-data-key");
+  });
+
+  it("accepts safe identifier dataKeys", () => {
     const res = lintGeneratedUi(
-      `<div className="bg-gradient-to-b from-elevated-from to-elevated-to" />`,
+      `series={[{ dataKey: "waterPct", label: "Water %" }]}`,
     );
-    expect(res.findings.some((f) => f.rule === "data-gradient")).toBe(false);
+    expect(res.findings.filter((f) => f.rule === "chart-data-key")).toHaveLength(0);
   });
 });
 
-describe("lintGeneratedUi — hand-rolled controls", () => {
-  it("warns when a control surface is hand-rolled with border-input", () => {
-    expect(
-      rules(`<button className="rounded-lg border border-input bg-transparent h-9 px-3" />`),
-    ).toEqual(expect.arrayContaining(["raw-control-surface"]));
-  });
-
-  it("does not warn when using kit controls", () => {
-    const res = lintGeneratedUi(
-      `<SelectTrigger><SelectValue placeholder="Pick" /></SelectTrigger>`,
+describe("lintGeneratedUi — theme bypasses", () => {
+  it("flags forcedTheme", () => {
+    expect(rules(`<ThemeProvider forcedTheme="dark">`)).toContain(
+      "theme-via-generator",
     );
-    expect(res.findings.some((f) => f.rule === "raw-control-surface")).toBe(false);
-  });
-});
-
-describe("lintGeneratedUi — colored hover style", () => {
-  it("warns when hover is colored", () => {
-    expect(
-      rules(`<div className="hover:bg-primary" />`),
-    ).toEqual(expect.arrayContaining(["no-colored-hover"]));
-
-    expect(
-      rules(`<div className="hover:bg-emerald-500/10" />`),
-    ).toEqual(expect.arrayContaining(["no-colored-hover"]));
   });
 
-  it("does not warn when hover is neutral", () => {
-    const res = lintGeneratedUi(
-      `<div className="hover:bg-muted hover:text-foreground" />`,
+  it("flags hand-authored theme tokens", () => {
+    expect(rules(`.dark { --background: oklch(0.09 0.025 248); }`)).toContain(
+      "theme-via-generator",
     );
-    expect(res.findings.some((f) => f.rule === "no-colored-hover")).toBe(false);
-  });
-});
-
-describe("lintGeneratedUi — icon spam", () => {
-  it("warns when icon usages exceed the budget", () => {
-    const icons = Array.from({ length: 8 }, () => "<BarChart2 />").join("\n");
-    const src = `import { BarChart2 } from "lucide-react";\n${icons}`;
-    expect(rules(src)).toEqual(expect.arrayContaining(["icon-spam"]));
-  });
-
-  it("does not warn under the budget", () => {
-    const src = `import { Check } from "lucide-react";\n<Check />\n<Check />`;
-    expect(rules(src).includes("icon-spam")).toBe(false);
-  });
-});
-
-describe("lintGeneratedUi — title repetition", () => {
-  it("warns when a Section title repeats the Page title", () => {
-    const src = `
-      <Page title="Orders" description="Manage orders">
-        <Section title="Orders" />
-      </Page>
-    `;
-    expect(rules(src)).toEqual(expect.arrayContaining(["no-title-repetition"]));
-  });
-
-  it("warns when a Section title is very similar to the Page title", () => {
-    const src = `
-      <Page title="Orders" description="Manage orders">
-        <Section title="Orders (ERP)" />
-      </Page>
-    `;
-    expect(rules(src)).toEqual(expect.arrayContaining(["no-title-repetition"]));
-  });
-
-  it("does not warn when titles are completely different", () => {
-    const src = `
-      <Page title="Orders" description="Manage orders">
-        <Section title="Recent Activity" />
-      </Page>
-    `;
-    expect(rules(src).includes("no-title-repetition")).toBe(false);
+    // setProperty bypasses don't match the token:value shape, but the color
+    // literal itself still blocks the line — the bypass cannot pass.
+    const res = lintGeneratedUi(`root.style.setProperty("--primary", "#7132F5");`);
+    expect(res.ok).toBe(false);
+    expect(res.findings.map((f) => f.rule)).toContain("color-literal");
   });
 });
 
 describe("lintGeneratedUi — chat wrapping", () => {
-  it("flags wrapping TimbalChat or AppChatPanel in Cards or Sections", () => {
-    const src = `
-      <Page title="Assistant">
-        <Card>
-          <TimbalChat workforceId="tiba" />
-        </Card>
-      </Page>
-    `;
-    expect(rules(src)).toEqual(expect.arrayContaining(["no-chat-wrapping"]));
-  });
-
-  it("flags custom h1-6 headings in a chat view", () => {
-    const src = `
-      <Page title="Assistant">
-        <h3>TIBA Concierge</h3>
-        <AppChatPanel workforceId="tiba" />
-      </Page>
-    `;
-    expect(rules(src)).toEqual(expect.arrayContaining(["no-chat-wrapping"]));
-  });
-
-  it("does not flag standalone TimbalChat directly in Page", () => {
-    const src = `
-      <Page fill>
-        <TimbalChat workforceId="tiba" />
-      </Page>
-    `;
-    expect(rules(src).includes("no-chat-wrapping")).toBe(false);
-  });
-});
-
-describe("lintGeneratedUi — table inside card", () => {
-  it("flags wrapping DataTable, table, or Table inside Card, SurfaceCard, or ArtifactCard", () => {
-    const src = `
-      <Page title="Dashboard">
-        <Card>
-          <DataTable columns={columns} rows={rows} getRowKey={getRowKey} />
-        </Card>
-      </Page>
-    `;
-    expect(rules(src)).toEqual(expect.arrayContaining(["no-table-in-card"]));
-  });
-
-  it("flags wrapping table inside SurfaceCard", () => {
-    const src = `
-      <SurfaceCard>
-        <table>
-          <thead><tr><th>Col</th></tr></thead>
-        </table>
-      </SurfaceCard>
-    `;
-    expect(rules(src)).toEqual(expect.arrayContaining(["no-table-in-card"]));
-  });
-
-  it("does not flag DataTable directly in Page or Section", () => {
-    const src = `
-      <Page title="Dashboard">
-        <Section title="Data">
-          <DataTable columns={columns} rows={rows} getRowKey={getRowKey} />
-        </Section>
-      </Page>
-    `;
-    expect(rules(src).includes("no-table-in-card")).toBe(false);
-  });
-});
-
-describe("lintGeneratedUi — card inside card", () => {
-  it("warns when a Card is nested inside another Card", () => {
-    const src = `
-      <Card>
-        <Card>
-          <span>nested</span>
-        </Card>
-      </Card>
-    `;
-    expect(rules(src)).toEqual(expect.arrayContaining(["no-card-in-card"]));
-  });
-
-  it("warns on SurfaceCard nested inside Card", () => {
-    const src = `
-      <Card>
-        <SurfaceCard>
-          <span>nested</span>
-        </SurfaceCard>
-      </Card>
-    `;
-    expect(rules(src)).toEqual(expect.arrayContaining(["no-card-in-card"]));
-  });
-
-  it("does not warn on sibling cards", () => {
-    const src = `
-      <Page>
-        <Card><span>a</span></Card>
-        <Card><span>b</span></Card>
-      </Page>
-    `;
-    expect(rules(src).includes("no-card-in-card")).toBe(false);
-  });
-
-  it("does not warn on card subcomponents (CardHeader/CardContent)", () => {
-    const src = `
-      <Card>
-        <CardHeader><span>title</span></CardHeader>
-        <CardContent><span>body</span></CardContent>
-      </Card>
-    `;
-    expect(rules(src).includes("no-card-in-card")).toBe(false);
-  });
-});
-
-describe("lintGeneratedUi — neutral trend", () => {
-  it("warns on a colored signed-percentage delta", () => {
-    expect(
-      rules(`<span className="text-emerald-500">+8%</span>`),
-    ).toEqual(expect.arrayContaining(["neutral-trend"]));
-  });
-
-  it("warns on a colored trending icon", () => {
-    expect(
-      rules(`<TrendingUp className="text-success" />`),
-    ).toEqual(expect.arrayContaining(["neutral-trend"]));
-  });
-
-  it("does not warn on a muted trend", () => {
+  it("flags a chat surface wrapped in a Card as an error", () => {
     const res = lintGeneratedUi(
-      `<span className="text-muted-foreground">+8%</span>`,
+      [
+        `<Card>`,
+        `  <TimbalChat workforceId="w" />`,
+        `</Card>`,
+      ].join("\n"),
     );
-    expect(res.findings.some((f) => f.rule === "neutral-trend")).toBe(false);
+    expect(res.findings.map((f) => f.rule)).toContain("no-chat-wrapping");
+    expect(res.ok).toBe(false);
   });
 
-  it("does not warn on a colored element without trend context", () => {
-    const res = lintGeneratedUi(`<Badge className="text-destructive">Overdue</Badge>`);
-    expect(res.findings.some((f) => f.rule === "neutral-trend")).toBe(false);
+  it("accepts an unwrapped chat surface", () => {
+    const res = lintGeneratedUi(`<TimbalChat workforceId="w" className="min-h-0 flex-1" />`);
+    expect(res.findings).toHaveLength(0);
   });
 });
 
-describe("lintGeneratedUi — glow shadows", () => {
-  it("warns on a neon glow box-shadow (blocks only in strict)", () => {
-    const src = `<span className="h-1.5 w-1.5 rounded-full shadow-[0_0_6px_var(--ring)]" />`;
-    const res = lintGeneratedUi(src);
-    expect(res.findings.map((f) => f.rule)).toEqual(
-      expect.arrayContaining(["no-glow"]),
-    );
-    expect(res.findings.find((f) => f.rule === "no-glow")?.severity).toBe("warn");
-    expect(res.ok).toBe(true);
-    expect(lintGeneratedUi(src, { strict: true }).ok).toBe(false);
-  });
+describe("lintGeneratedUi — v2 taste de-escalation", () => {
+  // Taste patterns are NOT linted anymore — they belong to the screenshot
+  // critique rubric. These patterns must produce zero findings so fork-first
+  // projects (which own their component source) never get false-flagged.
+  const TASTE_SNIPPETS: Record<string, string> = {
+    "bold metric": `<span className="text-3xl font-bold tabular-nums">$322k</span>`,
+    "uppercase heading": `<h2 className="text-2xl uppercase">Critical</h2>`,
+    "glow shadow": `<div className="shadow-[0_0_20px_var(--ring)]">x</div>`,
+    "hand-rolled control": `<button className="rounded-lg border border-input bg-transparent px-3 h-9">`,
+    "colored hover": `<Card className="hover:bg-primary/5">x</Card>`,
+    "card in card": [`<Card>`, `  <Card>x</Card>`, `</Card>`].join("\n"),
+    "table in card": [`<Card>`, `  <DataTable columns={c} rows={r} />`, `</Card>`].join("\n"),
+    "row dividers": [
+      `<li className="border-b">a</li>`,
+      `<li className="border-b">b</li>`,
+      `<li className="border-b">c</li>`,
+      `<li className="border-b">d</li>`,
+    ].join("\n"),
+    "nav rail": `<aside className="flex-col w-64 flex gap-2">…</aside>`,
+    "gradient tile": `<div className="bg-gradient-to-br from-primary to-accent p-4">stat</div>`,
+    "trend pill": `<span className="text-success">+8%</span>`,
+  };
 
-  it("flags drop-shadow glow with px offsets", () => {
-    expect(rules(`<div className="drop-shadow-[0px_0px_20px_var(--ring)]" />`)).toEqual(
-      expect.arrayContaining(["no-glow"]),
-    );
-  });
+  for (const [name, snippet] of Object.entries(TASTE_SNIPPETS)) {
+    it(`does not flag ${name}`, () => {
+      const res = lintGeneratedUi(snippet);
+      expect(res.findings).toHaveLength(0);
+      expect(res.ok).toBe(true);
+    });
+  }
 
-  it("does not flag the kit elevation shadows", () => {
+  it("emits zero warn-severity findings on a slop-heavy file", () => {
     const res = lintGeneratedUi(
-      `<div className="shadow-card hover:shadow-card-elevated" />`,
+      [
+        `<Card><Card><h1 className="uppercase text-4xl font-bold">DASH</h1></Card></Card>`,
+        `<div className="shadow-[0_0_30px_var(--ring)] bg-gradient-to-b from-primary to-accent" />`,
+      ].join("\n"),
     );
-    expect(res.findings.some((f) => f.rule === "no-glow")).toBe(false);
+    expect(res.warnCount).toBe(0);
   });
 
-  it("does not flag an offset drop shadow (not a 0 0 halo)", () => {
-    const res = lintGeneratedUi(`<div className="shadow-[0_2px_8px_var(--ring)]" />`);
-    expect(res.findings.some((f) => f.rule === "no-glow")).toBe(false);
-  });
-});
-
-describe("lintGeneratedUi — custom shell chrome", () => {
-  it("errors on a hand-rolled full-height nav rail", () => {
-    const src = `<nav className="flex h-full w-64 flex-col gap-1 p-3">{links}</nav>`;
-    expect(rules(src)).toEqual(
-      expect.arrayContaining(["no-custom-shell-chrome"]),
-    );
-  });
-
-  it("errors on a hand-rolled aside sidebar pinned inset-y-0", () => {
-    const src = `<aside className="fixed inset-y-0 left-0 flex w-60 flex-col">{nav}</aside>`;
-    expect(rules(src)).toEqual(
-      expect.arrayContaining(["no-custom-shell-chrome"]),
-    );
-  });
-
-  it("does not flag AppShell's topbar slot (supported horizontal nav)", () => {
-    const src = `
-      <AppShell
-        sidebar={<StudioSidebar items={nav} selectedId={v} onSelect={set} />}
-        topbar={
-          <div className="flex items-center gap-2">
-            <AppShellSidebarTrigger className="md:hidden" />
-            <ModeToggle theme={theme} setTheme={setTheme} />
-          </div>
-        }
-      >
-        {main}
-      </AppShell>
-    `;
-    expect(rules(src).includes("no-custom-shell-chrome")).toBe(false);
-  });
-
-  it("does not flag using StudioSidebar in AppShell.sidebar", () => {
-    const src = `<AppShell sidebar={<StudioSidebar workforces={items} selectedId={v} onSelect={set} />}>{main}</AppShell>`;
-    expect(rules(src).includes("no-custom-shell-chrome")).toBe(false);
-  });
-
-  it("does not flag global actions placed in Page.actions", () => {
-    const src = `<Page title="Billing" actions={<ModeToggle theme={theme} setTheme={setTheme} />}>{content}</Page>`;
-    expect(rules(src).includes("no-custom-shell-chrome")).toBe(false);
-  });
-});
-
-describe("lintGeneratedUi — uppercase display text", () => {
-  it("warns on an UPPERCASE heading element (blocks only in strict)", () => {
-    const src = `<h2 className="text-xl uppercase">Critical</h2>`;
-    const res = lintGeneratedUi(src);
-    expect(res.findings.map((f) => f.rule)).toEqual(
-      expect.arrayContaining(["no-uppercase-heading"]),
-    );
-    expect(
-      res.findings.find((f) => f.rule === "no-uppercase-heading")?.severity,
-    ).toBe("warn");
-    expect(res.ok).toBe(true);
-    expect(lintGeneratedUi(src, { strict: true }).ok).toBe(false);
-  });
-
-  it("flags uppercase applied to large text", () => {
-    expect(
-      rules(`<span className="text-2xl font-normal uppercase">Elevated</span>`),
-    ).toEqual(expect.arrayContaining(["no-uppercase-heading"]));
-  });
-
-  it("does not flag a small uppercase eyebrow label", () => {
-    const res = lintGeneratedUi(
-      `<span className="text-xs uppercase tracking-wide text-muted-foreground">Threat level</span>`,
-    );
-    expect(res.findings.some((f) => f.rule === "no-uppercase-heading")).toBe(
-      false,
-    );
-  });
-});
-
-describe("lintGeneratedUi — theme bypass", () => {
-  it("errors on forcedTheme", () => {
-    expect(rules(`<TimbalThemeStyle forcedTheme="dark" />`)).toEqual(
-      expect.arrayContaining(["theme-via-generator"]),
-    );
-  });
-
-  it("errors on a hand-authored theme token", () => {
-    expect(rules(`  --background: oklch(0.09 0.025 248);`)).toEqual(
-      expect.arrayContaining(["theme-via-generator"]),
-    );
-    expect(rules(`  --sidebar-bg: #060d1a;`)).toEqual(
-      expect.arrayContaining(["theme-via-generator"]),
-    );
-  });
-
-  it("does not flag using createTimbalTheme/applyTimbalTheme", () => {
-    const res = lintGeneratedUi(
-      `applyTimbalTheme(createTimbalTheme({ brand: "var(--brand)" }));`,
-    );
-    expect(res.findings.some((f) => f.rule === "theme-via-generator")).toBe(
-      false,
-    );
+  it("keeps `strict` accepted as a no-op for legacy callers", () => {
+    const src = `<span className="text-3xl font-bold">$1</span>`;
+    expect(lintGeneratedUi(src).ok).toBe(true);
+    expect(lintGeneratedUi(src, { strict: true }).ok).toBe(true);
   });
 });
 
 describe("HOUSE_RULES lint coverage", () => {
   // Every HouseRule must make an explicit coverage decision: either a
   // deterministic linter rule maps to it, or it is annotated prompt-only.
-  // This guards against a new rule being added without wiring up the gate.
+  // v2: only correctness rules keep lint coverage; every taste rule must be
+  // explicitly prompt-only (they are enforced by the critique rubric).
   const LINT_COVERAGE: Record<string, string[]> = {
     "semantic-color": ["raw-color", "color-literal", "inline-style-color"],
     "chart-token-color": ["chart-token-color-fn"],
     "chart-data-key": ["chart-data-key"],
-    "no-decorative-icons": ["icon-spam"],
-    "neutral-trend": ["neutral-trend"],
-    "values-normal-weight": ["bold-metric"],
-    "no-card-in-card": ["no-card-in-card"],
-    "no-table-in-card": ["no-table-in-card"],
-    "no-row-dividers": ["row-divider"],
-    "no-data-gradient": ["data-gradient"],
-    "use-kit-controls": ["raw-control-surface"],
-    "no-title-repetition": ["no-title-repetition"],
     "no-chat-wrapping": ["no-chat-wrapping"],
-    "no-colored-hover": ["no-colored-hover"],
-    "no-glow": ["no-glow"],
-    "no-custom-shell-chrome": ["no-custom-shell-chrome"],
-    "no-uppercase-heading": ["no-uppercase-heading"],
     "theme-via-generator": ["theme-via-generator"],
   };
 
@@ -572,6 +222,14 @@ describe("HOUSE_RULES lint coverage", () => {
         rule.enforcement === "prompt-only" ||
         Array.isArray(LINT_COVERAGE[rule.id]);
       expect({ id: rule.id, covered }).toEqual({ id: rule.id, covered: true });
+    }
+  });
+
+  it("keeps lint-covered rules NOT annotated prompt-only", () => {
+    for (const id of Object.keys(LINT_COVERAGE)) {
+      const rule = HOUSE_RULES.find((r) => r.id === id);
+      expect(rule).toBeDefined();
+      expect(rule!.enforcement ?? "lint").toBe("lint");
     }
   });
 });
@@ -591,50 +249,17 @@ describe("formatLintReport", () => {
   });
 });
 
-describe("lintGeneratedUi — strict mode", () => {
-  it("treats warnings as failures when strict", () => {
-    const src = `<span className="text-3xl font-bold">$1</span>`;
-    expect(lintGeneratedUi(src).ok).toBe(true); // warn only
-    expect(lintGeneratedUi(src, { strict: true }).ok).toBe(false);
+describe("lintGeneratedUi — input validation", () => {
+  it("throws a helpful TypeError on non-string input", () => {
+    expect(() =>
+      lintGeneratedUi({ filename: "a.tsx", source: "x" } as unknown as string),
+    ).toThrow(TypeError);
   });
-});
 
-describe("lintGeneratedUi — severity policy (errors = correctness/theming, warns = taste)", () => {
-  // Correctness + theming-integrity rules stay hard errors regardless of strict.
-  const ERROR_FIXTURES: Record<string, string> = {
-    "raw-color": `<span className="text-blue-600">x</span>`,
-    "color-literal": `const c = "#ff0066";`,
-    "chart-token-color-fn": `<Cell fill="hsl(var(--chart-1))" />`,
-    "chart-data-key": `series={[{ dataKey: "Water %" }]}`,
-    "theme-via-generator": `<ThemeProvider forcedTheme="dark" />`,
-  };
-
-  // Taste rules are warnings — they block only under strict.
-  const WARN_FIXTURES: Record<string, string> = {
-    "no-glow": `<div className="shadow-[0_0_20px_var(--ring)]" />`,
-    "no-uppercase-heading": `<h2 className="text-xl uppercase">Critical</h2>`,
-    "no-table-in-card": `<Card>\n  <DataTable columns={c} rows={r} getRowKey={k} />\n</Card>`,
-    "no-custom-shell-chrome": `<nav className="flex h-full w-64 flex-col gap-1 p-3">{links}</nav>`,
-    "bold-metric": `<span className="text-3xl font-bold">$1</span>`,
-  };
-
-  for (const [rule, src] of Object.entries(ERROR_FIXTURES)) {
-    it(`${rule} is error severity`, () => {
-      const res = lintGeneratedUi(src);
-      const finding = res.findings.find((f) => f.rule === rule);
-      expect(finding?.severity).toBe("error");
-      expect(res.ok).toBe(false);
-    });
-  }
-
-  for (const [rule, src] of Object.entries(WARN_FIXTURES)) {
-    it(`${rule} is warn severity (lenient passes, strict blocks)`, () => {
-      const res = lintGeneratedUi(src);
-      const finding = res.findings.find((f) => f.rule === rule);
-      expect(finding?.severity).toBe("warn");
-      expect(res.findings.every((f) => f.severity !== "error")).toBe(true);
-      expect(res.ok).toBe(true);
-      expect(lintGeneratedUi(src, { strict: true }).ok).toBe(false);
-    });
-  }
+  it("formatLintReport throws a helpful TypeError on a LintResult", () => {
+    const result = lintGeneratedUi(`<div />`);
+    expect(() =>
+      formatLintReport(result as unknown as Parameters<typeof formatLintReport>[0]),
+    ).toThrow(TypeError);
+  });
 });

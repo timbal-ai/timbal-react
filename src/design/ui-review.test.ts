@@ -21,10 +21,10 @@ describe("reviewGeneratedUi", () => {
     expect(review.revisionPrompt).toContain("raw-color");
   });
 
-  it("honors strict mode (warnings block)", () => {
-    const warnOnly = `<span className="text-3xl font-bold">$1</span>`;
-    expect(reviewGeneratedUi(warnOnly).passed).toBe(true);
-    expect(reviewGeneratedUi(warnOnly, { strict: true }).passed).toBe(false);
+  it("treats strict as a no-op in v2 (taste moved to the critique rubric)", () => {
+    const tasteOnly = `<span className="text-3xl font-bold">$1</span>`;
+    expect(reviewGeneratedUi(tasteOnly).passed).toBe(true);
+    expect(reviewGeneratedUi(tasteOnly, { strict: true }).passed).toBe(true);
   });
 
   it("ships a self-review system prompt", () => {
