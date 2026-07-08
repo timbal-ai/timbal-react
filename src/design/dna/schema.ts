@@ -89,12 +89,19 @@ export interface DnaMeta {
 export interface DnaColor {
   /** Primary brand color — hex / rgb() / oklch(). The only required color. */
   brand: string;
-  /** Optional secondary accent color. */
+  /**
+   * Optional secondary accent color. NOTE: this never tints functional
+   * surfaces — dropdown/menu hovers, selected rows, canvases, and sheets
+   * (`--accent`, `--playground-*`, `--sidebar-accent`) are always neutral
+   * gray. Reserved for decorative use.
+   */
   accent?: string;
   /**
-   * Neutral temperature. `hue` defaults to the brand hue (cohesive tint);
-   * `chroma` 0–0.03 controls how visibly tinted neutrals are (default is a
-   * near-imperceptible 0.004–0.01 depending on strategy).
+   * Neutral temperature. Defaults to PURE NEUTRAL (`chroma: 0`): white/gray/
+   * dark surfaces with gray hovers, regardless of how chromatic the brand
+   * is — brand-washed canvases and tinted dropdown hovers are a named
+   * mistake. Set `chroma` (0–0.03) explicitly to opt in to tinted neutrals;
+   * `hue` defaults to the brand hue and only matters when chroma > 0.
    */
   neutrals?: { hue?: number; chroma?: number };
   /**

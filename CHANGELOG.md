@@ -7,13 +7,29 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 ### Added
 
 - **DNA `color.selection` — selection-control accent.** `dna.json` accepts
-  `color.selection` (hex / rgb() / oklch()); the compiler (v1.2.0) emits
+  `color.selection` (hex / rgb() / oklch()); the compiler emits
   `--selection` / `--selection-foreground` in both modes and maps them into
   `@theme inline` (`bg-selection`, `text-selection-foreground`, …). This is
   the checked/active fill for checkboxes, radios, and similar binary
   controls. Defaults to the status set's info blue; explicit values are kept
   verbatim (the glyph foreground is contrast-gated at 3:1 — WCAG 1.4.11
   non-text — so vivid accents survive).
+
+### Changed
+
+- **Neutrals default to PURE gray (compiler v1.3.0).** Previously the
+  neutral ladder inherited the brand hue with a small default chroma, so a
+  chromatic brand (e.g. blue) washed the whole app — tinted canvas
+  gradient, tinted dropdown/menu hovers, tinted sidebar active items,
+  tinted mobile sheets. All ladder `defaultChroma` values are now `0`:
+  surfaces are white/gray/dark and hovers are the default gray unless a
+  project explicitly opts in via `color.neutrals.chroma`. The
+  `--playground-*` canvas gradient follows the neutrals verbatim (no
+  chroma floor).
+- **`color.accent` no longer tints the hover surface.** `--accent` (and
+  `--sidebar-accent`) are always the neutral gray ladder step; the field
+  is still validated but is reserved for decorative use. Brand-tinted
+  hover surfaces were the main source of the "blue-washed UI" failure.
 
 ## [4.1.0] — 2026-07-08
 

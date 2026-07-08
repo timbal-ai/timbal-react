@@ -182,6 +182,44 @@ describe("compileDna", () => {
     expect(ratio(primary, primaryFg)).toBeGreaterThanOrEqual(4.4);
   });
 
+  test("neutrals default to PURE gray even with a vivid brand", () => {
+    // The blue-washed-UI regression: a chromatic brand must not tint
+    // canvases, hovers, or sheets. Chroma 0 across the neutral ladder.
+    const { css } = compileDna({ version: 1, color: { brand: "#2563eb" } });
+    for (const sel of [":root", ".dark"] as const) {
+      const b = block(css, sel);
+      for (const token of [
+        "--background", "--card", "--muted", "--accent",
+        "--sidebar", "--sidebar-accent", "--popover",
+      ]) {
+        expect(parseColor(tokenValue(b, token)).c).toBe(0);
+      }
+    }
+  });
+
+  test("explicit neutrals.chroma opts back in to tinted neutrals", () => {
+    const { css } = compileDna({
+      version: 1,
+      color: { brand: "#2563eb", neutrals: { chroma: 0.01 } },
+    });
+    const root = block(css, ":root");
+    expect(parseColor(tokenValue(root, "--accent")).c).toBeGreaterThan(0);
+  });
+
+  test("color.accent never tints the hover surface", () => {
+    const plain = compileDna({ version: 1, color: { brand: "#18181b" } });
+    const accented = compileDna({
+      version: 1,
+      color: { brand: "#18181b", accent: "#3b82f6" },
+    });
+    expect(tokenValue(block(accented.css, ":root"), "--accent")).toBe(
+      tokenValue(block(plain.css, ":root"), "--accent"),
+    );
+    expect(tokenValue(block(accented.css, ".dark"), "--accent")).toBe(
+      tokenValue(block(plain.css, ".dark"), "--accent"),
+    );
+  });
+
   test("keeps a near-neutral brand as a classy near-black button", () => {
     const { css } = compileDna({ version: 1, color: { brand: "#111111" } });
     const root = block(css, ":root");

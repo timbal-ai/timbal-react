@@ -45,7 +45,7 @@ import {
   type StatusAnchor,
 } from "./registries";
 
-export const DNA_COMPILER_VERSION = "1.2.0";
+export const DNA_COMPILER_VERSION = "1.3.0";
 
 export interface DnaCompileReport {
   /** Contrast fixes the compiler applied (informational). */
@@ -153,21 +153,26 @@ interface NeutralLadderSpec {
   defaultChroma: number;
 }
 
+// Default neutral chroma is ZERO everywhere: surfaces are pure white/gray/
+// dark, and hover/dropdown/canvas tints stay neutral gray no matter how
+// chromatic the brand is. Brand-tinted neutrals ("blue-washed" canvases,
+// tinted dropdown hovers, tinted mobile sheets) are a named mistake — a
+// project must opt in explicitly via `color.neutrals.chroma`.
 const LIGHT_LADDERS: Record<string, NeutralLadderSpec> = {
   flat: {
     bg: 0.995, card: 0.995, popover: 0.995, secondary: 0.97, muted: 0.97,
     accent: 0.955, border: 0.905, input: 0.905, sidebar: 0.985,
-    fg: 0.145, mutedFg: 0.5, defaultChroma: 0.003,
+    fg: 0.145, mutedFg: 0.5, defaultChroma: 0,
   },
   panel: {
     bg: 0.975, card: 0.998, popover: 0.998, secondary: 0.955, muted: 0.95,
     accent: 0.94, border: 0.895, input: 0.895, sidebar: 0.965,
-    fg: 0.145, mutedFg: 0.49, defaultChroma: 0.005,
+    fg: 0.145, mutedFg: 0.49, defaultChroma: 0,
   },
   console: {
     bg: 0.985, card: 0.985, popover: 0.99, secondary: 0.96, muted: 0.96,
     accent: 0.945, border: 0.885, input: 0.885, sidebar: 0.975,
-    fg: 0.16, mutedFg: 0.48, defaultChroma: 0.004,
+    fg: 0.16, mutedFg: 0.48, defaultChroma: 0,
   },
 };
 
@@ -175,17 +180,17 @@ const DARK_LADDERS: Record<string, NeutralLadderSpec> = {
   flat: {
     bg: 0.165, card: 0.165, popover: 0.21, secondary: 0.22, muted: 0.22,
     accent: 0.245, border: { alpha: 0.1 }, input: { alpha: 0.12 }, sidebar: 0.165,
-    fg: 0.985, mutedFg: 0.72, defaultChroma: 0.005,
+    fg: 0.985, mutedFg: 0.72, defaultChroma: 0,
   },
   panel: {
     bg: 0.145, card: 0.19, popover: 0.19, secondary: 0.225, muted: 0.225,
     accent: 0.25, border: { alpha: 0.1 }, input: { alpha: 0.12 }, sidebar: 0.17,
-    fg: 0.985, mutedFg: 0.72, defaultChroma: 0.006,
+    fg: 0.985, mutedFg: 0.72, defaultChroma: 0,
   },
   console: {
     bg: 0.115, card: 0.135, popover: 0.155, secondary: 0.17, muted: 0.17,
     accent: 0.19, border: { alpha: 0.08 }, input: { alpha: 0.1 }, sidebar: 0.125,
-    fg: 0.93, mutedFg: 0.68, defaultChroma: 0.005,
+    fg: 0.93, mutedFg: 0.68, defaultChroma: 0,
   },
 };
 
@@ -246,7 +251,9 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
   const axis = (v: number | undefined) => clamp(v ?? 0.5, 0, 1);
 
   const brand = parseColor(dna.color.brand);
-  const accentInput = dna.color.accent ? parseColor(dna.color.accent) : null;
+  // color.accent is validated (parse errors surface early) but intentionally
+  // does not feed any functional surface — see the accent note below.
+  if (dna.color.accent) parseColor(dna.color.accent);
   const selectionInput = dna.color.selection ? parseColor(dna.color.selection) : null;
   const surfaces = dna.color.surfaces ?? "flat";
   // House finish — defaults to the signature Timbal chrome. The same token
@@ -407,14 +414,10 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
       { ...fg }, secondary, 4.5, `${mode}: secondary-foreground/secondary`, report,
     );
 
-    // User-supplied accent color takes over the accent surface.
-    let accentFinal = accentSurface;
-    if (accentInput) {
-      accentFinal =
-        mode === "light"
-          ? { l: clamp(accentInput.l, 0.9, 0.96), c: Math.min(accentInput.c, 0.06), h: accentInput.h, alpha: 1 }
-          : { l: 0.28, c: Math.min(accentInput.c, 0.06), h: accentInput.h, alpha: 1 };
-    }
+    // The accent surface (dropdown/menu hover, selected list rows) is ALWAYS
+    // the neutral ladder gray. `color.accent` deliberately does NOT tint it:
+    // brand-tinted hover surfaces are the "blue-washed UI" failure mode.
+    const accentFinal = accentSurface;
     const accentFg = fixContrast(
       { ...fg }, accentFinal, 4.5, `${mode}: accent-foreground/accent`, report,
     );
@@ -611,8 +614,11 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
 
     if (mode === "light") {
       return [
-        ["--playground-from", oklchToString(a(n(clamp(pal.bg.l - 0.065, 0, 1), Math.max(c, 0.004)), 0.6))],
-        ["--playground-via", oklchToString(a(n(clamp(pal.bg.l - 0.01, 0, 1), Math.max(c * 0.5, 0.002)), 0.3))],
+        // Canvas gradient chroma follows the neutrals verbatim — with the
+        // zero-chroma default the canvas is a pure gray grade, never a
+        // brand-hued wash.
+        ["--playground-from", oklchToString(a(n(clamp(pal.bg.l - 0.065, 0, 1), c), 0.6))],
+        ["--playground-via", oklchToString(a(n(clamp(pal.bg.l - 0.01, 0, 1), c * 0.5), 0.3))],
         ["--playground-to", "var(--background)"],
         ["--elevated-from", oklchToString(n(Math.min(pal.card.l + 0.002, 1), c * 0.5))],
         ["--elevated-to", oklchToString(n(clamp(pal.card.l - 0.013, 0, 1), c * 0.4))],
@@ -633,9 +639,9 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
       ];
     }
     return [
-      ["--playground-from", oklchToString(n(clamp(pal.bg.l + 0.125, 0, 1), Math.max(c, 0.005)))],
-      ["--playground-via", oklchToString(n(clamp(pal.bg.l + 0.045, 0, 1), Math.max(c, 0.005)))],
-      ["--playground-to", oklchToString(n(clamp(pal.bg.l - 0.015, 0, 1), Math.max(c, 0.005)))],
+      ["--playground-from", oklchToString(n(clamp(pal.bg.l + 0.125, 0, 1), c))],
+      ["--playground-via", oklchToString(n(clamp(pal.bg.l + 0.045, 0, 1), c))],
+      ["--playground-to", oklchToString(n(clamp(pal.bg.l - 0.015, 0, 1), c))],
       ["--elevated-from", oklchToString(n(clamp(pal.card.l + 0.012, 0, 1), c))],
       ["--elevated-to", oklchToString(n(clamp(pal.card.l - 0.008, 0, 1), c))],
       ["--modal-from", oklchToString(n(clamp(pal.popover.l + 0.03, 0, 1), c))],
