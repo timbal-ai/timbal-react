@@ -5,12 +5,18 @@
  * mounting the WebGL trigger glyph / live runtime.
  */
 import { act } from "react";
-import { describe, expect, it } from "bun:test";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { AppCopilot, CopilotProvider } from "./app-copilot";
 import { CopilotOverlay } from "./copilot-overlay";
 import { useCopilot } from "./context";
+
+const TRIGGER_POSITION_STORAGE_KEY = "timbal-copilot-trigger-position";
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
 
 /**
  * The closed-state trigger is a `pointer-events-none` fixed layer whose only
@@ -51,6 +57,52 @@ describe("useCopilot", () => {
       fireEvent.click(btn);
     });
     expect(btn.textContent).toBe("open");
+  });
+
+  it("trigger position round-trips through controls and localStorage", () => {
+    function PositionProbe() {
+      const controls = useCopilot();
+      return (
+        <div>
+          <span data-testid="pos">
+            {controls?.triggerPosition
+              ? `${controls.triggerPosition.x},${controls.triggerPosition.y}`
+              : "default"}
+          </span>
+          <button
+            type="button"
+            onClick={() => controls?.setTriggerPosition?.({ x: 0.25, y: 0.5 })}
+          >
+            move
+          </button>
+          <button type="button" onClick={() => controls?.resetTriggerPosition?.()}>
+            reset
+          </button>
+        </div>
+      );
+    }
+
+    render(
+      <CopilotProvider>
+        <PositionProbe />
+      </CopilotProvider>,
+    );
+
+    expect(screen.getByTestId("pos").textContent).toBe("default");
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "move" }));
+    });
+    expect(screen.getByTestId("pos").textContent).toBe("0.25,0.5");
+    expect(
+      JSON.parse(window.localStorage.getItem(TRIGGER_POSITION_STORAGE_KEY)!),
+    ).toEqual({ x: 0.25, y: 0.5 });
+
+    act(() => {
+      fireEvent.click(screen.getByRole("button", { name: "reset" }));
+    });
+    expect(screen.getByTestId("pos").textContent).toBe("default");
+    expect(window.localStorage.getItem(TRIGGER_POSITION_STORAGE_KEY)).toBeNull();
   });
 });
 
@@ -100,5 +152,103 @@ describe("AppCopilot", () => {
     });
 
     expect(await screen.findByRole("dialog", { name: "Concierge" })).toBeTruthy();
+  });
+});
+
+describe("draggable trigger pill", () => {
+  function renderClosedOverlay() {
+    render(
+      <CopilotProvider>
+        <CopilotOverlay>
+          <div data-testid="panel-body">panel</div>
+        </CopilotOverlay>
+      </CopilotProvider>,
+    );
+  }
+
+  function getDragHandle(): Element {
+    return document.querySelector(".aui-copilot-trigger-handle")!;
+  }
+
+  it("drag moves the pill, persists the spot, and never opens the panel", async () => {
+    renderClosedOverlay();
+    await waitFor(() => {
+      expect(getTriggerPill()).not.toBeNull();
+    });
+
+    act(() => {
+      fireEvent.pointerDown(getDragHandle(), {
+        pointerId: 1,
+        clientX: 900,
+        clientY: 700,
+        button: 0,
+      });
+      fireEvent.pointerMove(window, { pointerId: 1, clientX: 400, clientY: 200 });
+      fireEvent.pointerUp(window, { pointerId: 1, clientX: 400, clientY: 200 });
+      // The click a browser fires right after the drag's pointerup is swallowed.
+      fireEvent.click(getTriggerPill()!);
+    });
+
+    expect(screen.queryByTestId("panel-body")).toBeNull();
+
+    const stored = JSON.parse(
+      window.localStorage.getItem(TRIGGER_POSITION_STORAGE_KEY)!,
+    ) as { x: number; y: number };
+    expect(stored.x).toBeGreaterThan(0);
+    expect(stored.x).toBeLessThan(1);
+    expect(stored.y).toBeGreaterThan(0);
+    expect(stored.y).toBeLessThan(1);
+
+    const pill = getTriggerPill() as HTMLElement;
+    expect(pill.style.top.endsWith("px")).toBe(true);
+    expect(pill.style.left.endsWith("px")).toBe(true);
+
+    // A later, real click (after the suppression flag clears) still opens.
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    act(() => {
+      fireEvent.click(getTriggerPill()!);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId("panel-body")).toBeTruthy();
+    });
+  });
+
+  it("dropping the pill near its home corner snaps it back (reset)", async () => {
+    window.localStorage.setItem(
+      TRIGGER_POSITION_STORAGE_KEY,
+      JSON.stringify({ x: 0.2, y: 0.2 }),
+    );
+    renderClosedOverlay();
+    await waitFor(() => {
+      expect(getTriggerPill()).not.toBeNull();
+    });
+
+    // Drag from the stored spot to within the snap radius of the default corner.
+    const home = {
+      x: window.innerWidth - 24 - 78,
+      y: window.innerHeight - 24 - 26,
+    };
+    act(() => {
+      fireEvent.pointerDown(getDragHandle(), {
+        pointerId: 2,
+        clientX: 200,
+        clientY: 150,
+        button: 0,
+      });
+      fireEvent.pointerMove(window, {
+        pointerId: 2,
+        clientX: home.x - 20,
+        clientY: home.y - 10,
+      });
+      fireEvent.pointerUp(window, {
+        pointerId: 2,
+        clientX: home.x - 20,
+        clientY: home.y - 10,
+      });
+    });
+
+    expect(window.localStorage.getItem(TRIGGER_POSITION_STORAGE_KEY)).toBeNull();
+    const pill = getTriggerPill() as HTMLElement;
+    expect(pill.style.top.startsWith("calc(")).toBe(true);
   });
 });

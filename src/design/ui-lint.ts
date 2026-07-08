@@ -118,6 +118,21 @@ const UNSAFE_DATA_KEY_RE = /\bdataKey\s*[:=]\s*\{?\s*["'][^"']*[ \t%][^"']*["']/
 const INLINE_STYLE_COLOR_RE =
   /style=\{\{[^}]*\b(?:color|background|backgroundColor|borderColor|fill|stroke)\b/;
 
+/**
+ * A SOLID status/selection fill (`bg-success`, `hover:bg-info`, …) whose
+ * label is not guaranteed readable. The tokens' `*-foreground` pairs are
+ * contrast-gated by the DNA compiler, so `bg-success text-success-foreground`
+ * is always legible — but `bg-success` alone inherits the page foreground
+ * (near-black on a saturated green: invisible). Tinted fills (`bg-success/15`)
+ * and subtle surfaces (`bg-success-subtle`) pair with tone text and are fine.
+ * Textless indicator dots are exempted via `rounded-full`.
+ */
+const STATUS_FILLS = ["success", "warning", "destructive", "info", "selection"];
+const SOLID_STATUS_FILL_RE = new RegExp(
+  `(?:^|[\\s"'\`])(?:[a-z-]+:)*bg-(${STATUS_FILLS.join("|")})(?=[\\s"'\`]|$)`,
+  "g",
+);
+
 /** Forcing a theme (forcedTheme="dark") — bypasses the theme system. */
 const FORCED_THEME_RE = /\bforcedTheme\b/;
 
@@ -256,6 +271,23 @@ export function lintGeneratedUi(
           "Inline style color. Move color to a semantic Tailwind token on className.",
         snippet: line.trim().slice(0, 120),
       });
+    }
+
+    // ── solid status fill without its contrast-gated foreground ────────
+    if (!line.includes("rounded-full")) {
+      for (const m of line.matchAll(SOLID_STATUS_FILL_RE)) {
+        const tone = m[1];
+        if (!line.includes(`text-${tone}-foreground`)) {
+          findings.push({
+            rule: "status-fill-foreground",
+            severity: "error",
+            line: lineNo,
+            message:
+              `Solid bg-${tone} without text-${tone}-foreground — the label inherits the page foreground and can be unreadable on the saturated fill. Pair the fill with its contrast-gated foreground (bg-${tone} text-${tone}-foreground), use the Badge "*-solid" variants, or use a tinted chip (bg-${tone}/15 text-${tone}).`,
+            snippet: line.trim().slice(0, 120),
+          });
+        }
+      }
     }
 
     // ── theme bypass (forcedTheme / hand-authored tokens) ───────────────

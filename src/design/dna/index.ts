@@ -24,6 +24,7 @@ export {
   type DnaPersonality,
   type DnaOverrides,
   type DnaSurfaceStrategy,
+  type DnaFinish,
   type DnaMode,
   type DnaStatusSetId,
   type DnaChartRecipeId,

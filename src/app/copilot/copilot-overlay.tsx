@@ -8,6 +8,7 @@ import {
   useState,
   type CSSProperties,
   type FC,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 
@@ -76,6 +77,49 @@ const CHAT_PANEL_MOTION_TRANSITION = {
   ease: CHAT_PANEL_EASE,
 } as const;
 
+// ── Draggable trigger geometry ─────────────────────────────────────────────
+// LiquidGlass centers itself on its top/left anchor (translate -50%,-50%), so
+// every position below is the PILL'S CENTER in viewport pixels. The persisted
+// form is viewport *fractions* (see `CopilotTriggerPosition`) so a dragged
+// pill keeps its relative placement when the window is resized.
+
+/** Half the pill footprint — matches the default-corner calc() offsets. */
+const TRIGGER_HALF_WIDTH_PX = 78;
+const TRIGGER_HALF_HEIGHT_PX = 26;
+/** Default distance from the viewport edges (1.5rem, mirrors `bottom-6 right-6`). */
+const TRIGGER_EDGE_INSET_PX = 24;
+/** The pill never gets closer than this to any viewport edge. */
+const TRIGGER_MIN_EDGE_MARGIN_PX = 8;
+/** Pointer travel below this stays a click; above it becomes a drag. */
+const TRIGGER_DRAG_THRESHOLD_PX = 6;
+/** Dropping the pill within this radius of home snaps it back (= reset). */
+const TRIGGER_SNAP_HOME_RADIUS_PX = 72;
+
+interface TriggerCenter {
+  x: number;
+  y: number;
+}
+
+/** The default bottom-right resting spot for the pill's center. */
+function defaultTriggerCenter(vw: number, vh: number): TriggerCenter {
+  return {
+    x: vw - TRIGGER_EDGE_INSET_PX - TRIGGER_HALF_WIDTH_PX,
+    y: vh - TRIGGER_EDGE_INSET_PX - TRIGGER_HALF_HEIGHT_PX,
+  };
+}
+
+/** Keep the whole pill on screen (with a small breathing margin). */
+function clampTriggerCenter(x: number, y: number, vw: number, vh: number): TriggerCenter {
+  const minX = TRIGGER_HALF_WIDTH_PX + TRIGGER_MIN_EDGE_MARGIN_PX;
+  const maxX = vw - TRIGGER_HALF_WIDTH_PX - TRIGGER_MIN_EDGE_MARGIN_PX;
+  const minY = TRIGGER_HALF_HEIGHT_PX + TRIGGER_MIN_EDGE_MARGIN_PX;
+  const maxY = vh - TRIGGER_HALF_HEIGHT_PX - TRIGGER_MIN_EDGE_MARGIN_PX;
+  return {
+    x: Math.min(Math.max(x, minX), Math.max(minX, maxX)),
+    y: Math.min(Math.max(y, minY), Math.max(minY, maxY)),
+  };
+}
+
 const SIRI_PANEL_BASE = cn(
   // z-[70] keeps the assistant above the floating sidebar (z-[60]) so an
   // expanded panel is never covered by it.
@@ -93,6 +137,11 @@ export interface CopilotOverlayProps {
   triggerLabel?: string;
   /** Hide the built-in floating trigger (drive open state yourself). */
   hideTrigger?: boolean;
+  /**
+   * Let users drag the trigger pill away from UI it covers. Dropping it near
+   * its home corner snaps it back (reset). Default: `true`.
+   */
+  triggerDraggable?: boolean;
   /** Panel body — the `CopilotPanel`. */
   children: ReactNode;
 }
@@ -107,6 +156,7 @@ export const CopilotOverlay: FC<CopilotOverlayProps> = ({
   controls: controlsProp,
   triggerLabel = "Assistant",
   hideTrigger = false,
+  triggerDraggable = true,
   children,
 }) => {
   const contextControls = useCopilot();
@@ -115,6 +165,141 @@ export const CopilotOverlay: FC<CopilotOverlayProps> = ({
   const open = controls?.open ?? false;
   const expanded = controls?.expanded ?? false;
   const collapsible = controls?.collapsible ?? true;
+
+  // ── Draggable trigger ──
+  // Drag support needs controls that carry position state (see context.tsx).
+  const canDrag = triggerDraggable && !!controls?.setTriggerPosition;
+  const storedPosition = (canDrag ? controls?.triggerPosition : null) ?? null;
+  // Live center while a drag is in flight — committed to controls on release.
+  const [dragCenter, setDragCenter] = useState<TriggerCenter | null>(null);
+  // A drag ends with a pointerup that still fires `click` on the pill; this
+  // flag swallows that one click so releasing a drag never opens the panel.
+  const suppressClickRef = useRef(false);
+
+  // Re-render on resize so a custom (fraction-based) position re-clamps to the
+  // new viewport and never strands the pill off screen.
+  const [, setViewportTick] = useState(0);
+  useEffect(() => {
+    if (!storedPosition || typeof window === "undefined") return undefined;
+    const onResize = () => setViewportTick((tick) => tick + 1);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [storedPosition]);
+
+  const handleTriggerPointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) => {
+    if (!canDrag || !controls) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const origin = storedPosition
+      ? clampTriggerCenter(storedPosition.x * vw, storedPosition.y * vh, vw, vh)
+      : defaultTriggerCenter(vw, vh);
+    const drag = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      originX: origin.x,
+      originY: origin.y,
+      moved: false,
+    };
+
+    const centerFor = (e: PointerEvent): TriggerCenter =>
+      clampTriggerCenter(
+        drag.originX + (e.clientX - drag.startClientX),
+        drag.originY + (e.clientY - drag.startClientY),
+        window.innerWidth,
+        window.innerHeight,
+      );
+
+    const previousBodyUserSelect = document.body.style.userSelect;
+
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerId !== drag.pointerId) return;
+      if (!drag.moved) {
+        const travel = Math.hypot(
+          e.clientX - drag.startClientX,
+          e.clientY - drag.startClientY,
+        );
+        if (travel < TRIGGER_DRAG_THRESHOLD_PX) return;
+        drag.moved = true;
+        // A mouse drag would otherwise sweep-select page text under the pill.
+        document.body.style.userSelect = "none";
+      }
+      e.preventDefault();
+      setDragCenter(centerFor(e));
+    };
+
+    const detach = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      if (drag.moved) document.body.style.userSelect = previousBodyUserSelect;
+    };
+
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId !== drag.pointerId) return;
+      detach();
+      if (drag.moved) {
+        suppressClickRef.current = true;
+        window.setTimeout(() => {
+          suppressClickRef.current = false;
+        }, 0);
+
+        const vw2 = window.innerWidth;
+        const vh2 = window.innerHeight;
+        const center = centerFor(e);
+        const home = defaultTriggerCenter(vw2, vh2);
+        const nearHome =
+          Math.hypot(center.x - home.x, center.y - home.y) <=
+          TRIGGER_SNAP_HOME_RADIUS_PX;
+        if (nearHome) {
+          controls.resetTriggerPosition?.();
+        } else {
+          controls.setTriggerPosition?.({ x: center.x / vw2, y: center.y / vh2 });
+        }
+      }
+      setDragCenter(null);
+    };
+
+    const onCancel = (e: PointerEvent) => {
+      if (e.pointerId !== drag.pointerId) return;
+      detach();
+      setDragCenter(null);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+  };
+
+  // Where the pill anchors this render: live drag > persisted custom spot >
+  // default corner (responsive calc(), untouched behavior).
+  const customCenter =
+    dragCenter ??
+    (storedPosition && typeof window !== "undefined"
+      ? clampTriggerCenter(
+          storedPosition.x * window.innerWidth,
+          storedPosition.y * window.innerHeight,
+          window.innerWidth,
+          window.innerHeight,
+        )
+      : null);
+  const triggerAnchorStyle: CSSProperties = customCenter
+    ? {
+        position: "fixed",
+        top: `${customCenter.y}px`,
+        left: `${customCenter.x}px`,
+      }
+    : {
+        position: "fixed",
+        // The library centers on its top/left anchor (translate -50%,-50%),
+        // so anchor at the pill's center near the bottom-right corner.
+        top: `calc(100dvh - 1.5rem - ${TRIGGER_HALF_HEIGHT_PX}px)`,
+        left: `calc(100dvw - 1.5rem - ${TRIGGER_HALF_WIDTH_PX}px)`,
+      };
 
   // Stagger the trigger fade-in while the panel is still exiting so the handoff
   // reads as one motion instead of the panel vanishing then the pill popping in.
@@ -186,6 +371,13 @@ export const CopilotOverlay: FC<CopilotOverlayProps> = ({
               // inset-0` fixes the stacking; `pointer-events-none` keeps the empty
               // area click-through so only the pill itself is interactive.
               className="aui-app-shell-chat-trigger-fixed pointer-events-none fixed inset-0 z-[71]"
+              // Drag starts here (bubbled from the pill — the only
+              // pointer-events-auto descendant), so the WHOLE pill is a drag
+              // handle including its padding ring, which our content div
+              // doesn't cover. `touch-action` on an ancestor constrains the
+              // touched element, so touch drags don't scroll the page.
+              onPointerDown={handleTriggerPointerDown}
+              style={canDrag ? { touchAction: "none" } : undefined}
               // Opacity-only wrapper — never transform here or LiquidGlass fixed
               // positioning breaks and the pill jumps off-screen.
               initial={reducedMotion || !isClosing ? false : { opacity: 0 }}
@@ -201,8 +393,23 @@ export const CopilotOverlay: FC<CopilotOverlayProps> = ({
                 ease: CHAT_PANEL_EASE,
               }}
             >
+              {/* LiquidGlass inlines `transition: all ease-out 0.2s` on its
+                  root AND on every decorative sibling layer (sheen borders,
+                  hover glows, scrims), so while dragging the crystal chrome
+                  trails the pill by 0.2s. Inline styles can only be beaten by
+                  `!important`, and consumers may not compile our arbitrary
+                  Tailwind variants — so while a drag is live, this scoped
+                  style tag freezes transitions for everything in the wrapper.
+                  It unmounts on release, restoring the glide (snap-home
+                  eases home). */}
+              {dragCenter ? (
+                <style>{`.aui-app-shell-chat-trigger-fixed, .aui-app-shell-chat-trigger-fixed * { transition: none !important; }`}</style>
+              ) : null}
               <LiquidGlass
-                onClick={() => controls?.setOpen(true)}
+                onClick={() => {
+                  if (suppressClickRef.current) return;
+                  controls?.setOpen(true);
+                }}
                 cornerRadius={999}
                 padding="6px 20px 6px 6px"
                 blurAmount={0.14}
@@ -223,15 +430,14 @@ export const CopilotOverlay: FC<CopilotOverlayProps> = ({
                 // scrim and the blur, so the blur smears it back into the pill
                 // as gray side smudges — kill it and shadow the container.
                 className="pointer-events-auto cursor-pointer rounded-full bg-white/85 ring-1 ring-black/10 shadow-lg dark:bg-zinc-950/55 dark:ring-white/15 [&_.glass]:!shadow-none"
-                style={{
-                  position: "fixed",
-                  // The library centers on its top/left anchor (translate -50%,-50%),
-                  // so anchor at the pill's center near the bottom-right corner.
-                  top: "calc(100dvh - 1.5rem - 26px)",
-                  left: "calc(100dvw - 1.5rem - 78px)",
-                }}
+                style={triggerAnchorStyle}
               >
-                <div className="flex items-center gap-2 bg-transparent">
+                <div
+                  className={cn(
+                    "aui-copilot-trigger-handle flex items-center gap-2 bg-transparent",
+                    canDrag && "select-none",
+                  )}
+                >
                   <SiriWave
                     variant="wave"
                     size={40}

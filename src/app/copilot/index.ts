@@ -23,6 +23,7 @@ export {
 } from "./context";
 export type {
   CopilotControls,
+  CopilotTriggerPosition,
   AppCopilotContextValue,
   AppCopilotProviderProps,
 } from "./context";

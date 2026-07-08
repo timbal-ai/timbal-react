@@ -45,7 +45,7 @@ import {
   type StatusAnchor,
 } from "./registries";
 
-export const DNA_COMPILER_VERSION = "1.0.0";
+export const DNA_COMPILER_VERSION = "1.3.0";
 
 export interface DnaCompileReport {
   /** Contrast fixes the compiler applied (informational). */
@@ -153,21 +153,26 @@ interface NeutralLadderSpec {
   defaultChroma: number;
 }
 
+// Default neutral chroma is ZERO everywhere: surfaces are pure white/gray/
+// dark, and hover/dropdown/canvas tints stay neutral gray no matter how
+// chromatic the brand is. Brand-tinted neutrals ("blue-washed" canvases,
+// tinted dropdown hovers, tinted mobile sheets) are a named mistake — a
+// project must opt in explicitly via `color.neutrals.chroma`.
 const LIGHT_LADDERS: Record<string, NeutralLadderSpec> = {
   flat: {
     bg: 0.995, card: 0.995, popover: 0.995, secondary: 0.97, muted: 0.97,
     accent: 0.955, border: 0.905, input: 0.905, sidebar: 0.985,
-    fg: 0.145, mutedFg: 0.5, defaultChroma: 0.003,
+    fg: 0.145, mutedFg: 0.5, defaultChroma: 0,
   },
   panel: {
     bg: 0.975, card: 0.998, popover: 0.998, secondary: 0.955, muted: 0.95,
     accent: 0.94, border: 0.895, input: 0.895, sidebar: 0.965,
-    fg: 0.145, mutedFg: 0.49, defaultChroma: 0.005,
+    fg: 0.145, mutedFg: 0.49, defaultChroma: 0,
   },
   console: {
     bg: 0.985, card: 0.985, popover: 0.99, secondary: 0.96, muted: 0.96,
     accent: 0.945, border: 0.885, input: 0.885, sidebar: 0.975,
-    fg: 0.16, mutedFg: 0.48, defaultChroma: 0.004,
+    fg: 0.16, mutedFg: 0.48, defaultChroma: 0,
   },
 };
 
@@ -175,17 +180,17 @@ const DARK_LADDERS: Record<string, NeutralLadderSpec> = {
   flat: {
     bg: 0.165, card: 0.165, popover: 0.21, secondary: 0.22, muted: 0.22,
     accent: 0.245, border: { alpha: 0.1 }, input: { alpha: 0.12 }, sidebar: 0.165,
-    fg: 0.985, mutedFg: 0.72, defaultChroma: 0.005,
+    fg: 0.985, mutedFg: 0.72, defaultChroma: 0,
   },
   panel: {
     bg: 0.145, card: 0.19, popover: 0.19, secondary: 0.225, muted: 0.225,
     accent: 0.25, border: { alpha: 0.1 }, input: { alpha: 0.12 }, sidebar: 0.17,
-    fg: 0.985, mutedFg: 0.72, defaultChroma: 0.006,
+    fg: 0.985, mutedFg: 0.72, defaultChroma: 0,
   },
   console: {
     bg: 0.115, card: 0.135, popover: 0.155, secondary: 0.17, muted: 0.17,
     accent: 0.19, border: { alpha: 0.08 }, input: { alpha: 0.1 }, sidebar: 0.125,
-    fg: 0.93, mutedFg: 0.68, defaultChroma: 0.005,
+    fg: 0.93, mutedFg: 0.68, defaultChroma: 0,
   },
 };
 
@@ -246,8 +251,15 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
   const axis = (v: number | undefined) => clamp(v ?? 0.5, 0, 1);
 
   const brand = parseColor(dna.color.brand);
-  const accentInput = dna.color.accent ? parseColor(dna.color.accent) : null;
+  // color.accent is validated (parse errors surface early) but intentionally
+  // does not feed any functional surface — see the accent note below.
+  if (dna.color.accent) parseColor(dna.color.accent);
+  const selectionInput = dna.color.selection ? parseColor(dna.color.selection) : null;
   const surfaces = dna.color.surfaces ?? "flat";
+  // House finish — defaults to the signature Timbal chrome. The same token
+  // names are always emitted; `flat` just produces degenerate stops, so the
+  // forked component source never has to branch on the finish.
+  const finish = dna.finish ?? "timbal";
   const defaultMode: DnaMode = dna.color.defaultMode ?? "light";
   const statusSet = getStatusSet(dna.color.status ?? "signal");
 
@@ -402,14 +414,10 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
       { ...fg }, secondary, 4.5, `${mode}: secondary-foreground/secondary`, report,
     );
 
-    // User-supplied accent color takes over the accent surface.
-    let accentFinal = accentSurface;
-    if (accentInput) {
-      accentFinal =
-        mode === "light"
-          ? { l: clamp(accentInput.l, 0.9, 0.96), c: Math.min(accentInput.c, 0.06), h: accentInput.h, alpha: 1 }
-          : { l: 0.28, c: Math.min(accentInput.c, 0.06), h: accentInput.h, alpha: 1 };
-    }
+    // The accent surface (dropdown/menu hover, selected list rows) is ALWAYS
+    // the neutral ladder gray. `color.accent` deliberately does NOT tint it:
+    // brand-tinted hover surfaces are the "blue-washed UI" failure mode.
+    const accentFinal = accentSurface;
     const accentFg = fixContrast(
       { ...fg }, accentFinal, 4.5, `${mode}: accent-foreground/accent`, report,
     );
@@ -457,6 +465,23 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
       out.push([`--${name}-subtle-foreground`, oklchToString(subtleFg)]);
     }
     return out;
+  }
+
+  // ── Selection-control accent (checkbox / radio checked fill) ───────────
+  // Defaults to the status set's info blue; `color.selection` overrides it
+  // verbatim. Foreground (the tick/dot) is a graphical object, so it's
+  // gated at 3:1 (WCAG 1.4.11) instead of the 4.5:1 text threshold — vivid
+  // accents keep a white glyph.
+  function buildSelection(mode: DnaMode): TokenList {
+    const anchors = mode === "light" ? statusSet.light : statusSet.dark;
+    const solid = selectionInput ?? statusColor(anchors.info);
+    const fg = solidForeground(
+      solid, 3, `${mode}: selection-foreground/selection`, report,
+    );
+    return [
+      ["--selection", oklchToString(solid)],
+      ["--selection-foreground", oklchToString(fg)],
+    ];
   }
 
   // ── Chart palette ───────────────────────────────────────────────────────
@@ -539,6 +564,125 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
     ];
   }
 
+  // ── Finish chrome (playground canvas, control fills, inset shadows) ─────
+  // The signature Timbal look, derived from brand + neutrals so any rebrand
+  // keeps the finish. `flat` emits the same token names with degenerate
+  // values (from == to, hairline shadows) → plain flat surfaces.
+  function buildFinishChrome(mode: DnaMode, pal: ModePalette): TokenList {
+    const c = mode === "light" ? chromaLight : chromaDark;
+    const a = (color: Oklch, alpha: number): Oklch => ({ ...color, alpha });
+    const white = (alpha: number): Oklch => ({ l: 1, c: 0, h: 0, alpha });
+
+    if (finish === "flat") {
+      const primary = oklchToString(pal.primary);
+      return [
+        ["--playground-from", "var(--background)"],
+        ["--playground-via", "var(--background)"],
+        ["--playground-to", "var(--background)"],
+        ["--elevated-from", "var(--card)"],
+        ["--elevated-to", "var(--card)"],
+        ["--modal-from", "var(--popover)"],
+        ["--modal-to", "var(--popover)"],
+        ["--primary-fill-from", primary],
+        ["--primary-fill-to", primary],
+        ["--primary-fill-hover-from", oklchToString(a(pal.primary, 0.9))],
+        ["--primary-fill-hover-to", oklchToString(a(pal.primary, 0.9))],
+        ["--primary-fill-active-from", oklchToString(a(pal.primary, 0.95))],
+        ["--primary-fill-active-to", oklchToString(a(pal.primary, 0.95))],
+        ["--secondary-fill-hover-from", oklchToString(a(pal.secondary, 0.8))],
+        ["--secondary-fill-hover-to", oklchToString(a(pal.secondary, 0.8))],
+        ["--secondary-fill-active-from", oklchToString(a(pal.secondary, 0.7))],
+        ["--secondary-fill-active-to", oklchToString(a(pal.secondary, 0.7))],
+        ["--ghost-fill-hover", "var(--accent)"],
+        ["--ghost-fill-active", oklchToString(a(pal.accent, 0.8))],
+      ];
+    }
+
+    // Primary control fill — a vertical gradient around the primary color.
+    // Dark fills (near-black / saturated brands in light mode) grade downward
+    // into shadow; light fills (dark-mode near-white) grade subtly and invert
+    // interaction states, mirroring the classic styles.css values.
+    const pr = pal.primary;
+    const darkFill = relativeLuminance(pr) <= 0.35;
+    const fill = (l: number): Oklch => ({ ...pr, l: clamp(l, 0, 1) });
+    const fillFrom = darkFill ? fill(pr.l + 0.065) : fill(pr.l + 0.015);
+    const fillTo = darkFill ? fill(pr.l - 0.15) : fill(pr.l - 0.065);
+    const hoverFrom = darkFill ? fill(fillFrom.l + 0.05) : fillFrom;
+    const hoverTo = darkFill ? fill(fillTo.l + 0.1) : fill(pr.l - 0.015);
+    const activeFrom = fillTo;
+    const activeTo = darkFill ? fillTo : fill(fillTo.l - 0.14);
+
+    if (mode === "light") {
+      return [
+        // Canvas gradient chroma follows the neutrals verbatim — with the
+        // zero-chroma default the canvas is a pure gray grade, never a
+        // brand-hued wash.
+        ["--playground-from", oklchToString(a(n(clamp(pal.bg.l - 0.065, 0, 1), c), 0.6))],
+        ["--playground-via", oklchToString(a(n(clamp(pal.bg.l - 0.01, 0, 1), c * 0.5), 0.3))],
+        ["--playground-to", "var(--background)"],
+        ["--elevated-from", oklchToString(n(Math.min(pal.card.l + 0.002, 1), c * 0.5))],
+        ["--elevated-to", oklchToString(n(clamp(pal.card.l - 0.013, 0, 1), c * 0.4))],
+        ["--modal-from", oklchToString(n(Math.min(pal.popover.l + 0.002, 1), c * 0.5))],
+        ["--modal-to", oklchToString(n(clamp(pal.popover.l - 0.023, 0, 1), c * 0.4))],
+        ["--primary-fill-from", oklchToString(fillFrom)],
+        ["--primary-fill-to", oklchToString(fillTo)],
+        ["--primary-fill-hover-from", oklchToString(hoverFrom)],
+        ["--primary-fill-hover-to", oklchToString(hoverTo)],
+        ["--primary-fill-active-from", oklchToString(activeFrom)],
+        ["--primary-fill-active-to", oklchToString(activeTo)],
+        ["--secondary-fill-hover-from", oklchToString(a(n(clamp(pal.secondary.l + 0.015, 0, 1), c), 0.5))],
+        ["--secondary-fill-hover-to", oklchToString(a(n(clamp(pal.secondary.l - 0.005, 0, 1), c), 0.65))],
+        ["--secondary-fill-active-from", oklchToString(a(n(clamp(pal.secondary.l - 0.005, 0, 1), c), 0.7))],
+        ["--secondary-fill-active-to", oklchToString(a(n(clamp(pal.secondary.l - 0.06, 0, 1), c * 2), 0.65))],
+        ["--ghost-fill-hover", oklchToString(a(n(clamp(pal.secondary.l - 0.005, 0, 1), c), 0.7))],
+        ["--ghost-fill-active", oklchToString(a(n(clamp(pal.secondary.l - 0.06, 0, 1), c), 0.7))],
+      ];
+    }
+    return [
+      ["--playground-from", oklchToString(n(clamp(pal.bg.l + 0.125, 0, 1), c))],
+      ["--playground-via", oklchToString(n(clamp(pal.bg.l + 0.045, 0, 1), c))],
+      ["--playground-to", oklchToString(n(clamp(pal.bg.l - 0.015, 0, 1), c))],
+      ["--elevated-from", oklchToString(n(clamp(pal.card.l + 0.012, 0, 1), c))],
+      ["--elevated-to", oklchToString(n(clamp(pal.card.l - 0.008, 0, 1), c))],
+      ["--modal-from", oklchToString(n(clamp(pal.popover.l + 0.03, 0, 1), c))],
+      ["--modal-to", oklchToString(n(clamp(pal.popover.l, 0, 1), c))],
+      ["--primary-fill-from", oklchToString(fillFrom)],
+      ["--primary-fill-to", oklchToString(fillTo)],
+      ["--primary-fill-hover-from", oklchToString(hoverFrom)],
+      ["--primary-fill-hover-to", oklchToString(hoverTo)],
+      ["--primary-fill-active-from", oklchToString(activeFrom)],
+      ["--primary-fill-active-to", oklchToString(activeTo)],
+      ["--secondary-fill-hover-from", oklchToString(white(0.07))],
+      ["--secondary-fill-hover-to", oklchToString(white(0.045))],
+      ["--secondary-fill-active-from", oklchToString(white(0.1))],
+      ["--secondary-fill-active-to", oklchToString(white(0.07))],
+      ["--ghost-fill-hover", oklchToString(white(0.1))],
+      ["--ghost-fill-active", oklchToString(white(0.15))],
+    ];
+  }
+
+  /** Skeuomorphic control shadows (drop + inset top highlight) per mode. */
+  function controlShadows(mode: DnaMode): TokenList {
+    if (finish === "flat") {
+      const xs = shadowFor("xs");
+      const value = mode === "light" ? xs.light : xs.dark;
+      return [
+        ["--shadow-control-value", value],
+        ["--shadow-control-bordered-value", value],
+      ];
+    }
+    if (mode === "light") {
+      return [
+        ["--shadow-control-value", "0px 1px 2px 0px oklch(0.25 0.02 265 / 0.1), inset 0px 1px 0px 0px oklch(1 0 0 / 0.35)"],
+        ["--shadow-control-bordered-value", "0px 1px 2px 0px oklch(0.25 0.02 265 / 0.05), inset 0px 1px 0px 0px oklch(1 0 0 / 0.4)"],
+      ];
+    }
+    return [
+      ["--shadow-control-value", "0px 1px 2px 0px oklch(0 0 0 / 0.3), inset 0px 1px 0px 0px oklch(1 0 0 / 0.4)"],
+      ["--shadow-control-bordered-value", "0px 1px 2px 0px oklch(0 0 0 / 0.35), inset 0px 1px 0px 0px oklch(1 0 0 / 0.08)"],
+    ];
+  }
+
   // ── Assemble per-mode token lists (stable order) ────────────────────────
   function modeTokens(mode: DnaMode, pal: ModePalette): TokenList {
     const tokens: TokenList = [
@@ -560,6 +704,7 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
       ["--input", oklchToString(pal.input)],
       ["--ring", oklchToString(pal.ring)],
       ...buildStatuses(mode),
+      ...buildSelection(mode),
       ...buildCharts(mode),
       ["--sidebar", oklchToString(pal.sidebar)],
       ["--sidebar-foreground", oklchToString(pal.sidebarFg)],
@@ -570,6 +715,8 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
       ["--sidebar-border", oklchToString(pal.sidebarBorder)],
       ["--sidebar-ring", oklchToString(pal.ring)],
       ...buildChrome(mode, pal),
+      ...buildFinishChrome(mode, pal),
+      ...controlShadows(mode),
     ];
     for (const step of ["xs", "sm", "md", "lg", "xl"] as const) {
       const pair = shadowFor(step);
@@ -654,7 +801,7 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
     `/*`,
     ` * GENERATED by timbal-dna v${DNA_COMPILER_VERSION} — do not hand-edit.`,
     ` * Source of truth: src/design/dna.json  (edit it, then run \`bun run dna:compile\`).`,
-    ` * Fingerprint: ${fingerprint}  ·  default mode: ${defaultMode}  ·  surfaces: ${surfaces}`,
+    ` * Fingerprint: ${fingerprint}  ·  default mode: ${defaultMode}  ·  surfaces: ${surfaces}  ·  finish: ${finish}`,
     ` * Hand edits are rejected by \`timbal-dna check\` — change the DNA instead.`,
     ` */`,
   );
@@ -679,10 +826,20 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
     "secondary-foreground", "muted", "muted-foreground", "accent",
     "accent-foreground", "border", "input", "ring",
     ...STATUS_NAMES.flatMap((s) => [s, `${s}-foreground`, `${s}-subtle`, `${s}-subtle-foreground`]),
+    "selection", "selection-foreground",
     ...Array.from({ length: 8 }, (_, i) => `chart-${i + 1}`),
     "sidebar", "sidebar-foreground", "sidebar-primary",
     "sidebar-primary-foreground", "sidebar-accent", "sidebar-accent-foreground",
     "sidebar-border", "sidebar-ring",
+    // Finish chrome — canvas gradient, elevated/modal surfaces, control fills.
+    "playground-from", "playground-via", "playground-to",
+    "elevated-from", "elevated-to", "modal-from", "modal-to",
+    "primary-fill-from", "primary-fill-to",
+    "primary-fill-hover-from", "primary-fill-hover-to",
+    "primary-fill-active-from", "primary-fill-active-to",
+    "secondary-fill-hover-from", "secondary-fill-hover-to",
+    "secondary-fill-active-from", "secondary-fill-active-to",
+    "ghost-fill-hover", "ghost-fill-active",
   ];
   lines.push(`@theme inline {`);
   for (const name of colorNames) {
@@ -700,6 +857,8 @@ export function compileDna(dna: DesignDna): DnaCompileResult {
   lines.push(`  --shadow-md: var(--shadow-md-value);`);
   lines.push(`  --shadow-lg: var(--shadow-lg-value);`);
   lines.push(`  --shadow-xl: var(--shadow-xl-value);`);
+  lines.push(`  --shadow-control: var(--shadow-control-value);`);
+  lines.push(`  --shadow-control-bordered: var(--shadow-control-bordered-value);`);
   lines.push(`  --font-sans: var(--font-sans);`);
   lines.push(`  --font-display: var(--font-display);`);
   lines.push(`  --font-mono: var(--font-mono);`);

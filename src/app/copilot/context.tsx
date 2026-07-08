@@ -13,6 +13,16 @@ import { createContext, useContext, type FC, type ReactNode } from "react";
 // the controls to its own subtree (and reads an optional app-level provider).
 // =============================================================================
 
+/**
+ * Where the floating trigger pill sits — its center, as fractions (0–1) of the
+ * viewport width/height so the position survives window resizes. `null` means
+ * the default bottom-right corner.
+ */
+export interface CopilotTriggerPosition {
+  x: number;
+  y: number;
+}
+
 /** Open / expand controls for the floating copilot. */
 export interface CopilotControls {
   /** Whether the floating panel is open. */
@@ -24,6 +34,16 @@ export interface CopilotControls {
   /** Whether the panel is in its full-bleed expanded layout. */
   expanded: boolean;
   setExpanded: (expanded: boolean) => void;
+  /**
+   * User-dragged trigger pill position, or `null` for the default corner.
+   * Persisted to `localStorage` so it survives reloads. Optional so custom
+   * `CopilotControls` implementations predating drag support keep compiling —
+   * the built-in trigger simply isn't draggable without it.
+   */
+  triggerPosition?: CopilotTriggerPosition | null;
+  setTriggerPosition?: (position: CopilotTriggerPosition | null) => void;
+  /** Move the trigger pill back to its default corner and clear persistence. */
+  resetTriggerPosition?: () => void;
 }
 
 const CopilotControlsContext = createContext<CopilotControls | null>(null);

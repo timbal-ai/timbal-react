@@ -1214,6 +1214,8 @@ export function OperationsApp() {
 
 `AppCopilot` renders a rounded floating panel (bottom-right) and a **text-only** pill trigger — no sidebar column, no chat icons. Global actions like the theme toggle go in `Page.actions`, not a hand-rolled topbar.
 
+**Draggable trigger** — the pill can cover UI that lives near the bottom-right corner, so users can drag it anywhere on screen. The spot persists across reloads (`localStorage`), stays clamped inside the viewport on resize, and dropping the pill back near its home corner snaps it to the default position. Opt out with `triggerDraggable={false}`, or reset programmatically via `useCopilot()?.resetTriggerPosition()`.
+
 **Custom trigger** — drive open state via props (`open` / `onOpenChange` + `hideTrigger`), or wrap the app in `<CopilotProvider>` and call `useCopilot()` from any button.
 
 | Piece | Role |
