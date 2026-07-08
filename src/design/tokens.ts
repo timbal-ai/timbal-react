@@ -72,6 +72,10 @@ export const studioChromeShellStyle: CSSProperties = {
   "--studio-sidebar-content-gap": SIDEBAR_CONTENT_GAP,
   "--studio-inset-left": SIDEBAR_INSET_EXPANDED,
   "--studio-inset-left-collapsed": SIDEBAR_INSET_COLLAPSED,
+  // The composer's sticky band matches the canvas it sits on. The studio
+  // shells paint the playground gradient, which bottoms out at --background;
+  // outside these shells the band defaults to --card (white app pages).
+  "--thread-canvas": "var(--background)",
 } as CSSProperties;
 
 export function studioChromeInsetLeft(collapsed: boolean, isMobile = false) {

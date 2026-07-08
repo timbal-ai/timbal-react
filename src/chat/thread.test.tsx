@@ -139,6 +139,37 @@ describe("composer", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Layout contracts — composer must never be displaced or sit on a gray band
+// ---------------------------------------------------------------------------
+
+describe("thread layout contracts", () => {
+  it("caps the thread root at the viewport height so unbounded hosts can't push the composer below the fold", () => {
+    const { container } = renderChat();
+    const root = container.querySelector(".aui-thread-root");
+    expect(root?.className).toContain("max-h-dvh");
+  });
+
+  it("paints the composer band with --thread-canvas (white/card default), never bg-background", () => {
+    const { container } = renderChat();
+    const footer = container.querySelector(".aui-thread-viewport-footer");
+    expect(footer?.className).toContain("bg-[var(--thread-canvas,var(--card))]");
+    expect(footer?.className).not.toContain("bg-background");
+  });
+
+  it("keeps the opaque card band on the panel variant", () => {
+    const { container } = render(
+      <TooltipProvider>
+        <TimbalRuntimeProvider workforceId="test-workforce" fetch={noop}>
+          <Thread variant="panel" />
+        </TimbalRuntimeProvider>
+      </TooltipProvider>,
+    );
+    const footer = container.querySelector(".aui-thread-viewport-footer");
+    expect(footer?.className).toContain("bg-card");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // components prop — slot overrides
 // ---------------------------------------------------------------------------
 

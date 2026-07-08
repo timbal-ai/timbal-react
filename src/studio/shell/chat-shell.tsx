@@ -59,7 +59,11 @@ export const TimbalChatShell: FC<TimbalChatShellProps> = ({
   return (
     <div
       className={cn(
-        "aui-chat-shell relative flex h-dvh flex-col overflow-hidden bg-background",
+        // `max-h-full`: when the shell is mounted inside a height-constrained
+        // pane instead of at the route root, clamp to that pane so the
+        // composer never lands below the fold. In an unbounded parent the
+        // percentage is ignored and `h-dvh` applies as before.
+        "aui-chat-shell relative flex h-dvh max-h-full flex-col overflow-hidden bg-background",
         className,
       )}
       style={studioChromeShellStyle}
