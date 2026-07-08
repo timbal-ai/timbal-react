@@ -18,7 +18,49 @@ import {
   useCopilot,
   type AppCopilotContextValue,
   type CopilotControls,
+  type CopilotTriggerPosition,
 } from "./context";
+
+/** Persists the dragged trigger position across reloads (viewport fractions). */
+const TRIGGER_POSITION_STORAGE_KEY = "timbal-copilot-trigger-position";
+
+function readStoredTriggerPosition(): CopilotTriggerPosition | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(TRIGGER_POSITION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CopilotTriggerPosition>;
+    if (
+      typeof parsed.x === "number" &&
+      typeof parsed.y === "number" &&
+      parsed.x >= 0 &&
+      parsed.x <= 1 &&
+      parsed.y >= 0 &&
+      parsed.y <= 1
+    ) {
+      return { x: parsed.x, y: parsed.y };
+    }
+  } catch {
+    // Corrupt storage → fall back to the default corner.
+  }
+  return null;
+}
+
+function storeTriggerPosition(position: CopilotTriggerPosition | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (position) {
+      window.localStorage.setItem(
+        TRIGGER_POSITION_STORAGE_KEY,
+        JSON.stringify(position),
+      );
+    } else {
+      window.localStorage.removeItem(TRIGGER_POSITION_STORAGE_KEY);
+    }
+  } catch {
+    // Storage unavailable (private mode, etc.) → position lives for the session.
+  }
+}
 
 export interface AppCopilotProps extends CopilotPanelProps {
   // ── Open state ──
@@ -40,6 +82,13 @@ export interface AppCopilotProps extends CopilotPanelProps {
   triggerLabel?: string;
   /** Hide the built-in floating trigger (drive open state via props or `useCopilot`). */
   hideTrigger?: boolean;
+  /**
+   * Let users drag the floating trigger pill out of the way of underlying UI.
+   * The position persists across reloads; dropping the pill near its home
+   * corner (or calling `useCopilot()?.resetTriggerPosition()`) resets it.
+   * Default: `true`.
+   */
+  triggerDraggable?: boolean;
   /** Page context for agent tooling — read by descendants via `useAppCopilotContext`. */
   context?: AppCopilotContextValue;
 }
@@ -95,9 +144,45 @@ function useCopilotControlsState({
     [isExpandedControlled, onExpandedChange],
   );
 
+  // Trigger pill position — uncontrolled, persisted so a user who dragged the
+  // pill out of the way of their UI keeps that placement across reloads.
+  const [triggerPosition, setTriggerPositionState] =
+    useState<CopilotTriggerPosition | null>(readStoredTriggerPosition);
+  const setTriggerPosition = useCallback(
+    (next: CopilotTriggerPosition | null) => {
+      setTriggerPositionState(next);
+      storeTriggerPosition(next);
+    },
+    [],
+  );
+  const resetTriggerPosition = useCallback(
+    () => setTriggerPosition(null),
+    [setTriggerPosition],
+  );
+
   return useMemo(
-    () => ({ open, setOpen, toggle, collapsible, expanded, setExpanded }),
-    [open, setOpen, toggle, collapsible, expanded, setExpanded],
+    () => ({
+      open,
+      setOpen,
+      toggle,
+      collapsible,
+      expanded,
+      setExpanded,
+      triggerPosition,
+      setTriggerPosition,
+      resetTriggerPosition,
+    }),
+    [
+      open,
+      setOpen,
+      toggle,
+      collapsible,
+      expanded,
+      setExpanded,
+      triggerPosition,
+      setTriggerPosition,
+      resetTriggerPosition,
+    ],
   );
 }
 
@@ -130,6 +215,7 @@ export const AppCopilot: FC<AppCopilotProps> = ({
   collapsible = true,
   triggerLabel = "Assistant",
   hideTrigger = false,
+  triggerDraggable = true,
   context,
   ...panelProps
 }) => {
@@ -160,6 +246,7 @@ export const AppCopilot: FC<AppCopilotProps> = ({
         controls={controls}
         triggerLabel={triggerLabel}
         hideTrigger={hideTrigger}
+        triggerDraggable={triggerDraggable}
       >
         <CopilotPanel {...panelProps} />
       </CopilotOverlay>

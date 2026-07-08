@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { parseColor, relativeLuminance } from "../oklch";
+import { oklchToString, parseColor, relativeLuminance } from "../oklch";
 import { compileDna } from "./compile";
 import { DnaValidationError, parseDna, type DesignDna } from "./schema";
 import {
@@ -270,6 +270,129 @@ describe("compileDna", () => {
     expect(
       compileDna({ version: 1, color: { brand: "#4f46e5", defaultMode: "dark" } }).defaultMode,
     ).toBe("dark");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Selection-control accent
+// ---------------------------------------------------------------------------
+
+describe("color.selection", () => {
+  test("defaults to the status set's info blue", () => {
+    const { css } = compileDna(MINIMAL);
+    const root = block(css, ":root");
+    expect(tokenValue(root, "--selection")).toBe(tokenValue(root, "--info"));
+    expect(tokenValue(root, "--selection-foreground")).toBeTruthy();
+  });
+
+  test("explicit selection color is kept verbatim in both modes", () => {
+    const { css } = compileDna({
+      version: 1,
+      color: { brand: "#18181b", selection: "#3B76FF" },
+    });
+    const root = block(css, ":root");
+    const dark = block(css, ".dark");
+    const expected = oklchToString(parseColor("#3B76FF"));
+    expect(tokenValue(root, "--selection")).toBe(expected);
+    expect(tokenValue(dark, "--selection")).toBe(expected);
+  });
+
+  test("rejects malformed selection colors", () => {
+    expect(() =>
+      parseDna({ version: 1, color: { brand: "#4f46e5", selection: "blueish" } }),
+    ).toThrow(/color\.selection/);
+  });
+
+  test("selection tokens are mapped for Tailwind utilities", () => {
+    const { css } = compileDna(MINIMAL);
+    expect(css).toContain("--color-selection: var(--selection);");
+    expect(css).toContain(
+      "--color-selection-foreground: var(--selection-foreground);",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Finish (Timbal chrome by default)
+// ---------------------------------------------------------------------------
+
+describe("finish", () => {
+  test("rejects unknown finish values", () => {
+    expect(() =>
+      parseDna({ version: 1, finish: "glass", color: { brand: "#4f46e5" } }),
+    ).toThrow(/finish/);
+  });
+
+  test("defaults to the Timbal chrome — gradients present, stops differ", () => {
+    const { css } = compileDna(MINIMAL);
+    expect(css).toContain("finish: timbal");
+    const root = block(css, ":root");
+    const dark = block(css, ".dark");
+
+    for (const b of [root, dark]) {
+      // Canvas gradient exists and is not degenerate.
+      expect(b).toContain("--playground-from: ");
+      expect(b).toContain("--playground-via: ");
+      expect(b).toContain("--playground-to: ");
+      // Control fill grades — from and to are distinct stops.
+      expect(tokenValue(b, "--primary-fill-from")).not.toBe(
+        tokenValue(b, "--primary-fill-to"),
+      );
+      // Elevated surfaces grade.
+      expect(tokenValue(b, "--elevated-from")).not.toBe(
+        tokenValue(b, "--elevated-to"),
+      );
+      // Skeuomorphic control shadow carries an inset top highlight.
+      expect(tokenValue(b, "--shadow-control-value")).toContain("inset");
+    }
+
+    // Light canvas fades into the page background like the classic look.
+    expect(tokenValue(root, "--playground-to")).toBe("var(--background)");
+  });
+
+  test("primary fill is brand-aware — chromatic brands keep their hue", () => {
+    const { css } = compileDna({ version: 1, color: { brand: "#4f46e5" } });
+    const root = block(css, ":root");
+    const brandHue = parseColor("#4f46e5").h;
+    const fillFrom = parseColor(tokenValue(root, "--primary-fill-from"));
+    expect(Math.abs(fillFrom.h - brandHue)).toBeLessThan(2);
+    expect(fillFrom.c).toBeGreaterThan(0.05);
+  });
+
+  test('finish: "flat" degenerates every stop — same tokens, flat look', () => {
+    const { css } = compileDna({
+      version: 1,
+      finish: "flat",
+      color: { brand: "#4f46e5" },
+    });
+    expect(css).toContain("finish: flat");
+    const root = block(css, ":root");
+
+    expect(tokenValue(root, "--playground-from")).toBe("var(--background)");
+    expect(tokenValue(root, "--playground-to")).toBe("var(--background)");
+    expect(tokenValue(root, "--elevated-from")).toBe("var(--card)");
+    expect(tokenValue(root, "--elevated-to")).toBe("var(--card)");
+    expect(tokenValue(root, "--primary-fill-from")).toBe(
+      tokenValue(root, "--primary-fill-to"),
+    );
+    expect(tokenValue(root, "--shadow-control-value")).not.toContain("inset");
+  });
+
+  test("finish tokens are mapped for Tailwind utilities", () => {
+    const { css } = compileDna(MINIMAL);
+    expect(css).toContain("--color-playground-from: var(--playground-from);");
+    expect(css).toContain("--color-primary-fill-from: var(--primary-fill-from);");
+    expect(css).toContain("--color-ghost-fill-hover: var(--ghost-fill-hover);");
+    expect(css).toContain("--shadow-control: var(--shadow-control-value);");
+    expect(css).toContain(
+      "--shadow-control-bordered: var(--shadow-control-bordered-value);",
+    );
+  });
+
+  test("finish changes the fingerprint (drift detection)", () => {
+    const timbal = compileDna(MINIMAL);
+    const flat = compileDna({ ...MINIMAL, finish: "flat" });
+    expect(timbal.fingerprint).not.toBe(flat.fingerprint);
   });
 });
 

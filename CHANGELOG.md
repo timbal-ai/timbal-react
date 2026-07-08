@@ -2,7 +2,102 @@
 
 All notable changes to `@timbal-ai/timbal-react` are documented here.
 
-## [Unreleased]
+## [4.2.0] — 2026-07-08
+
+### Added
+
+- **DNA `color.selection` — selection-control accent.** `dna.json` accepts
+  `color.selection` (hex / rgb() / oklch()); the compiler (v1.2.0) emits
+  `--selection` / `--selection-foreground` in both modes and maps them into
+  `@theme inline` (`bg-selection`, `text-selection-foreground`, …). This is
+  the checked/active fill for checkboxes, radios, and similar binary
+  controls. Defaults to the status set's info blue; explicit values are kept
+  verbatim (the glyph foreground is contrast-gated at 3:1 — WCAG 1.4.11
+  non-text — so vivid accents survive).
+
+## [4.1.0] — 2026-07-08
+
+### Added
+
+- **DNA `finish` field — the classic Timbal look is the default again.**
+  `dna.json` gains a top-level `finish: "timbal" | "flat"` (default
+  `"timbal"`). The compiler (v1.1.0) now derives the signature chrome from
+  brand + neutrals in both modes: the `--playground-from/via/to` canvas
+  gradient, `--elevated-*` / `--modal-*` surface grades, `--primary-fill-*` /
+  `--secondary-fill-*` / `--ghost-fill-*` control-fill gradient stops, and
+  skeuomorphic `shadow-control` / `shadow-control-bordered` inset-highlight
+  shadows — all mapped into `@theme inline` so `from-primary-fill-from`,
+  `shadow-control`, etc. work as utilities. `finish: "flat"` emits the same
+  token names with degenerate stops (from == to, hairline shadows), so
+  fork-first component source never branches on the finish: one `button.tsx`
+  renders the classic gradient + inset chrome under `timbal` and plain flat
+  shadcn-style controls under `flat`. Rebranding via `color.brand` keeps the
+  finish. New exported type `DnaFinish`; `finish` participates in the
+  fingerprint so `timbal-dna check` catches drift.
+
+- **Draggable copilot trigger** — the floating **Assistant** pill can now be
+  dragged anywhere on screen when it covers underlying UI. The position
+  persists across reloads (`localStorage`, stored as viewport fractions so it
+  survives resizes and always re-clamps on screen), and dropping the pill near
+  its home corner snaps it back to the default spot. New `AppCopilot` /
+  `CopilotOverlay` prop `triggerDraggable` (default `true`), plus
+  `triggerPosition` / `setTriggerPosition` / `resetTriggerPosition` on
+  `CopilotControls` (exported `CopilotTriggerPosition` type) for programmatic
+  control — e.g. a host-app "Reset assistant position" action via
+  `useCopilot()?.resetTriggerPosition()`.
+
+## [4.0.0] — 2026-07-07
+
+Major release for the fork-first UI generation stack: per-project **Design DNA**
+(`dna.json` → `tokens.css`) replaces ad-hoc theming for blueprint v2 projects,
+and **ui-lint v2** keeps only correctness errors — taste moves to the screenshot
+critique rubric.
+
+### Added
+
+- **Design DNA engine** — `parseDna`, `compileDna`, `DnaValidationError`, and
+  `DNA_COMPILER_VERSION` exported from `@timbal-ai/timbal-react` and `/app`.
+  A validated `dna.json` compiles deterministically to a complete light + dark
+  `tokens.css` with WCAG contrast checks, curated font pairings, status sets,
+  elevation ladders, density specs, motion presets, and chart recipes.
+- **`timbal-dna` CLI** (new `bin`) — `compile`, `check` (byte-compare drift
+  detection), `validate`, and `registries` (curated menus for agents). Default
+  paths: `src/design/dna.json` → `src/design/tokens.css`.
+- **Curated registries** — `FONT_PAIRINGS`, `STATUS_SETS`, `MOTION_PRESETS`,
+  `ELEVATION_LADDERS`, `DENSITY_SPECS` plus lookup helpers (`getFontPairing`,
+  `getStatusSet`, …) exported for tooling and agent prompts.
+- **`HouseRule.enforcement`** — `"lint"` vs `"prompt-only"` so vocabulary and
+  linter policy stay in sync.
+
+### Changed
+
+- **ui-lint v2 — correctness only.** The linter now emits **errors only** for
+  patterns that break at runtime or punch through the theme system: raw palette
+  colors, color literals, `hsl(var(--token))` wrapping, unsafe chart dataKeys,
+  inline style colors, hand-authored theme tokens / `forcedTheme`, and chat
+  surfaces wrapped in bordered containers. **13 taste rules** (`no-icon-spam`,
+  `no-bold-metric`, `no-glow`, `no-table-in-card`, hand-rolled shell chrome,
+  etc.) are annotated `enforcement: "prompt-only"` in `HOUSE_RULES` and judged
+  on rendered screenshots via the critique rubric — not blocked by lint.
+- **`strict` / `--strict` is a no-op in v2** — accepted for backward
+  compatibility but has no effect because no warn-tier findings are emitted.
+  Fork-first projects own component source; taste bans would flag the design
+  system itself.
+- **`reviewGeneratedUi`** — unchanged API; revision prompts now reference only
+  correctness findings.
+
+### Migration
+
+- **Blueprint v2 / fork-first projects:** author `src/design/dna.json`, run
+  `timbal-dna compile`, import `src/design/tokens.css` before kit styles, and
+  own UI primitives under `src/components/`. Use `timbal-dna check` in CI to
+  catch hand-edited `tokens.css`.
+- **Legacy package-consumed projects:** `createTimbalTheme` / presets remain
+  available; ui-lint is less opinionated (warnings no longer block unless you
+  relied on `strict: true` for taste — move those checks to visual critique).
+- **Codegen pipelines:** replace taste-blocking `lintGeneratedUi(…, { strict:
+  true })` gates with `timbal-dna check` + screenshot critique for fork-first
+  repos; keep lint for hard errors only.
 
 ## [3.2.0] — 2026-07-03
 

@@ -38,6 +38,17 @@ export type DnaElevationLevel =
 export type DnaElevationStrategy = "border" | "shadow" | "both";
 export type DnaDensity = "compact" | "comfortable" | "spacious";
 export type DnaMotionPreset = "instant" | "snappy" | "smooth" | "expressive";
+/**
+ * Surface finish — the house rendering style for controls and canvases.
+ * - `timbal` (default) — the signature Timbal chrome: soft canvas gradient
+ *   behind content, gradient-filled primary controls with an inset top
+ *   highlight, gently graded elevated/modal surfaces. All stops are derived
+ *   from the brand + neutrals, so it survives any rebrand.
+ * - `flat` — degenerate stops (from == to, hairline control shadows): the
+ *   same component source renders plain flat shadcn-style surfaces. Use for
+ *   reference-matching flat designs.
+ */
+export type DnaFinish = "timbal" | "flat";
 
 /**
  * Personality axes, each 0–1. They bias derivation defaults when the
@@ -97,6 +108,14 @@ export interface DnaColor {
   defaultMode?: DnaMode;
   /** Status color set (success / warning / info / destructive). */
   status?: DnaStatusSetId;
+  /**
+   * Selection-control accent — the checked/active fill for checkboxes,
+   * radios, and similar binary controls (`--selection` /
+   * `--selection-foreground`). Defaults to the status set's info blue.
+   * Foreground is gated at 3:1 (graphical-object threshold) so vivid
+   * accents survive verbatim.
+   */
+  selection?: string;
   /**
    * Chart palette: a named recipe (`categorical` | `brand` | `monochrome`)
    * or an explicit array of 3–8 colors.
@@ -187,6 +206,11 @@ export interface DesignDna {
   version: 1;
   meta?: DnaMeta;
   personality?: DnaPersonality;
+  /**
+   * House finish for controls + canvases. Defaults to `"timbal"` — new
+   * projects ship the classic Timbal look unless the DNA opts out.
+   */
+  finish?: DnaFinish;
   color: DnaColor;
   typography?: DnaTypography;
   shape?: DnaShape;
@@ -215,6 +239,7 @@ export class DnaValidationError extends Error {
 }
 
 const SURFACES: readonly string[] = ["flat", "panel", "console"];
+const FINISHES: readonly string[] = ["timbal", "flat"];
 const MODES: readonly string[] = ["light", "dark"];
 const STATUS_SETS: readonly string[] = ["signal", "muted", "vivid"];
 const CHART_RECIPES: readonly string[] = ["categorical", "brand", "monochrome"];
@@ -355,12 +380,15 @@ export function parseDna(input: unknown): DesignDna {
     problems.push(`version: must be 1, got ${JSON.stringify(input.version)}`);
   }
 
+  checkEnum(problems, "finish", input.finish, FINISHES);
+
   // color (required)
   if (!isRecord(input.color)) {
     problems.push(`color: required object with at least { "brand": "<color>" }`);
   } else {
     checkColorString(problems, "color.brand", input.color.brand, true);
     checkColorString(problems, "color.accent", input.color.accent);
+    checkColorString(problems, "color.selection", input.color.selection);
     checkEnum(problems, "color.surfaces", input.color.surfaces, SURFACES);
     checkEnum(problems, "color.defaultMode", input.color.defaultMode, MODES);
     checkEnum(problems, "color.status", input.color.status, STATUS_SETS);
