@@ -133,6 +133,67 @@ const SOLID_STATUS_FILL_RE = new RegExp(
   "g",
 );
 
+/**
+ * Button opening tags — buttons must come from the variant system (default /
+ * secondary / outline / ghost / destructive / link), whose label colors are
+ * contrast-gated by the DNA compiler. A hand-painted fill (`bg-success`,
+ * `bg-primary`, `bg-linear-to-r …`, `bg-[…]`) breaks that pairing — the
+ * classic failure is a saturated green button with an unreadable label.
+ */
+const BUTTON_TAG_OPEN_RE =
+  /<(?:[A-Za-z][\w]*\.)?(?:Button|IconButton|LoadingButton|TooltipIconButton)\b/;
+
+/**
+ * An UNPREFIXED background fill utility. State-scoped surfaces
+ * (`hover:bg-…`, `data-[state=open]:bg-accent`) are deliberately allowed —
+ * their `bg-` is preceded by `:` so the leading character class rejects
+ * them. Non-color `bg-*` utilities (clip/position/size/repeat/blend) and
+ * no-op fills (`bg-transparent`, `bg-inherit`, `bg-none`) are excluded.
+ */
+const BUTTON_CUSTOM_FILL_RE = new RegExp(
+  "(?:^|[\\s\"'`{])bg-(?!transparent\\b|inherit\\b|none\\b|clip-|origin-|blend-|cover\\b|contain\\b|auto\\b|center\\b|top\\b|bottom\\b|left\\b|right\\b|fixed\\b|local\\b|scroll\\b|no-repeat|repeat)[a-z\\[]",
+);
+
+/** First `>` on a line that is a tag close, not an arrow function's `=>`. */
+function tagCloseIndex(text: string): number {
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === ">" && text[i - 1] !== "=") return i;
+  }
+  return -1;
+}
+
+/**
+ * Extract the parts of `line` that sit inside a Button-family opening tag,
+ * carrying `inTag` state across lines (attributes often span lines).
+ */
+function buttonTagSegments(
+  line: string,
+  inTag: boolean,
+): { segments: string[]; inTag: boolean } {
+  const segments: string[] = [];
+  let idx = 0;
+  while (idx < line.length) {
+    const rest = line.slice(idx);
+    if (inTag) {
+      const close = tagCloseIndex(rest);
+      if (close === -1) {
+        segments.push(rest);
+        idx = line.length;
+      } else {
+        segments.push(rest.slice(0, close));
+        idx += close + 1;
+        inTag = false;
+      }
+    } else {
+      const open = BUTTON_TAG_OPEN_RE.exec(rest);
+      if (!open) break;
+      idx += open.index + open[0].length;
+      inTag = true;
+    }
+  }
+  return { segments, inTag };
+}
+
 /** Forcing a theme (forcedTheme="dark") — bypasses the theme system. */
 const FORCED_THEME_RE = /\bforcedTheme\b/;
 
@@ -196,12 +257,30 @@ export function lintGeneratedUi(
   const lines = source.split("\n");
 
   const hasChat = /\b(?:TimbalChat|AppChatPanel|Thread)\b/.test(source);
+  let inButtonTag = false;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lineNo = i + 1;
 
     if (isCommentOrImport(line)) continue;
+
+    // ── custom fill painted on a Button (variant-system bypass) ─────────
+    // Runs first because it tracks open-tag state across lines.
+    {
+      const scan = buttonTagSegments(line, inButtonTag);
+      inButtonTag = scan.inTag;
+      if (scan.segments.some((seg) => BUTTON_CUSTOM_FILL_RE.test(seg))) {
+        findings.push({
+          rule: "button-custom-fill",
+          severity: "error",
+          line: lineNo,
+          message:
+            "Custom fill painted on a Button. Buttons come from the variant system ONLY — default (dark), secondary (white), outline, ghost, destructive, link — whose label colors are contrast-gated by the compiler. A hand-painted bg-* (bg-success, bg-primary, gradients, arbitrary values) breaks that pairing and yields unreadable labels (e.g. dark text on saturated green). Pick the closest variant; status color belongs in a Badge or icon, not the button fill. (State-scoped surfaces like hover:bg-…/10 are allowed.)",
+          snippet: line.trim().slice(0, 120),
+        });
+      }
+    }
 
     // ── raw palette colors ──────────────────────────────────────────────
     const rawColors = line.match(RAW_COLOR_RE);

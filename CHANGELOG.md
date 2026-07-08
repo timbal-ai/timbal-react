@@ -4,6 +4,18 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
 
 ## [4.2.1] — 2026-07-08
 
+### Added
+
+- **New lint rule `button-custom-fill`.** A hand-painted background on a
+  `Button` (`bg-success`, `bg-primary`, gradients, arbitrary values — on the
+  opening tag, including multi-line tags) is now an error. Buttons come from
+  the variant system only (default / secondary / outline / ghost /
+  destructive / link), whose label colors are contrast-gated by the DNA
+  compiler; custom fills are how agents produce green buttons with
+  unreadable labels. State-scoped tints (`hover:bg-destructive/10`,
+  `data-[state=open]:bg-accent`) and fills on button *children* (status
+  dots) stay allowed. New `HOUSE_RULES` entry: `button-variants-only`.
+
 ### Fixed
 
 - **Gray band behind the chat composer on white pages.** The thread's sticky
