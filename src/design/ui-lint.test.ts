@@ -37,6 +37,46 @@ describe("lintGeneratedUi — raw colors", () => {
   });
 });
 
+describe("lintGeneratedUi — solid status fills", () => {
+  it("flags a solid status fill without its foreground pair", () => {
+    const res = lintGeneratedUi(
+      `<span className="bg-success px-2 py-0.5 rounded-md">Negotiation</span>`,
+    );
+    expect(res.ok).toBe(false);
+    expect(rules(`<span className="bg-success rounded-md">x</span>`)).toEqual(
+      expect.arrayContaining(["status-fill-foreground"]),
+    );
+  });
+
+  it("accepts the fill when paired with its contrast-gated foreground", () => {
+    const res = lintGeneratedUi(
+      `<span className="bg-success text-success-foreground rounded-md">Won</span>`,
+    );
+    expect(res.findings).toHaveLength(0);
+  });
+
+  it("accepts tinted chips and subtle surfaces", () => {
+    const res = lintGeneratedUi(
+      `<span className="bg-success/15 text-success border-success/50" />
+       <div className="bg-warning-subtle text-warning-subtle-foreground" />`,
+    );
+    expect(res.findings).toHaveLength(0);
+  });
+
+  it("exempts textless indicator dots (rounded-full)", () => {
+    const res = lintGeneratedUi(
+      `<span className="size-2 rounded-full bg-success" aria-hidden />`,
+    );
+    expect(res.findings).toHaveLength(0);
+  });
+
+  it("catches variant-prefixed solid fills too", () => {
+    expect(rules(`<div className="hover:bg-destructive p-2" />`)).toEqual(
+      expect.arrayContaining(["status-fill-foreground"]),
+    );
+  });
+});
+
 describe("lintGeneratedUi — literals & inline styles", () => {
   it("flags hex and oklch literals", () => {
     expect(rules(`<div style={{ background: "#ff0066" }} />`)).toEqual(

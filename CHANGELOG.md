@@ -30,6 +30,13 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
   `--sidebar-accent`) are always the neutral gray ladder step; the field
   is still validated but is reserved for decorative use. Brand-tinted
   hover surfaces were the main source of the "blue-washed UI" failure.
+- **New lint rule `status-fill-foreground`.** A solid status/selection
+  fill (`bg-success`, `hover:bg-destructive`, …) without its
+  contrast-gated `text-<tone>-foreground` pair is now an error — the
+  label would inherit the page foreground and can be unreadable on the
+  saturated fill (e.g. near-black text on solid green). Tinted chips
+  (`bg-success/15`), subtle surfaces (`bg-success-subtle`), and textless
+  `rounded-full` indicator dots are exempt.
 
 ## [4.1.0] — 2026-07-08
 
