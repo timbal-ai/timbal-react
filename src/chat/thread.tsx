@@ -223,9 +223,15 @@ export const Thread: FC<ThreadProps> = ({
               must supply the Radix TooltipProvider. Nesting under an app-level
               provider is harmless. Without this, the panel throws on open. */}
           <TooltipProvider>
+          {/* `max-h-dvh` is a guard rail: when a host mounts the chat in a
+              container without a bounded height, `h-full` resolves to auto and
+              the thread would grow with every streamed token — pushing the
+              sticky composer below the fold. Capping at the viewport height
+              keeps the internal viewport as the scroller no matter the host
+              layout. In correctly bounded shells it is a no-op. */}
           <ThreadPrimitive.Root
             className={cn(
-              "aui-root aui-thread-root @container flex h-full flex-col bg-transparent",
+              "aui-root aui-thread-root @container flex h-full max-h-dvh flex-col bg-transparent",
               isPanel && "aui-thread-root--panel",
               className,
             )}
@@ -263,11 +269,21 @@ export const Thread: FC<ThreadProps> = ({
                   band). Composer auto-resize no longer yanks the scroll because
                   the textarea uses CSS `field-sizing` (no JS height writes) and
                   the upstream auto-scroll patch lets an upward scroll cancel a
-                  pending auto-scroll. */}
+                  pending auto-scroll.
+
+                  The band paints `--thread-canvas` so it always matches the
+                  surface the chat sits on. Default is `--card` (white pages —
+                  the common case when the chat is embedded in an app screen);
+                  the studio shells override it to `--background` because their
+                  playground gradient bottoms out there. A hardcoded
+                  `bg-background` here is what produced the gray band behind
+                  the composer on white pages. */}
               <ThreadPrimitive.ViewportFooter
                 className={cn(
                   "aui-thread-viewport-footer sticky bottom-0 z-10 mt-auto w-full isolate pt-2",
-                  isPanel ? "bg-card pb-2" : "bg-background pb-4 md:pb-6",
+                  isPanel
+                    ? "bg-card pb-2"
+                    : "bg-[var(--thread-canvas,var(--card))] pb-4 md:pb-6",
                 )}
               >
                 <div

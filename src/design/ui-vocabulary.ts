@@ -296,6 +296,13 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     enforcement: "prompt-only",
   },
   {
+    id: "button-variants-only",
+    rule: "Buttons use the variant system only — default (dark), secondary (white), outline, ghost, destructive, link. Never paint a custom bg-* fill on a Button.",
+    why: "Variant fills ship with compiler contrast-gated label colors. A hand-painted fill (bg-success, bg-primary, a gradient, an arbitrary value) breaks that pairing — the classic result is a saturated green button with an unreadable label. State-scoped tints (hover:bg-destructive/10 on a ghost button) are fine.",
+    slop: `<Button className="bg-success">Approve</Button>`,
+    good: `<Button variant="secondary">Approve</Button>`,
+  },
+  {
     id: "no-title-repetition",
     rule: "Never repeat the page title/description inside a Section, Card, or Table header.",
     why: "If the Page already has a title, repeating it in the first child section or table is redundant and wastes vertical space.",

@@ -77,6 +77,62 @@ describe("lintGeneratedUi — solid status fills", () => {
   });
 });
 
+describe("lintGeneratedUi — button custom fills", () => {
+  it("flags a solid status fill painted on a Button", () => {
+    expect(
+      rules(`<Button className="bg-success text-success-foreground">Approve</Button>`),
+    ).toEqual(expect.arrayContaining(["button-custom-fill"]));
+  });
+
+  it("flags a semantic fill and a gradient on a Button", () => {
+    expect(rules(`<Button className="bg-primary/80">Save</Button>`)).toEqual(
+      expect.arrayContaining(["button-custom-fill"]),
+    );
+    expect(
+      rules(`<Button className="bg-linear-to-r from-chart-1 to-chart-2">Go</Button>`),
+    ).toEqual(expect.arrayContaining(["button-custom-fill"]));
+  });
+
+  it("flags fills on multi-line Button tags", () => {
+    const src = [
+      `<Button`,
+      `  variant="ghost"`,
+      `  className="bg-warning px-3"`,
+      `>`,
+      `  Retry`,
+      `</Button>`,
+    ].join("\n");
+    expect(lintGeneratedUi(src).findings.map((f) => f.rule)).toEqual(
+      expect.arrayContaining(["button-custom-fill"]),
+    );
+  });
+
+  it("accepts variant-driven buttons and state-scoped tints", () => {
+    const res = lintGeneratedUi(
+      [
+        `<Button variant="secondary">Export</Button>`,
+        `<Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive">Delete</Button>`,
+        `<Button variant="ghost" size="icon-sm" className="size-7 data-[state=open]:bg-accent">…</Button>`,
+      ].join("\n"),
+    );
+    expect(res.findings.map((f) => f.rule)).not.toContain("button-custom-fill");
+  });
+
+  it("does not flag fills on non-button elements or button CHILDREN", () => {
+    const res = lintGeneratedUi(
+      [
+        `<div className="bg-muted p-4">`,
+        `  <Button variant="outline">`,
+        `    <span className="size-2 rounded-full bg-success" aria-hidden />`,
+        `    Online`,
+        `  </Button>`,
+        `</div>`,
+      ].join("\n"),
+    );
+    expect(res.findings.map((f) => f.rule)).not.toContain("button-custom-fill");
+  });
+});
+
 describe("lintGeneratedUi — literals & inline styles", () => {
   it("flags hex and oklch literals", () => {
     expect(rules(`<div style={{ background: "#ff0066" }} />`)).toEqual(
@@ -254,6 +310,7 @@ describe("HOUSE_RULES lint coverage", () => {
     "chart-data-key": ["chart-data-key"],
     "no-chat-wrapping": ["no-chat-wrapping"],
     "theme-via-generator": ["theme-via-generator"],
+    "button-variants-only": ["button-custom-fill"],
   };
 
   it("covers every HOUSE_RULES id with a lint check or a prompt-only annotation", () => {

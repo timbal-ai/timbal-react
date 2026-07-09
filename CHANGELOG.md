@@ -2,6 +2,42 @@
 
 All notable changes to `@timbal-ai/timbal-react` are documented here.
 
+## [4.2.1] — 2026-07-08
+
+### Added
+
+- **New lint rule `button-custom-fill`.** A hand-painted background on a
+  `Button` (`bg-success`, `bg-primary`, gradients, arbitrary values — on the
+  opening tag, including multi-line tags) is now an error. Buttons come from
+  the variant system only (default / secondary / outline / ghost /
+  destructive / link), whose label colors are contrast-gated by the DNA
+  compiler; custom fills are how agents produce green buttons with
+  unreadable labels. State-scoped tints (`hover:bg-destructive/10`,
+  `data-[state=open]:bg-accent`) and fills on button *children* (status
+  dots) stay allowed. New `HOUSE_RULES` entry: `button-variants-only`.
+
+### Fixed
+
+- **Gray band behind the chat composer on white pages.** The thread's sticky
+  composer footer hardcoded `bg-background`. With DNA panel surfaces,
+  `--background` is the light-gray desktop canvas — so any chat mounted on a
+  white (`--card`) page painted the old gray band behind the input. The band
+  now paints `var(--thread-canvas, var(--card))`: white by default, and the
+  studio shells (`TimbalChatShell`, `TimbalStudioShell`) set
+  `--thread-canvas: var(--background)` because their playground gradient
+  bottoms out there. Hosts with a custom canvas can set `--thread-canvas` on
+  any ancestor. (Both the Tailwind class and the baked `styles.css` rule
+  changed.)
+- **Composer displaced below the fold while streaming.** When a host mounted
+  `TimbalChat` in a container without a bounded height, the thread root's
+  `h-full` resolved to auto, so the column grew with every streamed token and
+  the sticky composer travelled below the viewport. The thread root now also
+  carries `max-h-dvh` (a no-op in correctly bounded shells), which keeps the
+  internal message viewport as the scroller regardless of host layout.
+  `TimbalChatShell` / `TimbalStudioShell` roots additionally gained
+  `max-h-full` so they clamp to a height-constrained pane instead of
+  overflowing it.
+
 ## [4.2.0] — 2026-07-08
 
 ### Added

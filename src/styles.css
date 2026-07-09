@@ -750,11 +750,14 @@
  * Component fixes — baked in so consumers don't need overrides    *
  * =============================================================== */
 
-/* Sticky footer stacks above scrolling messages. */
+/* Sticky footer stacks above scrolling messages. Its band matches the
+   surface the chat sits on: white/card by default (chat embedded in app
+   pages), overridden to --background by the studio shells whose playground
+   gradient bottoms out there. */
 .aui-thread-viewport-footer {
   isolation: isolate;
   z-index: 10;
-  background-color: var(--background);
+  background-color: var(--thread-canvas, var(--card));
 }
 
 .aui-thread-root[data-thread-variant="panel"] .aui-thread-viewport-footer {

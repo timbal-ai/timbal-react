@@ -251,7 +251,9 @@ export const TimbalStudioShell: FC<TimbalStudioShellProps> = ({
     <StudioSidebarContext.Provider value={sidebarContext}>
       <div
         className={cn(
-          "relative h-dvh overflow-hidden bg-background",
+          // `max-h-full` clamps the shell when mounted inside a bounded pane
+          // (unbounded parents ignore the percentage → `h-dvh` still applies).
+          "relative h-dvh max-h-full overflow-hidden bg-background",
           isMobile && mobileSidebarOpen && "max-md:overflow-hidden",
         )}
         style={studioChromeShellStyle}
