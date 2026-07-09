@@ -296,6 +296,20 @@ export const HOUSE_RULES: readonly HouseRule[] = [
     enforcement: "prompt-only",
   },
   {
+    id: "page-inset-required",
+    rule: "Every page needs lateral + vertical breathing room — never run PageHeader, stats, or tables flush to the shell/card edge.",
+    why: "Agents hand-roll a flex column with only gap-* and no px-/py-*, so titles and tables hug the border. AppShell/RoutedAppShell apply inset automatically; standalone pages use PageBody inset or Page from app/page.",
+    slop: `<PageHeader title="Dashboard" /><StatOverview … />`,
+    good: `<PageBody><PageHeader title="Dashboard" /><StatOverview … /></PageBody>`,
+  },
+  {
+    id: "card-flush-content",
+    rule: "Never strip Card padding (p-0 / px-0 on Card or CardContent) when the card holds headings, forms, or tables.",
+    why: "A flush card looks broken — the reference always keeps CardHeader/CardContent px-6 or the default Card py-6.",
+    slop: `<Card className="p-0"><PageHeader … /></Card>`,
+    good: `<Card><CardHeader … /><CardContent>…</CardContent></Card>`,
+  },
+  {
     id: "button-variants-only",
     rule: "Buttons use the variant system only — default (dark), secondary (white), outline, ghost, destructive, link. Never paint a custom bg-* fill on a Button.",
     why: "Variant fills ship with compiler contrast-gated label colors. A hand-painted fill (bg-success, bg-primary, a gradient, an arbitrary value) breaks that pairing — the classic result is a saturated green button with an unreadable label. State-scoped tints (hover:bg-destructive/10 on a ghost button) are fine.",
