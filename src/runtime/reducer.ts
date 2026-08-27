@@ -4,20 +4,31 @@
 //
 // Wire format:
 //
-//   - `DELTA` events with `item.type === "text_delta"` append to the current
-//     text part.
-//   - `DELTA` events with `item.type === "thinking_delta"` append to the
-//     current thinking part.
-//   - `DELTA` events with `item.type === "tool_use"` open a new tool-call part
+//   The Python runtime emits each content kind in two variants: a whole block
+//   (`text`, `thinking`, `tool_use`) and an increment (`text_delta`,
+//   `thinking_delta`, `tool_use_delta`). Providers that stream token-by-token
+//   send a whole-block frame to open the block and increments after it;
+//   providers that don't stream send only the whole block. We must handle both
+//   or we lose the head of every message.
+//
+//   - `DELTA` with `item.type === "text"` / `"text_delta"` append to the
+//     current text part.
+//   - `DELTA` with `item.type === "thinking"` / `"thinking_delta"` append to
+//     the current thinking part.
+//   - `DELTA` with `item.type === "tool_use"` opens a new tool-call part
 //     (status: "running").
-//   - `DELTA` events with `item.type === "tool_use_delta"` accumulate
-//     `argsText` for an open tool-call.
+//   - `DELTA` with `item.type === "tool_use_delta"` accumulates `argsText` for
+//     an open tool-call.
 //   - `OUTPUT` events flush the final assistant turn. We walk
 //     `output.content[]` and for each `tool_result` block we attach `result`
 //     and `resultText` to the matching tool-call (status: "complete"). For
 //     `tool_use` blocks we ensure the call is recorded (in case we missed the
-//     opening DELTA). Trailing `text` blocks fall through to the last text
-//     part if it's empty (avoids duplicating already-streamed content).
+//     opening DELTA). `text`/`thinking` blocks are authoritative and overwrite
+//     what streamed — see `planRuns` for how they're matched to parts.
+//
+//   That last rule is load-bearing: it makes any unhandled or future delta
+//   item type a cosmetic mid-stream glitch rather than a permanently corrupt
+//   message.
 
 import { isArtifact } from "../artifacts/types";
 import type {
@@ -89,8 +100,18 @@ function reduceDelta(
 ): boolean {
   if (!item) return false;
 
+  if (item.type === "text" && typeof item.text === "string") {
+    lastTextPart(state).text += item.text;
+    return true;
+  }
+
   if (item.type === "text_delta" && typeof item.text_delta === "string") {
     lastTextPart(state).text += item.text_delta;
+    return true;
+  }
+
+  if (item.type === "thinking" && typeof item.thinking === "string") {
+    lastThinkingPart(state).text += item.thinking;
     return true;
   }
 
@@ -120,9 +141,59 @@ function reduceDelta(
       (state.parts[idx] as ToolCallContentPart).argsText += item.input_delta;
       return true;
     }
+    return false;
   }
 
+  warnUnhandledDelta(item.type);
   return false;
+}
+
+/**
+ * The complete `DELTA` item union, which is unchanged across every `timbal`
+ * 2.x release (v2.0.0 → v2.7.3 — only the Python declaration style changed,
+ * from pydantic to slots in 2.4.0, which is invisible on the wire).
+ *
+ * The two we drop on purpose:
+ *
+ *   - `content_block_stop` is a control frame with no payload. We don't need
+ *     it: consecutive same-kind blocks intentionally merge into one part, which
+ *     is what the history hydration path does too.
+ *   - `custom` carries arbitrary host-yielded `data` (`runnable.py`). The chat
+ *     thread has no rendering contract for it; hosts consume it off the raw
+ *     event stream instead.
+ *
+ * A known type whose payload field is missing is a producer-side bug, not an
+ * unrecognized item — it stays silent here and is repaired at `OUTPUT`.
+ */
+const KNOWN_DELTA_TYPES = new Set([
+  "tool_use",
+  "tool_use_delta",
+  "text",
+  "text_delta",
+  "thinking",
+  "thinking_delta",
+  "custom",
+  "content_block_stop",
+]);
+
+const warnedDeltaTypes = new Set<string>();
+
+/**
+ * Dropping an *unrecognized* delta item is survivable (the terminal `OUTPUT`
+ * repairs the message) but it renders wrong mid-stream, and silence is how the
+ * dropped-`text` bug shipped in the first place.
+ */
+function warnUnhandledDelta(type: unknown): void {
+  if (typeof process !== "undefined" && process.env?.NODE_ENV === "production") {
+    return;
+  }
+  const key = typeof type === "string" ? type : String(type);
+  if (KNOWN_DELTA_TYPES.has(key) || warnedDeltaTypes.has(key)) return;
+  warnedDeltaTypes.add(key);
+  console.warn(
+    `[timbal-react] Unhandled DELTA item type "${key}". Streamed content for ` +
+      `this item is dropped; the message is repaired at OUTPUT.`,
+  );
 }
 
 function reduceNestedOutput(
@@ -167,27 +238,25 @@ function reduceOutput(
       unknown
     >[];
 
-    for (const block of blocks) {
+    // Planned up front, against the pre-pass `parts`, so that tool-call parts
+    // appended during the pass can't shift the alignment.
+    const textPlan = options?.toolResultsOnly ? null : planRuns(state, blocks, "text");
+    const thinkingPlan = options?.toolResultsOnly
+      ? null
+      : planRuns(state, blocks, "thinking");
+
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i];
       if (block.type === "tool_use") {
         if (!options?.toolResultsOnly && recordToolUse(state, block)) {
           changed = true;
         }
       } else if (block.type === "tool_result") {
         if (recordToolResult(state, block, options)) changed = true;
-      } else if (!options?.toolResultsOnly) {
-        if (
-          block.type === "text" &&
-          typeof block.text === "string" &&
-          !lastTextPart(state).text
-        ) {
-          lastTextPart(state).text = block.text;
-          changed = true;
-        } else if (
-          block.type === "thinking" &&
-          typeof block.thinking === "string" &&
-          !lastThinkingPart(state).text
-        ) {
-          lastThinkingPart(state).text = block.thinking;
+      } else if (block.type === "text") {
+        if (textPlan && applyRun(state, textPlan, i, "text")) changed = true;
+      } else if (block.type === "thinking") {
+        if (thinkingPlan && applyRun(state, thinkingPlan, i, "thinking")) {
           changed = true;
         }
       }
@@ -201,6 +270,114 @@ function reduceOutput(
     return true;
   }
   return false;
+}
+
+type RunKind = "text" | "thinking";
+
+/** Block types that open a part, and so end a run of the preceding kind. */
+const PART_OPENING_BLOCKS = new Set(["text", "thinking", "tool_use"]);
+
+interface RunPlan {
+  /** Merged content of each run of consecutive same-kind blocks, in order. */
+  runs: string[];
+  /** Block index → run index, present only for the first block of each run. */
+  headByBlock: Map<number, number>;
+  /** Run index → index into `state.parts`, or -1 to append a fresh part. */
+  targetByRun: number[];
+}
+
+/**
+ * Match the `OUTPUT`'s text (or thinking) blocks to the parts we streamed.
+ *
+ * Two things make this more than a straight overwrite of the last part:
+ *
+ *   - Consecutive blocks of one kind are a single part, mirroring the history
+ *     hydration path (`assistantBlocksToParts` → `appendText`). Blocks of a
+ *     *different* kind split the run; `tool_result` and unknown blocks open no
+ *     part, so they're transparent.
+ *   - Runs are aligned to existing parts **from the end**, because a top-level
+ *     `OUTPUT` describes the tail of the turn: in a tool loop (`text` → tool →
+ *     `text`) its single text block is the *last* text part, and aligning from
+ *     the front would overwrite the earlier part with the final text. The one
+ *     exception is a surplus of runs, where the offset clamps to zero — see
+ *     below.
+ *
+ * Counting alone can't disambiguate every shape (nothing ties an `OUTPUT` text
+ * block to a streamed part when the block ids don't reach us), so where it is
+ * ambiguous the rule is to leave streamed content in place rather than move it:
+ * overwrite in position, append what's surplus, never reorder.
+ */
+function planRuns(
+  state: ReducerState,
+  blocks: Record<string, unknown>[],
+  kind: RunKind,
+): RunPlan {
+  const runs: string[] = [];
+  const headByBlock = new Map<number, number>();
+  let inRun = false;
+
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const type = typeof block?.type === "string" ? block.type : "";
+    const value = type === kind ? block[kind] : undefined;
+
+    if (typeof value === "string") {
+      if (inRun) {
+        runs[runs.length - 1] += value;
+      } else {
+        headByBlock.set(i, runs.length);
+        runs.push(value);
+        inRun = true;
+      }
+    } else if (type !== kind && PART_OPENING_BLOCKS.has(type)) {
+      inRun = false;
+    }
+  }
+
+  const existing: number[] = [];
+  for (let i = 0; i < state.parts.length; i++) {
+    if (state.parts[i].type === kind) existing.push(i);
+  }
+
+  // Clamped at zero so a surplus of runs can only append, never rotate. With a
+  // negative offset the *last* run would land on the *first* existing part and
+  // the unmatched leading run would be pushed behind everything else, swapping
+  // a message into "B … A". Front-aligning instead keeps the parts we did
+  // stream where they are and appends the runs we never saw in block order.
+  const offset = Math.max(0, existing.length - runs.length);
+  const targetByRun = runs.map((_, run) => {
+    const idx = run + offset;
+    return idx < existing.length ? existing[idx] : -1;
+  });
+
+  return { runs, headByBlock, targetByRun };
+}
+
+function applyRun(
+  state: ReducerState,
+  plan: RunPlan,
+  blockIndex: number,
+  kind: RunKind,
+): boolean {
+  const run = plan.headByBlock.get(blockIndex);
+  if (run === undefined) return false;
+
+  const text = plan.runs[run];
+  const target = plan.targetByRun[run];
+
+  if (target >= 0) {
+    const part = state.parts[target] as TextContentPart | ThinkingContentPart;
+    if (part.text === text) return false;
+    part.text = text;
+    return true;
+  }
+
+  state.parts.push(
+    kind === "text"
+      ? ({ type: "text", text } satisfies TextContentPart)
+      : ({ type: "thinking", text } satisfies ThinkingContentPart),
+  );
+  return true;
 }
 
 function recordToolUse(

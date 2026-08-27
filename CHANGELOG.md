@@ -2,6 +2,59 @@
 
 All notable changes to `@timbal-ai/timbal-react` are documented here.
 
+## [4.2.3] — 2026-08-27
+
+### Fixed
+
+- **Streamed assistant messages lost their leading text.** Two compounding
+  defects in `src/runtime/reducer.ts`. First, `reduceDelta` handled only the
+  increment variants of the delta stream (`text_delta`, `thinking_delta`) and
+  silently discarded the whole-block variants (`text`, `thinking`). Providers
+  that don't stream token-by-token — and the block-opening frame of those that
+  do — deliver whole blocks, so the head of the message was dropped and only
+  what arrived as deltas survived: `hello` answered with `today?`, and
+  `Total open ARR: $1,410,400` rendered as `410,400`. Second, the terminal
+  `OUTPUT` (which carries the complete, authoritative content) was gated on
+  `!lastTextPart(state).text`, so once a fragment existed the correct text was
+  skipped — the reducer had the right answer at end of stream and threw it
+  away. Reloading the conversation looked fine because history hydration is a
+  separate, correct path; the asymmetry was the tell.
+
+  `text` and `thinking` delta items now append, and `OUTPUT` text/thinking
+  blocks are authoritative. Runs of consecutive same-kind blocks merge into one
+  part (matching hydration's `appendText`) and are aligned to existing parts
+  **from the end**, so in a tool loop (`text` → tool → `text`) the final
+  `OUTPUT`'s text settles the trailing part instead of overwriting the leading
+  one. That end-alignment also fixes a latent bug where an `OUTPUT` ending on a
+  `tool_use` block appended a duplicate copy of the leading text. Where the
+  counts can't disambiguate — an `OUTPUT` carrying *more* runs than streamed —
+  the alignment clamps to the front so the surplus is appended in block order:
+  reconciliation overwrites in position and appends, but never reorders.
+
+  The `OUTPUT`-is-authoritative rule is the load-bearing half: any unhandled or
+  future delta item type is now a cosmetic mid-stream glitch that self-repairs
+  rather than a permanently corrupt message. Unrecognized delta types also emit
+  a one-shot `console.warn` outside production, since both defects were silent.
+
+  Verified against the `timbal` Python runtime across the whole 2.x line
+  (v2.0.0 → v2.7.3), where the `DELTA` item union is unchanged on the wire —
+  the same eight discriminators with the same payload fields; only the Python
+  declaration style changed (pydantic → slots in 2.4.0). `Text` and `Thinking`
+  are emitted *only* behind a "block not yet started" guard in every collector
+  in every release, carrying the **first chunk** and never a closing
+  consolidation of the block, so appending them cannot double content on any
+  supported version. `content_block_stop` and `custom` have also shipped since
+  v2.0.0 and are ignored deliberately rather than warned about.
+
+  Scope is wider than the original report suggested: the defect was not
+  Gemini-specific. The `ChatCompletions` collector emits its first content chunk
+  as `Text` for *every* OpenAI-compatible provider (there is no separate Gemini
+  collector), so OpenAI, Gemini, Groq and xAI all lost their opening chunk —
+  glaringly on Gemini, which streams large chunks, and as a missing word or two
+  on providers that stream token-by-token. Anthropic was unaffected because its
+  `content_block_start` carries `text: ""`, which is why this went unnoticed on
+  Claude. Reasoning models lost the head of their thinking blocks the same way.
+
 ## [4.2.2] — 2026-07-09
 
 ### Added
