@@ -133,6 +133,44 @@ describe("lintGeneratedUi — button custom fills", () => {
   });
 });
 
+describe("lintGeneratedUi — page inset", () => {
+  it("flags PageHeader without PageBody, shell, or lateral padding", () => {
+    const src = [
+      `export function Dashboard() {`,
+      `  return (`,
+      `    <div className="flex flex-col gap-5">`,
+      `      <PageHeader title="Supervisor control panel" />`,
+      `      <StatOverview stats={[]} />`,
+      `    </div>`,
+      `  );`,
+      `}`,
+    ].join("\n");
+    expect(lintGeneratedUi(src).findings.map((f) => f.rule)).toEqual(
+      expect.arrayContaining(["page-missing-inset"]),
+    );
+  });
+
+  it("accepts PageHeader inside PageBody", () => {
+    const src = `<PageBody><PageHeader title="Team" /></PageBody>`;
+    expect(lintGeneratedUi(src).findings.map((f) => f.rule)).not.toContain(
+      "page-missing-inset",
+    );
+  });
+
+  it("accepts PageHeader inside RoutedAppShell", () => {
+    const src = `<RoutedAppShell nav={[]}><PageHeader title="Team" /></RoutedAppShell>`;
+    expect(lintGeneratedUi(src).findings.map((f) => f.rule)).not.toContain(
+      "page-missing-inset",
+    );
+  });
+
+  it("flags flush Card surfaces with substantive content", () => {
+    expect(
+      rules(`<Card className="p-0"><PageHeader title="Scan" /></Card>`),
+    ).toEqual(expect.arrayContaining(["card-flush-content"]));
+  });
+});
+
 describe("lintGeneratedUi — literals & inline styles", () => {
   it("flags hex and oklch literals", () => {
     expect(rules(`<div style={{ background: "#ff0066" }} />`)).toEqual(
@@ -311,6 +349,8 @@ describe("HOUSE_RULES lint coverage", () => {
     "no-chat-wrapping": ["no-chat-wrapping"],
     "theme-via-generator": ["theme-via-generator"],
     "button-variants-only": ["button-custom-fill"],
+    "page-inset-required": ["page-missing-inset"],
+    "card-flush-content": ["card-flush-content"],
   };
 
   it("covers every HOUSE_RULES id with a lint check or a prompt-only annotation", () => {

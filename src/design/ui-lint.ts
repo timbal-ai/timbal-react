@@ -197,6 +197,30 @@ function buttonTagSegments(
 /** Forcing a theme (forcedTheme="dark") — bypasses the theme system. */
 const FORCED_THEME_RE = /\bforcedTheme\b/;
 
+/** A Card (or CardContent) stripped of padding — content runs flush to the edge. */
+const CARD_FLUSH_RE =
+  /<Card(?:Content)?\b[^>]*className="[^"]*\b(?:p-0|px-0)\b/;
+
+/** Lateral inset on a page root container. */
+const PAGE_LATERAL_INSET_RE = /\bpx-(?:4|6|8)\b/;
+
+function hasPageInsetContract(source: string): boolean {
+  return (
+    /\b(?:AppShell|RoutedAppShell)\b/.test(source) ||
+    /\bPageBody\b/.test(source) ||
+    /data-slot="(?:page|page-body)"/.test(source) ||
+    /\bPAGE_INSET/.test(source) ||
+    /\bappPageColumn\b/.test(source) ||
+    /<Page\b/.test(source)
+  );
+}
+
+function pageRootHasLateralInset(source: string): boolean {
+  return PAGE_LATERAL_INSET_RE.test(
+    source.slice(source.search(/\breturn\b/)),
+  );
+}
+
 /**
  * Hand-authored theme color variable: a CSS custom property the theme system
  * owns, assigned a literal color. `--background: oklch(…)`,
@@ -259,6 +283,20 @@ export function lintGeneratedUi(
   const hasChat = /\b(?:TimbalChat|AppChatPanel|Thread)\b/.test(source);
   let inButtonTag = false;
 
+  if (/<PageHeader\b/.test(source)) {
+    if (!hasPageInsetContract(source) && !pageRootHasLateralInset(source)) {
+      const headerLine = lines.findIndex((l) => /<PageHeader\b/.test(l)) + 1;
+      findings.push({
+        rule: "page-missing-inset",
+        severity: "error",
+        line: headerLine || 1,
+        message:
+          "PageHeader without a page inset contract — content will run flush to the shell/card edge. Wrap the page in PageBody (blocks/page-body) and mount inside AppShell/RoutedAppShell (the shell applies inset automatically), or use PageBody with inset for standalone pages, or apply lateral padding (px-4 sm:px-6 lg:px-8) on the page root. Never hand-roll a page column with only gap-* and no px-*.",
+        snippet: lines[headerLine - 1]?.trim().slice(0, 120) ?? "<PageHeader …>",
+      });
+    }
+  }
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const lineNo = i + 1;
@@ -280,6 +318,18 @@ export function lintGeneratedUi(
           snippet: line.trim().slice(0, 120),
         });
       }
+    }
+
+    // ── Card stripped of padding (flush content to the card edge) ───────
+    if (CARD_FLUSH_RE.test(line)) {
+      findings.push({
+        rule: "card-flush-content",
+        severity: "error",
+        line: lineNo,
+        message:
+          "Card or CardContent with p-0/px-0 — content runs flush to the card edge. Use the default Card padding (py-6 + CardHeader/CardContent px-6) or wrap inner content in CardContent. Never put a PageHeader, form, or table directly inside a flush Card.",
+        snippet: line.trim().slice(0, 120),
+      });
     }
 
     // ── raw palette colors ──────────────────────────────────────────────

@@ -2,6 +2,18 @@
 
 All notable changes to `@timbal-ai/timbal-react` are documented here.
 
+## [4.2.2] — 2026-07-09
+
+### Added
+
+- **New lint rules `page-missing-inset` and `card-flush-content`.** A
+  `PageHeader` without a page inset contract (`PageBody`, `AppShell` /
+  `RoutedAppShell`, `Page`, or lateral `px-*` on the root) is now an error —
+  the classic failure is titles and tables running flush to the shell/card
+  edge. A `Card` or `CardContent` with `p-0` / `px-0` holding headings,
+  forms, or tables is also blocked. New `HOUSE_RULES` entries:
+  `page-inset-required`, `card-flush-content`.
+
 ## [4.2.1] — 2026-07-08
 
 ### Added
