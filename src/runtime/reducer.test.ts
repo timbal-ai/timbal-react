@@ -36,6 +36,266 @@ describe("reducer — text streaming", () => {
     const state = run([{ type: "OUTPUT", output: "Plain string" }]);
     expect(state.parts).toEqual([{ type: "text", text: "Plain string" }]);
   });
+
+  it("renders whole-block `text` items with no deltas at all", () => {
+    const state = run([
+      { type: "DELTA", item: { type: "text", id: "b0", text: "Whole block." } },
+    ]);
+    expect(state.parts).toEqual([{ type: "text", text: "Whole block." }]);
+  });
+
+  it("concatenates a whole-block `text` followed by its `text_delta`s", () => {
+    // The head-loss bug: providers open a block with `text` and continue with
+    // `text_delta`. Dropping the opener rendered only the tail — and mid-number
+    // at that ("410,400" out of "$1,410,400").
+    const state = run([
+      {
+        type: "DELTA",
+        path: "sales",
+        item: { type: "text", id: "b0", text: "Total open ARR: $1," },
+      },
+      {
+        type: "DELTA",
+        path: "sales",
+        item: { type: "text_delta", id: "b0", text_delta: "410,400" },
+      },
+      {
+        type: "OUTPUT",
+        path: "sales",
+        output: { content: [{ type: "text", text: "Total open ARR: $1,410,400" }] },
+      },
+    ]);
+    expect(state.parts).toEqual([
+      { type: "text", text: "Total open ARR: $1,410,400" },
+    ]);
+  });
+
+  it("lets a disagreeing OUTPUT overwrite the accumulated deltas", () => {
+    const state = run([
+      { type: "DELTA", item: { type: "text_delta", text_delta: "410,400" } },
+      {
+        type: "OUTPUT",
+        output: { content: [{ type: "text", text: "Total open ARR: $1,410,400" }] },
+      },
+    ]);
+    expect(state.parts).toEqual([
+      { type: "text", text: "Total open ARR: $1,410,400" },
+    ]);
+  });
+
+  it("repairs the message when the stream carried an unknown item type", () => {
+    // The invariant that keeps this whole class of bug non-fatal: whatever the
+    // delta stream does or fails to do, OUTPUT settles the truth.
+    const state = run([
+      { type: "DELTA", item: { type: "text_v2", text_v2: "dropped" } },
+      { type: "OUTPUT", output: { content: [{ type: "text", text: "Complete." }] } },
+    ]);
+    expect(state.parts).toEqual([{ type: "text", text: "Complete." }]);
+  });
+
+  it("merges consecutive OUTPUT text blocks into one part", () => {
+    // Matches the hydration path (`appendText`), so live and reloaded renders
+    // produce the same part shape.
+    const state = run([
+      {
+        type: "OUTPUT",
+        output: {
+          content: [
+            { type: "text", text: "one " },
+            { type: "text", text: "two" },
+          ],
+        },
+      },
+    ]);
+    expect(state.parts).toEqual([{ type: "text", text: "one two" }]);
+  });
+});
+
+describe("reducer — timbal 2.x delta protocol", () => {
+  // The `DELTA` item union is unchanged across every `timbal` 2.x release
+  // (v2.0.0 → v2.7.3): the same eight discriminators with the same payload
+  // fields. Only the Python declaration style changed (pydantic → slots in
+  // 2.4.0), which is invisible on the wire. These tests pin that contract.
+  const ALL_ITEMS: Record<string, unknown>[] = [
+    { type: "tool_use", id: "t0", name: "q", input: "" },
+    { type: "tool_use_delta", id: "t0", input_delta: "{}" },
+    { type: "text", id: "b0", text: "a" },
+    { type: "text_delta", id: "b0", text_delta: "b" },
+    { type: "thinking", id: "k0", thinking: "c" },
+    { type: "thinking_delta", id: "k0", thinking_delta: "d" },
+    { type: "custom", id: "c0", data: { any: "thing" } },
+    { type: "content_block_stop", id: "b0" },
+  ];
+
+  function captureWarnings(events: Record<string, unknown>[]): unknown[] {
+    const warn = console.warn;
+    const seen: unknown[] = [];
+    console.warn = (...args: unknown[]) => seen.push(args);
+    try {
+      run(events);
+    } finally {
+      console.warn = warn;
+    }
+    return seen;
+  }
+
+  it("never warns for any item type in the 2.x union", () => {
+    const seen = captureWarnings(
+      ALL_ITEMS.map((item) => ({ type: "DELTA", item })),
+    );
+    expect(seen).toEqual([]);
+  });
+
+  it("stays silent when a known item type arrives with a missing payload", () => {
+    // A producer-side bug, not an unrecognized item — reporting it as an
+    // unhandled *type* would send readers hunting for a protocol change.
+    const seen = captureWarnings(
+      ALL_ITEMS.map((item) => ({ type: "DELTA", item: { type: item.type, id: "x" } })),
+    );
+    expect(seen).toEqual([]);
+  });
+
+  it("warns once for a genuinely unrecognized item type", () => {
+    const seen = captureWarnings([
+      { type: "DELTA", item: { type: "audio_delta", id: "a0", audio_delta: "…" } },
+      { type: "DELTA", item: { type: "audio_delta", id: "a0", audio_delta: "…" } },
+    ]);
+    expect(seen).toHaveLength(1);
+    expect(String(seen[0])).toContain("audio_delta");
+  });
+
+  it("ignores `content_block_stop` without splitting the text part", () => {
+    // A block boundary must not start a second text part: consecutive text
+    // blocks merge, matching hydration's `appendText`.
+    const state = run([
+      { type: "DELTA", item: { type: "text", id: "b0", text: "first" } },
+      { type: "DELTA", item: { type: "content_block_stop", id: "b0" } },
+      { type: "DELTA", item: { type: "text", id: "b1", text: " second" } },
+      { type: "DELTA", item: { type: "content_block_stop", id: "b1" } },
+    ]);
+    expect(state.parts).toEqual([{ type: "text", text: "first second" }]);
+  });
+
+  it("ignores `custom` items without disturbing surrounding text", () => {
+    const state = run([
+      { type: "DELTA", item: { type: "text", id: "b0", text: "before" } },
+      { type: "DELTA", item: { type: "custom", id: "c0", data: { any: "thing" } } },
+      { type: "DELTA", item: { type: "text_delta", id: "b0", text_delta: " after" } },
+    ]);
+    expect(state.parts).toEqual([{ type: "text", text: "before after" }]);
+  });
+
+  it("appends rather than replaces, since `Text` opens a block mid-content", () => {
+    // Every 2.x collector emits `Text` only behind a `not _text_block_started`
+    // guard, carrying the *first* chunk — never a closing consolidation of the
+    // whole block. So append is correct and cannot double the content.
+    const state = run([
+      { type: "DELTA", item: { type: "text", id: "text_0", text: "Hello" } },
+      { type: "DELTA", item: { type: "text_delta", id: "text_0", text_delta: " there" } },
+      { type: "DELTA", item: { type: "content_block_stop", id: "text_0" } },
+    ]);
+    expect(state.parts).toEqual([{ type: "text", text: "Hello there" }]);
+  });
+
+  it("handles an Anthropic-style empty text opener", () => {
+    // Anthropic's `content_block_start` carries `text: ""`, which is why the
+    // head-loss bug was invisible on Claude and obvious on OpenAI-compatible
+    // providers (whose opener carries the first real chunk).
+    const state = run([
+      { type: "DELTA", item: { type: "text", id: "b-0", text: "" } },
+      { type: "DELTA", item: { type: "text_delta", id: "b-0", text_delta: "Hi" } },
+    ]);
+    expect(state.parts).toEqual([{ type: "text", text: "Hi" }]);
+  });
+
+  it("accumulates a tool_use whose input starts empty (2.x default)", () => {
+    // `ToolUse.input` defaults to `""` in every 2.x release; Anthropic and the
+    // OpenAI Responses API both open the call that way and stream the args.
+    const state = run([
+      { type: "DELTA", item: { type: "tool_use", id: "t1", name: "q", input: "" } },
+      { type: "DELTA", item: { type: "tool_use_delta", id: "t1", input_delta: '{"a":1}' } },
+    ]);
+    const tool = state.parts[0] as ToolCallContentPart;
+    expect(tool.argsText).toBe('{"a":1}');
+  });
+});
+
+describe("reducer — OUTPUT reconciliation across a tool loop", () => {
+  it("settles the trailing text part without clobbering the leading one", () => {
+    // The top-level OUTPUT describes the tail of the turn, so its lone text
+    // block is the *last* text part. Aligning from the front would overwrite
+    // "Let me check" with "Done.".
+    const state = run([
+      { type: "DELTA", item: { type: "text", text: "Let me check" } },
+      { type: "DELTA", item: { type: "tool_use", id: "t1", name: "q", input: {} } },
+      { type: "DELTA", item: { type: "text_delta", text_delta: "Done" } },
+      {
+        type: "OUTPUT",
+        path: "agent",
+        output: {
+          content: [
+            { type: "tool_result", id: "t1", content: "42" },
+            { type: "text", text: "Done." },
+          ],
+        },
+      },
+    ]);
+    expect(state.parts.map((p) => p.type)).toEqual(["text", "tool-call", "text"]);
+    expect((state.parts[0] as { text: string }).text).toBe("Let me check");
+    expect((state.parts[2] as { text: string }).text).toBe("Done.");
+  });
+
+  it("does not duplicate leading text when OUTPUT ends on a tool_use block", () => {
+    const state = run([
+      { type: "DELTA", item: { type: "text", text: "Calling out" } },
+      { type: "DELTA", item: { type: "tool_use", id: "t1", name: "q", input: {} } },
+      {
+        type: "OUTPUT",
+        path: "agent",
+        output: {
+          content: [
+            { type: "text", text: "Calling out." },
+            { type: "tool_use", id: "t1", name: "q", input: {} },
+          ],
+        },
+      },
+    ]);
+    expect(state.parts.map((p) => p.type)).toEqual(["text", "tool-call"]);
+    expect((state.parts[0] as { text: string }).text).toBe("Calling out.");
+  });
+
+  it("aligns two OUTPUT text runs onto two streamed text parts", () => {
+    const state = run([
+      { type: "DELTA", item: { type: "text_delta", text_delta: "A" } },
+      { type: "DELTA", item: { type: "tool_use", id: "t1", name: "q", input: {} } },
+      { type: "DELTA", item: { type: "text_delta", text_delta: "B" } },
+      {
+        type: "OUTPUT",
+        path: "agent",
+        output: {
+          content: [
+            { type: "text", text: "A!" },
+            { type: "tool_use", id: "t1", name: "q", input: {} },
+            { type: "text", text: "B!" },
+          ],
+        },
+      },
+    ]);
+    expect((state.parts[0] as { text: string }).text).toBe("A!");
+    expect((state.parts[2] as { text: string }).text).toBe("B!");
+  });
+
+  it("leaves text alone on nested OUTPUTs", () => {
+    const state = run([
+      { type: "DELTA", item: { type: "text", text: "streamed" } },
+      {
+        type: "OUTPUT",
+        path: "agent.llm",
+        output: { content: [{ type: "text", text: "nested echo" }] },
+      },
+    ]);
+    expect(state.parts).toEqual([{ type: "text", text: "streamed" }]);
+  });
 });
 
 describe("reducer — thinking blocks", () => {
@@ -45,6 +305,33 @@ describe("reducer — thinking blocks", () => {
       { type: "DELTA", item: { type: "thinking_delta", thinking_delta: "step 2" } },
     ]);
     expect(state.parts).toEqual([{ type: "thinking", text: "step 1 step 2" }]);
+  });
+
+  it("concatenates a whole-block `thinking` followed by its deltas", () => {
+    const state = run([
+      { type: "DELTA", item: { type: "thinking", id: "k0", thinking: "step 1 " } },
+      { type: "DELTA", item: { type: "thinking_delta", thinking_delta: "step 2" } },
+    ]);
+    expect(state.parts).toEqual([{ type: "thinking", text: "step 1 step 2" }]);
+  });
+
+  it("lets OUTPUT thinking overwrite a partial stream", () => {
+    const state = run([
+      { type: "DELTA", item: { type: "thinking_delta", thinking_delta: "step 2" } },
+      {
+        type: "OUTPUT",
+        output: {
+          content: [
+            { type: "thinking", thinking: "step 1 step 2" },
+            { type: "text", text: "Answer." },
+          ],
+        },
+      },
+    ]);
+    expect(state.parts).toEqual([
+      { type: "thinking", text: "step 1 step 2" },
+      { type: "text", text: "Answer." },
+    ]);
   });
 });
 
