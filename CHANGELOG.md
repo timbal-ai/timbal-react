@@ -26,7 +26,10 @@ All notable changes to `@timbal-ai/timbal-react` are documented here.
   **from the end**, so in a tool loop (`text` → tool → `text`) the final
   `OUTPUT`'s text settles the trailing part instead of overwriting the leading
   one. That end-alignment also fixes a latent bug where an `OUTPUT` ending on a
-  `tool_use` block appended a duplicate copy of the leading text.
+  `tool_use` block appended a duplicate copy of the leading text. Where the
+  counts can't disambiguate — an `OUTPUT` carrying *more* runs than streamed —
+  the alignment clamps to the front so the surplus is appended in block order:
+  reconciliation overwrites in position and appends, but never reorders.
 
   The `OUTPUT`-is-authoritative rule is the load-bearing half: any unhandled or
   future delta item type is now a cosmetic mid-stream glitch that self-repairs

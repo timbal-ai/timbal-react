@@ -295,10 +295,17 @@ interface RunPlan {
  *     hydration path (`assistantBlocksToParts` → `appendText`). Blocks of a
  *     *different* kind split the run; `tool_result` and unknown blocks open no
  *     part, so they're transparent.
- *   - Runs are aligned to existing parts **from the end**. A top-level `OUTPUT`
- *     describes the tail of the turn, so in a tool loop (`text` → tool →
- *     `text`) its single text block is the *last* text part. Aligning from the
- *     front would overwrite the earlier part with the final text.
+ *   - Runs are aligned to existing parts **from the end**, because a top-level
+ *     `OUTPUT` describes the tail of the turn: in a tool loop (`text` → tool →
+ *     `text`) its single text block is the *last* text part, and aligning from
+ *     the front would overwrite the earlier part with the final text. The one
+ *     exception is a surplus of runs, where the offset clamps to zero — see
+ *     below.
+ *
+ * Counting alone can't disambiguate every shape (nothing ties an `OUTPUT` text
+ * block to a streamed part when the block ids don't reach us), so where it is
+ * ambiguous the rule is to leave streamed content in place rather than move it:
+ * overwrite in position, append what's surplus, never reorder.
  */
 function planRuns(
   state: ReducerState,
@@ -332,10 +339,15 @@ function planRuns(
     if (state.parts[i].type === kind) existing.push(i);
   }
 
-  const offset = existing.length - runs.length;
+  // Clamped at zero so a surplus of runs can only append, never rotate. With a
+  // negative offset the *last* run would land on the *first* existing part and
+  // the unmatched leading run would be pushed behind everything else, swapping
+  // a message into "B … A". Front-aligning instead keeps the parts we did
+  // stream where they are and appends the runs we never saw in block order.
+  const offset = Math.max(0, existing.length - runs.length);
   const targetByRun = runs.map((_, run) => {
     const idx = run + offset;
-    return idx >= 0 ? existing[idx] : -1;
+    return idx < existing.length ? existing[idx] : -1;
   });
 
   return { runs, headByBlock, targetByRun };

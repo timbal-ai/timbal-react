@@ -285,6 +285,52 @@ describe("reducer — OUTPUT reconciliation across a tool loop", () => {
     expect((state.parts[2] as { text: string }).text).toBe("B!");
   });
 
+  it("appends a trailing run that never streamed instead of rotating the parts", () => {
+    // OUTPUT carries two text runs but only the leading one streamed (the
+    // trailing text arrived as an item type we dropped, or the provider never
+    // streamed it). End-aligning would map the *last* run onto the *first*
+    // existing part and append the first run after everything else, swapping
+    // the message into "B … A". Surplus runs are content we never saw, so the
+    // streamed parts stay put and the extra is appended in block order.
+    const state = run([
+      { type: "DELTA", item: { type: "text", text: "Calling out" } },
+      { type: "DELTA", item: { type: "tool_use", id: "t1", name: "q", input: {} } },
+      {
+        type: "OUTPUT",
+        path: "agent",
+        output: {
+          content: [
+            { type: "text", text: "Calling out." },
+            { type: "tool_use", id: "t1", name: "q", input: {} },
+            { type: "text", text: "All done." },
+          ],
+        },
+      },
+    ]);
+    expect(state.parts.map((p) => p.type)).toEqual(["text", "tool-call", "text"]);
+    expect((state.parts[0] as { text: string }).text).toBe("Calling out.");
+    expect((state.parts[2] as { text: string }).text).toBe("All done.");
+  });
+
+  it("keeps thinking ahead of text when only the text streamed", () => {
+    const state = run([
+      { type: "DELTA", item: { type: "text_delta", text_delta: "Answer" } },
+      {
+        type: "OUTPUT",
+        output: {
+          content: [
+            { type: "thinking", thinking: "reasoned" },
+            { type: "text", text: "Answer." },
+          ],
+        },
+      },
+    ]);
+    expect(state.parts).toEqual([
+      { type: "text", text: "Answer." },
+      { type: "thinking", text: "reasoned" },
+    ]);
+  });
+
   it("leaves text alone on nested OUTPUTs", () => {
     const state = run([
       { type: "DELTA", item: { type: "text", text: "streamed" } },
